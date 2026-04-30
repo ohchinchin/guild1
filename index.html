@@ -268,7 +268,8 @@
             charisma: { name: 'カリスマ', desc: '冒険者の忠誠度が自然回復しやすくなる。' },
             underworld: { name: '裏社会の顔', desc: '諜報や裏工作の成功率、および防諜能力が上昇する。' },
             business: { name: '商才', desc: '酒場などの商業収入と内政収入が増加する。' },
-            leadership: { name: '統率力', desc: '部隊の総合戦力に強力なリーダーシップボーナスを与える。' }
+            leadership: { name: '統率力', desc: '部隊の総合戦力に強力なリーダーシップボーナスを与える。' },
+            recruitment: { name: 'スカウト術', desc: '能動的な「人材捜索」の成功率と、発見する冒険者の質が向上します。' }
         };
 
         const SAVE_KEY = 'guildMasterSaveData_final';
@@ -416,7 +417,7 @@
             alignment: { safety: 25, adventure: 25, military: 25, commerce: 25 },
             facilities: { residence: 1, tavern: 1, training: 1 },
             shops: { blacksmith: 0, magicShop: 0, itemShop: 0 },
-            masterSkills: { charisma: 0, underworld: 0, business: 0, leadership: 0 },
+            masterSkills: { charisma: 0, underworld: 0, business: 0, leadership: 0, recruitment: 0 },
             receptionist: { id: 'rookie', name: '新米のマリー', type: 'normal', desc: '一生懸命だが不器用。維持費が安く済む。', hireCost: 0, salary: 100 },
             availableReceptionists: [],
             usedRepNames: [],
@@ -660,6 +661,46 @@
                 } else {
                     addLog(`[警告] スキル解放の資金が不足しています。（必要: ${cost}G）`, "warning");
                 }
+            };
+
+            const searchAdventurer = () => {
+                const cost = 500;
+                if (gameState.budget < cost) return addLog(`[警告] 捜索資金が不足しています。（必要: ${cost}G）`, "warning");
+                if (gameState.adventurers.length >= gameState.facilities.residence * 5) return addLog("[警告] 居住区が満員です。これ以上人員を雇えません。", "warning");
+
+                setGameState(prev => {
+                    const next = { ...prev, budget: prev.budget - cost };
+                    const skillLv = prev.masterSkills.recruitment || 0;
+                    const successChance = 30 + (skillLv * 20);
+                    
+                    if (Math.random() * 100 < successChance) {
+                        // ランク決定
+                        let forcedRank = 'E';
+                        const r = Math.random() * 100;
+                        if (skillLv >= 3) {
+                            if (r < 15) forcedRank = 'S';
+                            else if (r < 50) forcedRank = 'A';
+                            else forcedRank = 'B';
+                        } else if (skillLv === 2) {
+                            if (r < 30) forcedRank = 'B';
+                            else forcedRank = 'C';
+                        } else if (skillLv === 1) {
+                            if (r < 40) forcedRank = 'C';
+                            else forcedRank = 'D';
+                        } else {
+                            if (r < 20) forcedRank = 'D';
+                            else forcedRank = 'E';
+                        }
+
+                        const newAdv = generateAdventurer(prev.fame, prev.notoriety, prev.usedNames, forcedRank, false);
+                        next.adventurers.push(newAdv);
+                        next.usedNames.push(newAdv.name);
+                        addLog(`[人材捜索] 街の噂や裏ルートを辿り、${newAdv.name} (ランク${newAdv.rank}) を見つけ出し、勧誘に成功しました！`, "success");
+                    } else {
+                        addLog(`[人材捜索] 懸命に捜索しましたが、今回は有能な人材を見つけることができませんでした...`, "warning");
+                    }
+                    return next;
+                });
             };
 
             const handleEquipArtifact = (advId, artifactId) => {
@@ -2161,9 +2202,17 @@
                                 <div className="flex-1 flex flex-col min-h-[300px]">
                                     <div className="flex justify-between items-center mb-3 shrink-0">
                                         <p className="text-sm font-bold text-stone-600">所属冒険者一覧</p>
-                                        <span className="text-xs font-bold text-stone-600 bg-[#E8E0D5] px-2 py-1 rounded-sm border border-[#D4C3A3]">
-                                            所属: {gameState.adventurers.length} / {gameState.facilities.residence * 5} 名
-                                        </span>
+                                        <div className="flex gap-2">
+                                            <button
+                                                onClick={searchAdventurer}
+                                                className="text-xs font-bold bg-amber-700 hover:bg-amber-600 text-white px-3 py-1.5 rounded-sm flex items-center gap-1.5 transition-all shadow-sm active:scale-95"
+                                            >
+                                                <Search className="w-3.5 h-3.5" /> 人材を捜索 (500G)
+                                            </button>
+                                            <span className="text-xs font-bold text-stone-600 bg-[#E8E0D5] px-2 py-1 rounded-sm border border-[#D4C3A3] flex items-center">
+                                                所属: {gameState.adventurers.length} / {gameState.facilities.residence * 5} 名
+                                            </span>
+                                        </div>
                                     </div>
                                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 overflow-y-auto pb-4 pr-1">
                                         {gameState.adventurers.map(adv => {
@@ -2584,7 +2633,7 @@
                             <div className="p-4 bg-stone-900 text-[#E8E0D5] flex justify-between items-center shrink-0">
                                 <h3 className="text-xl font-bold flex items-center gap-2"><BookOpen className="w-6 h-6 text-amber-400" /> 遊び方・指南書</h3>
                                 <button onClick={() => setShowHowToPlay(false)} className="text-stone-400 hover:text-white transition-colors">
-                                    <X className="w-6 h-6" />
+                                    <XIcon className="w-6 h-6" />
                                 </button>
                             </div>
                             <div className="p-6 overflow-y-auto flex-1 text-stone-800 space-y-6 text-sm leading-relaxed">
