@@ -494,6 +494,7 @@
             const [reqModalOpen, setReqModalOpen] = useState(false);
             const [reqParty, setReqParty] = useState([]);
             const [showHowToPlay, setShowHowToPlay] = useState(false);
+            const [actionModal, setActionModal] = useState(null);
 
             const logsEndRef = useRef(null);
 
@@ -639,13 +640,23 @@
 
             const hireReceptionist = (rep) => {
                 if (gameState.budget >= rep.hireCost) {
-                    setGameState(prev => ({
-                        ...prev,
-                        budget: prev.budget - rep.hireCost,
-                        receptionist: rep,
-                        availableReceptionists: prev.availableReceptionists.filter(r => r.id !== rep.id)
-                    }));
-                    addLog(`[人事] 新たな受付担当として ${rep.name} を雇用しました！`, "success");
+                    setActionModal({ type: 'hire_receptionist', phase: 'searching', message: '雇用条件を提示し、\n面接を行っている...' });
+                    
+                    setTimeout(() => {
+                        setGameState(prev => {
+                            addLog(`[人事] 新たな受付担当として ${rep.name} を雇用しました！`, "success");
+                            setTimeout(() => {
+                                setActionModal({ type: 'hire_receptionist', phase: 'result', message: `雇用完了！\n\n新受付担当：${rep.name}\nがギルドに加わった！` });
+                                setTimeout(() => setActionModal(null), 3000);
+                            }, 0);
+                            return {
+                                ...prev,
+                                budget: prev.budget - rep.hireCost,
+                                receptionist: rep,
+                                availableReceptionists: prev.availableReceptionists.filter(r => r.id !== rep.id)
+                            };
+                        });
+                    }, 1500);
                 } else {
                     addLog(`[警告] 雇用一時金が不足しています。（必要: ${rep.hireCost}G）`, "warning");
                 }
@@ -653,11 +664,21 @@
 
             const upgradeSkill = (skillId, cost) => {
                 if (gameState.budget >= cost) {
-                    setGameState(prev => ({
-                        ...prev, budget: prev.budget - cost,
-                        masterSkills: { ...prev.masterSkills, [skillId]: prev.masterSkills[skillId] + 1 }
-                    }));
-                    addLog(`[才能開花] 資金を投じてマスターの才能『${MASTER_SKILLS[skillId].name}』を強化しました！`, "success");
+                    setActionModal({ type: 'skill_upgrade', phase: 'searching', message: '精神を集中し、新たな才能を開花させている...' });
+
+                    setTimeout(() => {
+                        setGameState(prev => {
+                            addLog(`[才能開花] 資金を投じてマスターの才能『${MASTER_SKILLS[skillId].name}』を強化しました！`, "success");
+                            setTimeout(() => {
+                                setActionModal({ type: 'skill_upgrade', phase: 'result', message: `才能開花！\n\n『${MASTER_SKILLS[skillId].name}』のレベルが上がった！` });
+                                setTimeout(() => setActionModal(null), 3500);
+                            }, 0);
+                            return {
+                                ...prev, budget: prev.budget - cost,
+                                masterSkills: { ...prev.masterSkills, [skillId]: prev.masterSkills[skillId] + 1 }
+                            };
+                        });
+                    }, 1500);
                 } else {
                     addLog(`[警告] スキル解放の資金が不足しています。（必要: ${cost}G）`, "warning");
                 }
@@ -668,39 +689,55 @@
                 if (gameState.budget < cost) return addLog(`[警告] 捜索資金が不足しています。（必要: ${cost}G）`, "warning");
                 if (gameState.adventurers.length >= gameState.facilities.residence * 5) return addLog("[警告] 居住区が満員です。これ以上人員を雇えません。", "warning");
 
-                setGameState(prev => {
-                    const next = { ...prev, budget: prev.budget - cost };
-                    const skillLv = prev.masterSkills.recruitment || 0;
-                    const successChance = 30 + (skillLv * 20);
-                    
-                    if (Math.random() * 100 < successChance) {
-                        // ランク決定
-                        let forcedRank = 'E';
-                        const r = Math.random() * 100;
-                        if (skillLv >= 3) {
-                            if (r < 15) forcedRank = 'S';
-                            else if (r < 50) forcedRank = 'A';
-                            else forcedRank = 'B';
-                        } else if (skillLv === 2) {
-                            if (r < 30) forcedRank = 'B';
-                            else forcedRank = 'C';
-                        } else if (skillLv === 1) {
-                            if (r < 40) forcedRank = 'C';
-                            else forcedRank = 'D';
-                        } else {
-                            if (r < 20) forcedRank = 'D';
-                            else forcedRank = 'E';
-                        }
+                setActionModal({ type: 'recruit_search', phase: 'searching', message: '街の酒場で情報を集めている...' });
 
-                        const newAdv = generateAdventurer(prev.fame, prev.notoriety, prev.usedNames, forcedRank, false);
-                        next.adventurers.push(newAdv);
-                        next.usedNames.push(newAdv.name);
-                        addLog(`[人材捜索] 街の噂や裏ルートを辿り、${newAdv.name} (ランク${newAdv.rank}) を見つけ出し、勧誘に成功しました！`, "success");
-                    } else {
-                        addLog(`[人材捜索] 懸命に捜索しましたが、今回は有能な人材を見つけることができませんでした...`, "warning");
-                    }
-                    return next;
-                });
+                setTimeout(() => {
+                    setGameState(prev => {
+                        const next = { ...prev, budget: prev.budget - cost };
+                        const skillLv = prev.masterSkills.recruitment || 0;
+                        const successChance = 30 + (skillLv * 20);
+                        
+                        if (Math.random() * 100 < successChance) {
+                            // ランク決定
+                            let forcedRank = 'E';
+                            const r = Math.random() * 100;
+                            if (skillLv >= 3) {
+                                if (r < 15) forcedRank = 'S';
+                                else if (r < 50) forcedRank = 'A';
+                                else forcedRank = 'B';
+                            } else if (skillLv === 2) {
+                                if (r < 30) forcedRank = 'B';
+                                else forcedRank = 'C';
+                            } else if (skillLv === 1) {
+                                if (r < 40) forcedRank = 'C';
+                                else forcedRank = 'D';
+                            } else {
+                                if (r < 20) forcedRank = 'D';
+                                else forcedRank = 'E';
+                            }
+
+                            const newAdv = generateAdventurer(prev.fame, prev.notoriety, prev.usedNames, forcedRank, false);
+                            next.adventurers.push(newAdv);
+                            next.usedNames.push(newAdv.name);
+                            addLog(`[人材捜索] 街の噂や裏ルートを辿り、${newAdv.name} (ランク${newAdv.rank}) を見つけ出し、勧誘に成功しました！`, "success");
+                            
+                            setTimeout(() => {
+                                setActionModal({ 
+                                    type: 'recruit_found', phase: 'result', 
+                                    message: `新たな冒険者を発見した！\n\n名前: ${newAdv.name}\nランク: ${newAdv.rank}\nクラス: ${newAdv.advClass.name}`
+                                });
+                                setTimeout(() => setActionModal(null), 3500);
+                            }, 0);
+                        } else {
+                            addLog(`[人材捜索] 懸命に捜索しましたが、今回は有能な人材を見つけることができませんでした...`, "warning");
+                            setTimeout(() => {
+                                setActionModal({ type: 'recruit_failed', phase: 'result', message: '懸命に捜索したが、\n有望な人材は見つからなかった...' });
+                                setTimeout(() => setActionModal(null), 3500);
+                            }, 0);
+                        }
+                        return next;
+                    });
+                }, 2000);
             };
 
             const handleEquipArtifact = (advId, artifactId) => {
@@ -747,33 +784,48 @@
                 if (reqParty.length === 0) return;
 
                 const req = gameState.specialRequest;
-                const { total: power } = calculatePartyPower(reqParty, gameState);
-                const winRate = Math.min(95, Math.floor((power / req.powerReq) * 80));
-                const isSuccess = Math.random() * 100 < winRate;
-
-                setGameState(prev => {
-                    let next = { ...prev };
-                    if (isSuccess) {
-                        next.budget += req.reward;
-                        if (req.fameBonus) next.fame += req.fameBonus;
-                        if (req.notorietyBonus) next.notoriety += req.notorietyBonus;
-                        addLog(`[指名依頼] 『${req.name}』の任務に見事成功！報酬 ${req.reward}Gを獲得！`, "success");
-                    } else {
-                        if (req.fameBonus) next.fame = Math.max(0, next.fame - req.fameBonus);
-                        addLog(`[指名依頼] 『${req.name}』の任務は失敗に終わりました...名声が低下しました。`, "danger");
-
-                        if (reqParty.length > 0) {
-                            let victimId = reqParty[Math.floor(Math.random() * reqParty.length)];
-                            let victim = next.adventurers.find(a => a.id === victimId);
-                            victim.power = Math.max(1, Math.floor(victim.power * 0.8));
-                            victim.loyalty -= 15;
-                            addLog(`[負傷] ${victim.name} が特別任務中に深手を負いました。`, "warning");
-                        }
-                    }
-                    next.specialRequest = null;
-                    return next;
-                });
                 setReqModalOpen(false);
+                setActionModal({ type: 'action_quest', phase: 'searching', message: `精鋭部隊を編成し、\n『${req.name}』の任務へ出撃している...` });
+
+                setTimeout(() => {
+                    setGameState(prev => {
+                        const { total: power } = calculatePartyPower(reqParty, prev);
+                        const winRate = Math.min(95, Math.floor((power / req.powerReq) * 80));
+                        const isSuccess = Math.random() * 100 < winRate;
+                        
+                        let next = { ...prev };
+                        if (isSuccess) {
+                            next.budget += req.reward;
+                            if (req.fameBonus) next.fame += req.fameBonus;
+                            if (req.notorietyBonus) next.notoriety += req.notorietyBonus;
+                            addLog(`[指名依頼] 『${req.name}』の任務に見事成功！報酬 ${req.reward}Gを獲得！`, "success");
+                            setTimeout(() => {
+                                setActionModal({ type: 'action_quest', phase: 'result', message: `任務成功！\n\n見事な戦いぶりで依頼を完遂し、\n報酬 ${req.reward}G を獲得した！` });
+                                setTimeout(() => setActionModal(null), 3500);
+                            }, 0);
+                        } else {
+                            if (req.fameBonus) next.fame = Math.max(0, next.fame - req.fameBonus);
+                            addLog(`[指名依頼] 『${req.name}』の任務は失敗に終わりました...名声が低下しました。`, "danger");
+                            
+                            let victimMsg = "";
+                            if (reqParty.length > 0) {
+                                let victimId = reqParty[Math.floor(Math.random() * reqParty.length)];
+                                let victim = next.adventurers.find(a => a.id === victimId);
+                                victim.power = Math.max(1, Math.floor(victim.power * 0.8));
+                                victim.loyalty -= 15;
+                                addLog(`[負傷] ${victim.name} が特別任務中に深手を負いました。`, "warning");
+                                victimMsg = `\n\n激しい戦闘の末、\n${victim.name} が深手を負ってしまった...`;
+                            }
+                            
+                            setTimeout(() => {
+                                setActionModal({ type: 'action_quest', phase: 'result', message: `任務失敗...\n\n依頼は達成できず、\nギルドの名声に傷がついた。${victimMsg}` });
+                                setTimeout(() => setActionModal(null), 4000);
+                            }, 0);
+                        }
+                        next.specialRequest = null;
+                        return next;
+                    });
+                }, 2000);
             };
 
             const declineSpecialRequest = () => {
@@ -839,11 +891,22 @@
                 const cost = 1000 + (gameState.facilities[facility] * 500);
                 if (gameState.facilities[facility] >= FACILITY_MAX) return addLog(`[警告] ${facility === 'residence' ? '居住区' : facility === 'tavern' ? '酒場' : '訓練場'}は既に最大レベルです。`, "warning");
                 if (gameState.budget >= cost) {
-                    setGameState(prev => ({
-                        ...prev, budget: prev.budget - cost,
-                        facilities: { ...prev.facilities, [facility]: prev.facilities[facility] + 1 }
-                    }));
-                    addLog(`[増築] 資金を投じ、${facility === 'residence' ? '居住区' : facility === 'tavern' ? '酒場' : '訓練場'}を拡張しました。（Lv${gameState.facilities[facility] + 1}）`, "success");
+                    setActionModal({ type: 'invest_facility', phase: 'searching', message: '資材を集め、職人を雇い\n改築工事を進めている...' });
+                    
+                    setTimeout(() => {
+                        setGameState(prev => {
+                            const facName = facility === 'residence' ? '居住区' : facility === 'tavern' ? '酒場' : '訓練場';
+                            addLog(`[増築] 資金を投じ、${facName}を拡張しました。（Lv${prev.facilities[facility] + 1}）`, "success");
+                            setTimeout(() => {
+                                setActionModal({ type: 'invest_facility', phase: 'result', message: `工事完了！\n\n${facName} のレベルが上がった！` });
+                                setTimeout(() => setActionModal(null), 2500);
+                            }, 0);
+                            return {
+                                ...prev, budget: prev.budget - cost,
+                                facilities: { ...prev.facilities, [facility]: prev.facilities[facility] + 1 }
+                            };
+                        });
+                    }, 2000);
                 } else addLog(`[警告] 金庫の資金が不足しています。（必要: ${cost}G）`, "warning");
             };
 
@@ -851,11 +914,22 @@
                 const cost = 1000;
                 if (gameState.budget >= cost) {
                     if (gameState.shops[shop] >= 5) return addLog("[警告] その店舗との提携レベルは既に最大です。", "warning");
-                    setGameState(prev => ({
-                        ...prev, budget: prev.budget - cost,
-                        shops: { ...prev.shops, [shop]: prev.shops[shop] + 1 }
-                    }));
-                    addLog(`[提携] 資金を融資し、街の${shop === 'blacksmith' ? '鍛冶屋' : shop === 'magicShop' ? '魔法屋' : '道具屋'}とのパイプを強化しました。`, "success");
+                    setActionModal({ type: 'invest_shop', phase: 'searching', message: '資金を提示し、\n店主と交渉を行っている...' });
+                    
+                    setTimeout(() => {
+                        setGameState(prev => {
+                            const shopName = shop === 'blacksmith' ? '鍛冶屋' : shop === 'magicShop' ? '魔法屋' : '道具屋';
+                            addLog(`[提携] 資金を融資し、街の${shopName}とのパイプを強化しました。`, "success");
+                            setTimeout(() => {
+                                setActionModal({ type: 'invest_shop', phase: 'result', message: `交渉成立！\n\n${shopName} との提携レベルが上がった！` });
+                                setTimeout(() => setActionModal(null), 2500);
+                            }, 0);
+                            return {
+                                ...prev, budget: prev.budget - cost,
+                                shops: { ...prev.shops, [shop]: prev.shops[shop] + 1 }
+                            };
+                        });
+                    }, 1500);
                 } else addLog(`[警告] 資金が不足しています。（必要: ${cost}G）`, "warning");
             };
 
@@ -877,55 +951,85 @@
             const sabotageRival = (rivalId) => {
                 const cost = 500;
                 if (gameState.budget >= cost) {
-                    setGameState(prev => {
-                        const next = { ...prev, budget: prev.budget - cost, notoriety: prev.notoriety + 3 };
-                        const targetRival = prev.rivals.find(r => r.id === rivalId);
-                        const chance = getIntrigueChance(70);
-                        const enemyDef = Math.min(50, Math.floor(targetRival.power / 100) + Math.floor(targetRival.relation / 4));
-                        const finalChance = Math.max(10, chance - enemyDef);
+                    const targetName = gameState.rivals.find(r => r.id === rivalId)?.name;
+                    setActionModal({ type: 'action_sabotage', phase: 'searching', message: `工作員を放ち、\n『${targetName}』の拠点に潜入中...` });
 
-                        next.rivals = next.rivals.map(r => {
-                            if (r.id === rivalId) {
-                                if (Math.random() * 100 < finalChance) {
-                                    const dmg = Math.floor(Math.random() * 50) + 50;
-                                    addLog(`[工作成功] 『${r.name}』の物資破壊に成功！戦力を ${dmg} 削ぎ落としました。`, "info");
-                                    return { ...r, power: Math.max(0, r.power - dmg), relation: Math.max(0, r.relation - 5) };
-                                } else {
-                                    addLog(`[工作失敗] 工作員が捕縛され、『${r.name}』への妨害が露見！関係が極度に悪化しました。`, "danger");
-                                    return { ...r, relation: Math.max(0, r.relation - 25) };
+                    setTimeout(() => {
+                        setGameState(prev => {
+                            const next = { ...prev, budget: prev.budget - cost, notoriety: prev.notoriety + 3 };
+                            const targetRival = prev.rivals.find(r => r.id === rivalId);
+                            const chance = getIntrigueChance(70);
+                            const enemyDef = Math.min(50, Math.floor(targetRival.power / 100) + Math.floor(targetRival.relation / 4));
+                            const finalChance = Math.max(10, chance - enemyDef);
+
+                            let isSuccess = Math.random() * 100 < finalChance;
+
+                            next.rivals = next.rivals.map(r => {
+                                if (r.id === rivalId) {
+                                    if (isSuccess) {
+                                        const dmg = Math.floor(Math.random() * 50) + 50;
+                                        addLog(`[工作成功] 『${r.name}』の物資破壊に成功！戦力を ${dmg} 削ぎ落としました。`, "info");
+                                        setTimeout(() => {
+                                            setActionModal({ type: 'action_sabotage', phase: 'result', message: `工作成功！\n\n『${r.name}』の物資に火を放ち、\n戦力を ${dmg} 削ぎ落とした！` });
+                                            setTimeout(() => setActionModal(null), 3500);
+                                        }, 0);
+                                        return { ...r, power: Math.max(0, r.power - dmg), relation: Math.max(0, r.relation - 5) };
+                                    } else {
+                                        addLog(`[工作失敗] 工作員が捕縛され、『${r.name}』への妨害が露見！関係が極度に悪化しました。`, "danger");
+                                        setTimeout(() => {
+                                            setActionModal({ type: 'action_sabotage', phase: 'result', message: `工作失敗...\n\n工作員が捕縛され、\n『${r.name}』との関係が極度に悪化した！` });
+                                            setTimeout(() => setActionModal(null), 3500);
+                                        }, 0);
+                                        return { ...r, relation: Math.max(0, r.relation - 25) };
+                                    }
                                 }
-                            }
-                            return r;
+                                return r;
+                            });
+                            return next;
                         });
-                        return next;
-                    });
+                    }, 2000);
                 } else addLog(`[警告] 裏工作の資金が足りません。（必要: ${cost}G）`, "warning");
             };
 
             const gatherIntelligence = (rivalId) => {
                 const cost = 300;
                 if (gameState.budget >= cost) {
-                    setGameState(prev => {
-                        const next = { ...prev, budget: prev.budget - cost };
-                        const targetRival = prev.rivals.find(r => r.id === rivalId);
-                        const chance = getIntrigueChance(85);
-                        const enemyDef = Math.min(60, Math.floor(targetRival.power / 80) + Math.floor(targetRival.relation / 5));
-                        const finalChance = Math.max(20, chance - enemyDef);
+                    const targetName = gameState.rivals.find(r => r.id === rivalId)?.name;
+                    setActionModal({ type: 'action_intelligence', phase: 'searching', message: `密偵を放ち、\n『${targetName}』の内情を探っている...` });
 
-                        next.rivals = next.rivals.map(r => {
-                            if (r.id === rivalId) {
-                                if (Math.random() * 100 < finalChance) {
-                                    addLog(`[諜報成功] 密偵を放ち、『${r.name}』の所属メンバーを洗い出しました。`, "info");
-                                    return { ...r, isRevealed: true };
-                                } else {
-                                    addLog(`[諜報失敗] 密偵が相手の罠にかかり情報収集に失敗！相手を警戒させてしまいました。`, "danger");
-                                    return { ...r, relation: Math.max(0, r.relation - 15) };
+                    setTimeout(() => {
+                        setGameState(prev => {
+                            const next = { ...prev, budget: prev.budget - cost };
+                            const targetRival = prev.rivals.find(r => r.id === rivalId);
+                            const chance = getIntrigueChance(85);
+                            const enemyDef = Math.min(60, Math.floor(targetRival.power / 80) + Math.floor(targetRival.relation / 5));
+                            const finalChance = Math.max(20, chance - enemyDef);
+
+                            let isSuccess = Math.random() * 100 < finalChance;
+
+                            next.rivals = next.rivals.map(r => {
+                                if (r.id === rivalId) {
+                                    if (isSuccess) {
+                                        addLog(`[諜報成功] 密偵を放ち、『${r.name}』の所属メンバーを洗い出しました。`, "info");
+                                        setTimeout(() => {
+                                            setActionModal({ type: 'action_intelligence', phase: 'result', message: `諜報成功！\n\n『${r.name}』の所属メンバーの\n情報を手に入れた！` });
+                                            setTimeout(() => setActionModal(null), 3500);
+                                        }, 0);
+                                        return { ...r, isRevealed: true };
+                                    } else {
+                                        addLog(`[諜報失敗] 密偵が相手の罠にかかり情報収集に失敗！相手を警戒させてしまいました。`, "danger");
+                                        setTimeout(() => {
+                                            setActionModal({ type: 'action_intelligence', phase: 'result', message: `諜報失敗...\n\n密偵が相手の罠にかかり、\n警戒されてしまった！` });
+                                            setTimeout(() => setActionModal(null), 3500);
+                                        }, 0);
+                                        return { ...r, relation: Math.max(0, r.relation - 15) };
+                                    }
                                 }
-                            }
-                            return r;
+                                return r;
+                            });
+                            return next;
                         });
-                        return next;
-                    });
+                    }, 1500);
                 } else addLog(`[警告] 諜報資金が足りません。（必要: ${cost}G）`, "warning");
             };
 
@@ -935,66 +1039,93 @@
                 if (gameState.budget < cost) return addLog(`[警告] 引き抜き資金が足りません。（必要: ${cost}G）`, "warning");
                 if (gameState.adventurers.length >= gameState.facilities.residence * 5) return addLog("[警告] 居住区が満員で、これ以上人員を雇えません。", "warning");
 
-                setGameState(prev => {
-                    const targetRival = prev.rivals.find(r => r.id === rivalId);
-                    if (!targetRival || targetRival.members.length === 0) {
-                        addLog(`[警告] 『${targetRival.name}』には引き抜ける対象がいません。`, "warning");
-                        return prev;
-                    }
+                const targetName = gameState.rivals.find(r => r.id === rivalId)?.name;
+                setActionModal({ type: 'action_headhunt', phase: 'searching', message: `大金と裏社会のパイプを使い、\n『${targetName}』のメンバーに接触中...` });
 
-                    const next = { ...prev, budget: prev.budget - cost, notoriety: prev.notoriety + 8 };
-                    const chance = getIntrigueChance(50);
-                    const enemyDef = Math.min(40, Math.floor(targetRival.power / 100));
-                    const finalChance = Math.max(5, chance - enemyDef);
+                setTimeout(() => {
+                    setGameState(prev => {
+                        const targetRival = prev.rivals.find(r => r.id === rivalId);
+                        if (!targetRival || targetRival.members.length === 0) {
+                            addLog(`[警告] 『${targetRival.name}』には引き抜ける対象がいません。`, "warning");
+                            setTimeout(() => setActionModal(null), 0);
+                            return prev;
+                        }
 
-                    if (Math.random() * 100 < finalChance) {
-                        const stolenIdx = Math.floor(Math.random() * targetRival.members.length);
-                        const stolenAdv = targetRival.members[stolenIdx];
+                        const next = { ...prev, budget: prev.budget - cost, notoriety: prev.notoriety + 8 };
+                        const chance = getIntrigueChance(50);
+                        const enemyDef = Math.min(40, Math.floor(targetRival.power / 100));
+                        const finalChance = Math.max(5, chance - enemyDef);
 
-                        next.rivals = next.rivals.map(r => {
-                            if (r.id === rivalId) {
-                                const newMembers = [...r.members];
-                                newMembers.splice(stolenIdx, 1);
-                                return { ...r, power: Math.max(0, r.power - stolenAdv.power), members: newMembers, relation: Math.max(0, r.relation - 20) };
-                            }
-                            return r;
-                        });
+                        if (Math.random() * 100 < finalChance) {
+                            const stolenIdx = Math.floor(Math.random() * targetRival.members.length);
+                            const stolenAdv = targetRival.members[stolenIdx];
 
-                        stolenAdv.loyalty = 50;
-                        stolenAdv.history = [`第 ${Math.floor(prev.turn / 4) + 1} 暦: 大金で引き抜かれ、『${targetRival.name}』から当ギルドへ移籍した。`, ...stolenAdv.history];
-                        next.adventurers.push(stolenAdv);
+                            next.rivals = next.rivals.map(r => {
+                                if (r.id === rivalId) {
+                                    const newMembers = [...r.members];
+                                    newMembers.splice(stolenIdx, 1);
+                                    return { ...r, power: Math.max(0, r.power - stolenAdv.power), members: newMembers, relation: Math.max(0, r.relation - 20) };
+                                }
+                                return r;
+                            });
 
-                        addLog(`[引抜成功] 莫大な裏金を積み、『${targetRival.name}』から ${stolenAdv.name} (ランク${stolenAdv.rank}) を寝返らせることに成功しました！`, "success");
-                    } else {
-                        addLog(`[引抜失敗] 買収を持ちかけましたが拒絶されました！激怒した相手との関係が決定的に悪化しました。`, "danger");
-                        next.rivals = next.rivals.map(r => r.id === rivalId ? { ...r, relation: Math.max(0, r.relation - 40) } : r);
-                    }
-                    return next;
-                });
+                            stolenAdv.loyalty = 50;
+                            stolenAdv.history = [`第 ${Math.floor(prev.turn / 4) + 1} 暦: 大金で引き抜かれ、『${targetRival.name}』から当ギルドへ移籍した。`, ...stolenAdv.history];
+                            next.adventurers.push(stolenAdv);
+
+                            addLog(`[引抜成功] 莫大な裏金を積み、『${targetRival.name}』から ${stolenAdv.name} (ランク${stolenAdv.rank}) を寝返らせることに成功しました！`, "success");
+                            setTimeout(() => {
+                                setActionModal({ type: 'action_headhunt', phase: 'result', message: `引き抜き成功！\n\n大金に目が眩んだ ${stolenAdv.name} が\n当ギルドに寝返った！` });
+                                setTimeout(() => setActionModal(null), 3500);
+                            }, 0);
+                        } else {
+                            addLog(`[引抜失敗] 買収を持ちかけましたが拒絶されました！激怒した相手との関係が決定的に悪化しました。`, "danger");
+                            next.rivals = next.rivals.map(r => r.id === rivalId ? { ...r, relation: Math.max(0, r.relation - 40) } : r);
+                            setTimeout(() => {
+                                setActionModal({ type: 'action_headhunt', phase: 'result', message: `引き抜き失敗...\n\n買収は拒絶され、\n相手との関係が決定的に悪化した！` });
+                                setTimeout(() => setActionModal(null), 3500);
+                            }, 0);
+                        }
+                        return next;
+                    });
+                }, 2000);
             };
 
             const requestAlliance = (rivalId) => {
                 const cost = 1000;
                 if (gameState.budget < cost) return addLog(`[警告] 交渉資金が不足しています。（必要: ${cost}G）`, "warning");
 
-                setGameState(prev => {
-                    const next = { ...prev, budget: prev.budget - cost };
-                    const rival = next.rivals.find(r => r.id === rivalId);
+                const targetName = gameState.rivals.find(r => r.id === rivalId)?.name;
+                setActionModal({ type: 'action_alliance', phase: 'searching', message: `使者を送り、\n『${targetName}』に共闘の盟約を申し入れている...` });
 
-                    const successProb = 0.2 + (next.fame / 300) + (rival.relation / 150);
-                    const isSuccess = Math.random() < successProb;
+                setTimeout(() => {
+                    setGameState(prev => {
+                        const next = { ...prev, budget: prev.budget - cost };
+                        const rival = next.rivals.find(r => r.id === rivalId);
 
-                    if (isSuccess) {
-                        next.allianceRequests = { ...next.allianceRequests, [rivalId]: 'accepted' };
-                        next.rivals = next.rivals.map(r => r.id === rivalId ? { ...r, relation: Math.min(100, r.relation + 20) } : r);
-                        addLog(`[同盟成立] ${rival.name} が共闘の要請に応じました！彼らの戦力が加算されます。`, "success");
-                    } else {
-                        next.allianceRequests = { ...next.allianceRequests, [rivalId]: 'rejected' };
-                        next.rivals = next.rivals.map(r => r.id === rivalId ? { ...r, relation: Math.max(0, r.relation - 10) } : r);
-                        addLog(`[同盟拒否] ${rival.name} に要請をすげなく断られました。交渉決裂で関係が少し悪化しました...`, "danger");
-                    }
-                    return next;
-                });
+                        const successProb = 0.2 + (next.fame / 300) + (rival.relation / 150);
+                        const isSuccess = Math.random() < successProb;
+
+                        if (isSuccess) {
+                            next.allianceRequests = { ...next.allianceRequests, [rivalId]: 'accepted' };
+                            next.rivals = next.rivals.map(r => r.id === rivalId ? { ...r, relation: Math.min(100, r.relation + 20) } : r);
+                            addLog(`[同盟成立] ${rival.name} が共闘の要請に応じました！彼らの戦力が加算されます。`, "success");
+                            setTimeout(() => {
+                                setActionModal({ type: 'action_alliance', phase: 'result', message: `同盟成立！\n\n『${rival.name}』が共闘の要請に応じ、\n彼らの戦力が加算される！` });
+                                setTimeout(() => setActionModal(null), 3500);
+                            }, 0);
+                        } else {
+                            next.allianceRequests = { ...next.allianceRequests, [rivalId]: 'rejected' };
+                            next.rivals = next.rivals.map(r => r.id === rivalId ? { ...r, relation: Math.max(0, r.relation - 10) } : r);
+                            addLog(`[同盟拒否] ${rival.name} に要請をすげなく断られました。交渉決裂で関係が少し悪化しました...`, "danger");
+                            setTimeout(() => {
+                                setActionModal({ type: 'action_alliance', phase: 'result', message: `同盟拒否...\n\n要請はすげなく断られ、\n交渉は決裂した。` });
+                                setTimeout(() => setActionModal(null), 3500);
+                            }, 0);
+                        }
+                        return next;
+                    });
+                }, 2000);
             };
 
             const processTurn = () => {
@@ -2668,6 +2799,47 @@
                 );
             };
 
+            const renderActionModal = () => {
+                if (!actionModal) return null;
+
+                let imgPath = '';
+                if (actionModal.type === 'recruit_search') imgPath = 'assets/images/recruit_search.png';
+                else if (actionModal.type === 'recruit_found') imgPath = 'assets/images/recruit_found.png';
+                else if (actionModal.type === 'recruit_failed') imgPath = 'assets/images/recruit_failed.png';
+                else if (actionModal.type === 'skill_upgrade') imgPath = 'assets/images/skill_upgrade.png';
+                else if (actionModal.type === 'hire_receptionist') imgPath = 'assets/images/hire_receptionist.png';
+                else if (actionModal.type === 'invest_facility') imgPath = 'assets/images/invest_facility.png';
+                else if (actionModal.type === 'invest_shop') imgPath = 'assets/images/invest_shop.png';
+                else if (actionModal.type === 'action_sabotage') imgPath = 'assets/images/action_sabotage.png';
+                else if (actionModal.type === 'action_intelligence') imgPath = 'assets/images/action_intelligence.png';
+                else if (actionModal.type === 'action_headhunt') imgPath = 'assets/images/action_headhunt.png';
+                else if (actionModal.type === 'action_alliance') imgPath = 'assets/images/action_alliance.png';
+                else if (actionModal.type === 'action_quest') imgPath = 'assets/images/action_quest.png';
+
+                return (
+                    <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[80] p-4 font-serif backdrop-blur-md animate-in fade-in duration-300">
+                        <div className="bg-stone-900 border border-stone-700 rounded-sm shadow-2xl max-w-md w-full overflow-hidden">
+                            {imgPath && (
+                                <div className="w-full h-64 overflow-hidden relative">
+                                    <div className="absolute inset-0 bg-gradient-to-t from-stone-900 via-transparent to-transparent z-10"></div>
+                                    <img src={imgPath} className={`w-full h-full object-cover ${actionModal.phase === 'searching' ? 'animate-pulse scale-105' : 'scale-100'} transition-transform duration-1000`} alt="" />
+                                </div>
+                            )}
+                            <div className="p-8 text-center bg-stone-900 relative z-20">
+                                <p className="text-lg font-bold text-[#E8E0D5] leading-relaxed whitespace-pre-wrap">{actionModal.message}</p>
+                                {actionModal.phase === 'searching' && (
+                                    <div className="mt-6 flex justify-center gap-2">
+                                        <div className="w-2 h-2 bg-amber-500 rounded-full animate-bounce" style={{animationDelay: '0ms'}}></div>
+                                        <div className="w-2 h-2 bg-amber-500 rounded-full animate-bounce" style={{animationDelay: '150ms'}}></div>
+                                        <div className="w-2 h-2 bg-amber-500 rounded-full animate-bounce" style={{animationDelay: '300ms'}}></div>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                );
+            };
+
             const bgMap = {
                 home: 'assets/images/title_bg.png',
                 roster: 'assets/images/bg_barracks.png',
@@ -2816,6 +2988,7 @@
                     )}
 
                     {/* モーダル群 */}
+                    {renderActionModal()}
                     {renderQuarterResult()}
                     {renderAdventurerModal()}
                     {renderSpecialRequestModal()}
