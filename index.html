@@ -710,6 +710,18 @@
             const [isMuted, setIsMuted] = useState(true); // ブラウザポリシーのため初期はミュート推奨
 
 
+            const toggleMute = () => {
+                const nextMute = !isMuted;
+                setIsMuted(nextMute);
+                GeminiAudio.setMute(nextMute);
+                // ミュート解除時に初期化されていなければ初期化して再生開始
+                if (!nextMute && !GeminiAudio.isInitialized) {
+                    GeminiAudio.init();
+                    GeminiAudio.playBGM(gameState.activeBoss ? 'boss' : 'home');
+                }
+            };
+
+
             const logsEndRef = useRef(null);
 
             // ③ タイプライター演出コンポーネント
