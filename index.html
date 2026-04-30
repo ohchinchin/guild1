@@ -343,8 +343,18 @@
             if (forcedRank) rankIdx = RANKS.indexOf(forcedRank);
 
             const rank = RANKS[rankIdx];
-            let basePower = (rankIdx + 1) * 15 + Math.floor(Math.random() * 10);
-            let salary = (rankIdx + 1) * 60;
+            
+            const RANK_STATS = [
+                { powerBase: 15, powerVar: 10, salary: 50 },     // E
+                { powerBase: 40, powerVar: 20, salary: 120 },    // D
+                { powerBase: 100, powerVar: 50, salary: 300 },   // C
+                { powerBase: 300, powerVar: 150, salary: 800 },  // B
+                { powerBase: 800, powerVar: 400, salary: 2000 }, // A
+                { powerBase: 1500, powerVar: 1000, salary: 6000 }// S
+            ];
+            
+            let basePower = RANK_STATS[rankIdx].powerBase + Math.floor(Math.random() * RANK_STATS[rankIdx].powerVar);
+            let salary = RANK_STATS[rankIdx].salary;
 
             const advClass = CLASSES[Math.floor(Math.random() * CLASSES.length)];
 
@@ -380,32 +390,36 @@
 
         const generateRivals = (usedNames) => {
             const rivals = [];
-            const styles = ['military', 'safety', 'commerce'];
+            
+            const RIVAL_ARCHETYPES = [
+                { id: 'giant', style: 'military', namePrefix: '黄金の', nameSuffix: '獅子団', relation: 30, rankPool: ['A', 'B', 'B', 'C', 'C'] },
+                { id: 'cunning', style: 'commerce', namePrefix: '漆黒の', nameSuffix: '梟', relation: 40, rankPool: ['C', 'C', 'D', 'D', 'E'] },
+                { id: 'local', style: 'safety', namePrefix: '暁の', nameSuffix: '盾', relation: 60, rankPool: ['D', 'E', 'E'] }
+            ];
 
-            for (let i = 0; i < 3; i++) {
-                const adj = RIVAL_ADJS[Math.floor(Math.random() * RIVAL_ADJS.length)];
-                const noun = RIVAL_NOUNS[Math.floor(Math.random() * RIVAL_NOUNS.length)];
-                const style = styles[i % styles.length];
-
-                const memberCount = Math.floor(Math.random() * 3) + 3;
+            RIVAL_ARCHETYPES.forEach(archetype => {
+                const memberCount = archetype.rankPool.length;
                 const members = [];
                 for (let j = 0; j < memberCount; j++) {
-                    const adv = generateAdventurer(40, 40, usedNames, null, false);
+                    const forcedRank = archetype.rankPool[j];
+                    const adv = generateAdventurer(0, 0, usedNames, forcedRank, false);
                     members.push(adv);
                     usedNames.push(adv.name);
                 }
-                const basePower = members.reduce((sum, m) => sum + m.power, 0) + Math.floor(Math.random() * 100) + 50;
+                const basePower = members.reduce((sum, m) => sum + m.power, 0) + (archetype.id === 'giant' ? 1000 : 0);
 
                 rivals.push({
                     id: `rival_${Math.random().toString(36).substr(2, 9)}`,
-                    name: `${adj}${noun}`,
-                    style,
+                    name: `${archetype.namePrefix}${archetype.nameSuffix}`,
+                    type: archetype.id,
+                    style: archetype.style,
                     power: basePower,
                     members,
-                    relation: 50,
+                    relation: archetype.relation,
                     isRevealed: false
                 });
-            }
+            });
+
             return rivals;
         };
 
@@ -1223,6 +1237,34 @@
 
                 const rivalGrowth = Math.floor(20 + nextState.turn * 1.5);
                 nextState.rivals = nextState.rivals.map(r => ({ ...r, power: r.power + Math.floor(Math.random() * rivalGrowth) + Math.floor(rivalGrowth / 2) }));
+
+                // ライバル同士の抗争
+                if (nextState.rivals.length >= 2 && Math.random() < 0.4) {
+                    let r1 = nextState.rivals[Math.floor(Math.random() * nextState.rivals.length)];
+                    let others = nextState.rivals.filter(r => r.id !== r1.id);
+                    let r2 = others[Math.floor(Math.random() * others.length)];
+                    
+                    if (r1.type === 'cunning' && Math.random() < 0.7) {
+                        const dmg = Math.floor(r2.power * 0.15);
+                        r2.power = Math.max(0, r2.power - dmg);
+                        r1.power += Math.floor(dmg * 0.5);
+                        summaryItems.push({ type: 'warning', text: `【噂】暗躍する『${r1.name}』が『${r2.name}』の拠点を襲撃し、物資を強奪したらしい…（${r2.name}の戦力が低下）` });
+                    } else if (r1.type === 'giant' && Math.random() < 0.6) {
+                        const dmg = Math.floor(r2.power * 0.2);
+                        r2.power = Math.max(0, r2.power - dmg);
+                        summaryItems.push({ type: 'event', text: `【噂】大手ギルド『${r1.name}』が『${r2.name}』を武力で圧倒し、縄張りを奪ったようだ…（${r2.name}の戦力が低下）` });
+                    } else if (Math.random() < 0.3) {
+                        if (r2.members.length > 0) {
+                            let stolenIdx = Math.floor(Math.random() * r2.members.length);
+                            let stolen = r2.members[stolenIdx];
+                            r2.members.splice(stolenIdx, 1);
+                            r2.power = Math.max(0, r2.power - stolen.power);
+                            r1.members.push(stolen);
+                            r1.power += stolen.power;
+                            summaryItems.push({ type: 'info', text: `【噂】『${r1.name}』が『${r2.name}』から有能な冒険者を引き抜いたらしい。` });
+                        }
+                    }
+                }
 
                 let retiredAdvs = [];
                 nextState.adventurers.forEach(a => {
