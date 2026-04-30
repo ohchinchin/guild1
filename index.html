@@ -127,6 +127,88 @@
             object-fit: cover;
             border-radius: 4px;
         }
+
+        /* ② ガチャ演出: 紙吹雪パーティクル */
+        .confetti-container {
+            position: absolute;
+            inset: 0;
+            overflow: hidden;
+            pointer-events: none;
+            z-index: 30;
+        }
+        .confetti-piece {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            top: -20px;
+            animation: confettiFall var(--duration, 3s) linear forwards;
+            opacity: 0;
+        }
+        @keyframes confettiFall {
+            0%   { transform: translateY(0) rotate(0deg); opacity: 1; }
+            100% { transform: translateY(600px) rotate(720deg); opacity: 0; }
+        }
+
+        /* ② ガチャ演出: 黄金グロー（S/Aランク） */
+        .gacha-glow-s {
+            box-shadow: 0 0 30px rgba(255, 200, 50, 0.7), 0 0 60px rgba(255, 180, 30, 0.4), inset 0 0 20px rgba(255, 200, 50, 0.15);
+            border-color: #fbbf24 !important;
+            animation: goldenPulse 1.5s ease-in-out infinite;
+        }
+        .gacha-glow-a {
+            box-shadow: 0 0 20px rgba(168, 130, 255, 0.6), 0 0 40px rgba(168, 130, 255, 0.3), inset 0 0 15px rgba(168, 130, 255, 0.1);
+            border-color: #a78bfa !important;
+            animation: purplePulse 1.5s ease-in-out infinite;
+        }
+        @keyframes goldenPulse {
+            0%, 100% { box-shadow: 0 0 30px rgba(255, 200, 50, 0.7), 0 0 60px rgba(255, 180, 30, 0.4); }
+            50%      { box-shadow: 0 0 50px rgba(255, 200, 50, 0.9), 0 0 90px rgba(255, 180, 30, 0.6); }
+        }
+        @keyframes purplePulse {
+            0%, 100% { box-shadow: 0 0 20px rgba(168, 130, 255, 0.6), 0 0 40px rgba(168, 130, 255, 0.3); }
+            50%      { box-shadow: 0 0 40px rgba(168, 130, 255, 0.8), 0 0 70px rgba(168, 130, 255, 0.5); }
+        }
+
+        /* ② ガチャ演出: ランクテキストの輝き */
+        .rank-text-s {
+            color: #fbbf24;
+            text-shadow: 0 0 20px rgba(255, 200, 50, 0.8), 0 0 40px rgba(255, 180, 30, 0.5);
+            font-size: 2rem;
+        }
+        .rank-text-a {
+            color: #a78bfa;
+            text-shadow: 0 0 15px rgba(168, 130, 255, 0.7), 0 0 30px rgba(168, 130, 255, 0.4);
+            font-size: 1.5rem;
+        }
+
+        /* ② ガチャ演出: 光の筋エフェクト */
+        .light-burst {
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(ellipse at center, rgba(255,220,100,0.3) 0%, transparent 70%);
+            animation: burstPulse 2s ease-in-out infinite;
+            pointer-events: none;
+            z-index: 5;
+        }
+        @keyframes burstPulse {
+            0%, 100% { opacity: 0.5; transform: scale(1); }
+            50%      { opacity: 1; transform: scale(1.1); }
+        }
+
+        /* ③ タイプライター演出: カーソル点滅 */
+        .typewriter-cursor {
+            display: inline-block;
+            width: 2px;
+            height: 1.2em;
+            background-color: #D4C3A3;
+            margin-left: 2px;
+            vertical-align: text-bottom;
+            animation: cursorBlink 0.8s step-end infinite;
+        }
+        @keyframes cursorBlink {
+            0%, 100% { opacity: 1; }
+            50%      { opacity: 0; }
+        }
     </style>
 </head>
 
@@ -512,6 +594,79 @@
 
             const logsEndRef = useRef(null);
 
+            // ③ タイプライター演出コンポーネント
+            const TypewriterText = ({ text, speed = 40, className = '', onComplete }) => {
+                const [displayed, setDisplayed] = useState('');
+                const [done, setDone] = useState(false);
+                const indexRef = useRef(0);
+
+                useEffect(() => {
+                    setDisplayed('');
+                    setDone(false);
+                    indexRef.current = 0;
+                    const timer = setInterval(() => {
+                        indexRef.current++;
+                        if (indexRef.current >= text.length) {
+                            setDisplayed(text);
+                            setDone(true);
+                            clearInterval(timer);
+                            if (onComplete) onComplete();
+                        } else {
+                            setDisplayed(text.slice(0, indexRef.current));
+                        }
+                    }, speed);
+                    return () => clearInterval(timer);
+                }, [text]);
+
+                return (
+                    <span className={className}>
+                        {displayed}
+                        {!done && <span className="typewriter-cursor"></span>}
+                    </span>
+                );
+            };
+
+            // ② 紙吹雪コンポーネント
+            const ConfettiEffect = ({ rank }) => {
+                const pieces = useRef([]);
+                if (pieces.current.length === 0) {
+                    const colors = rank === 'S'
+                        ? ['#fbbf24', '#f59e0b', '#fcd34d', '#fff7ed', '#fef3c7', '#d97706']
+                        : ['#a78bfa', '#8b5cf6', '#c4b5fd', '#e9d5ff', '#7c3aed', '#ddd6fe'];
+                    const count = rank === 'S' ? 50 : 30;
+                    for (let i = 0; i < count; i++) {
+                        pieces.current.push({
+                            id: i,
+                            left: Math.random() * 100,
+                            delay: Math.random() * 1.5,
+                            duration: 2 + Math.random() * 2,
+                            color: colors[Math.floor(Math.random() * colors.length)],
+                            size: 6 + Math.random() * 8,
+                            shape: Math.random() > 0.5 ? 'circle' : 'rect',
+                        });
+                    }
+                }
+                return (
+                    <div className="confetti-container">
+                        {pieces.current.map(p => (
+                            <div
+                                key={p.id}
+                                className="confetti-piece"
+                                style={{
+                                    left: `${p.left}%`,
+                                    animationDelay: `${p.delay}s`,
+                                    '--duration': `${p.duration}s`,
+                                    backgroundColor: p.color,
+                                    width: `${p.size}px`,
+                                    height: `${p.size}px`,
+                                    borderRadius: p.shape === 'circle' ? '50%' : '2px',
+                                }}
+                            />
+                        ))}
+                    </div>
+                );
+            };
+
             useEffect(() => {
                 const savedData = localStorage.getItem(SAVE_KEY);
                 if (savedData) {
@@ -738,9 +893,11 @@
                             setTimeout(() => {
                                 setActionModal({ 
                                     type: 'recruit_found', phase: 'result', 
-                                    message: `新たな冒険者を発見した！\n\n名前: ${newAdv.name}\nランク: ${newAdv.rank}\nクラス: ${newAdv.advClass.name}`
+                                    message: `新たな冒険者を発見した！\n\n名前: ${newAdv.name}\nランク: ${newAdv.rank}\nクラス: ${newAdv.advClass.name}`,
+                                    foundRank: newAdv.rank
                                 });
-                                setTimeout(() => setActionModal(null), 3500);
+                                const dismissTime = (newAdv.rank === 'S' || newAdv.rank === 'A') ? 5000 : 3500;
+                                setTimeout(() => setActionModal(null), dismissTime);
                             }, 0);
                         } else {
                             addLog(`[人材捜索] 懸命に捜索しましたが、今回は有能な人材を見つけることができませんでした...`, "warning");
@@ -1089,8 +1246,9 @@
 
                             addLog(`[引抜成功] 莫大な裏金を積み、『${targetRival.name}』から ${stolenAdv.name} (ランク${stolenAdv.rank}) を寝返らせることに成功しました！`, "success");
                             setTimeout(() => {
-                                setActionModal({ type: 'action_headhunt', phase: 'result', message: `引き抜き成功！\n\n大金に目が眩んだ ${stolenAdv.name} が\n当ギルドに寝返った！` });
-                                setTimeout(() => setActionModal(null), 3500);
+                                setActionModal({ type: 'action_headhunt', phase: 'result', message: `引き抜き成功！\n\n大金に目が眩んだ ${stolenAdv.name} が\n当ギルドに寝返った！`, foundRank: stolenAdv.rank });
+                                const dismissTime = (stolenAdv.rank === 'S' || stolenAdv.rank === 'A') ? 5000 : 3500;
+                                setTimeout(() => setActionModal(null), dismissTime);
                             }, 0);
                         } else {
                             addLog(`[引抜失敗] 買収を持ちかけましたが拒絶されました！激怒した相手との関係が決定的に悪化しました。`, "danger");
@@ -1763,8 +1921,13 @@
                                 return imgSrc ? <img src={imgSrc} className="ending-image mb-6" alt={title} /> : <Crown className={`w-24 h-24 mx-auto mb-6 ${colorClass}`} strokeWidth={1.5} />;
                             })()}
                             <h1 className={`text-4xl md:text-5xl font-bold mb-8 ${colorClass} tracking-widest text-readable-dark`}>{title}</h1>
-                            <p className="text-[#E8E0D5] text-lg leading-relaxed mb-10 text-justify">{desc}</p>
-                            <button onClick={resetGame} className="bg-[#D4C3A3] hover:bg-[#E8E0D5] text-stone-900 px-8 py-3 font-bold text-lg transition-colors border border-stone-600 shadow-[inset_0_0_10px_rgba(0,0,0,0.2)] uppercase tracking-wider">
+                            <p className="text-[#E8E0D5] text-lg leading-relaxed mb-10 text-justify"><TypewriterText text={desc} speed={30} onComplete={() => {
+                                setTimeout(() => {
+                                    const btn = document.getElementById('ending-restart-btn');
+                                    if (btn) btn.style.opacity = '1';
+                                }, 300);
+                            }} /></p>
+                            <button id="ending-restart-btn" onClick={resetGame} style={{ opacity: 0, transition: 'opacity 1s ease-in' }} className="bg-[#D4C3A3] hover:bg-[#E8E0D5] text-stone-900 px-8 py-3 font-bold text-lg transition-colors border border-stone-600 shadow-[inset_0_0_10px_rgba(0,0,0,0.2)] uppercase tracking-wider">
                                 新たな歴史を紡ぐ
                             </button>
                         </div>
@@ -2505,7 +2668,7 @@
                                     </div>
                                     <div className="p-6 relative z-10">
                                         <h3 className="text-2xl font-bold mb-2 flex items-center gap-2 text-readable-dark"><Skull className="w-8 h-8 text-rose-400" /> 厄災襲来: {gameState.activeBoss.name}</h3>
-                                        <p className="text-rose-200 mb-6 leading-relaxed text-readable-dark">{gameState.activeBoss.desc}</p>
+                                        <p className="text-rose-200 mb-6 leading-relaxed text-readable-dark"><TypewriterText text={gameState.activeBoss.desc} speed={35} /></p>
                                         <div className="grid grid-cols-2 gap-4">
                                             <div className="bg-rose-900/50 p-3 rounded border border-rose-800">
                                                 <div className="text-xs text-rose-300 mb-1">敵戦力 (脅威度)</div>
@@ -2858,9 +3021,19 @@
                 else if (actionModal.type === 'action_alliance') imgPath = 'assets/images/action_alliance.png';
                 else if (actionModal.type === 'action_quest') imgPath = 'assets/images/action_quest.png';
 
+                const isHighRank = actionModal.foundRank === 'S' || actionModal.foundRank === 'A';
+                const isS = actionModal.foundRank === 'S';
+                const isA = actionModal.foundRank === 'A';
+                const glowClass = isS ? 'gacha-glow-s' : isA ? 'gacha-glow-a' : '';
+
                 return (
                     <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[80] p-4 font-serif backdrop-blur-md animate-in fade-in duration-300">
-                        <div className="bg-stone-900 border border-stone-700 rounded-sm shadow-2xl max-w-md w-full overflow-hidden">
+                        <div className={`bg-stone-900 border-2 ${glowClass || 'border-stone-700'} rounded-sm shadow-2xl max-w-md w-full overflow-hidden relative`}>
+                            {/* ② 紙吹雪エフェクト（S/Aランク発見時のみ） */}
+                            {isHighRank && actionModal.phase === 'result' && <ConfettiEffect rank={actionModal.foundRank} />}
+                            {/* ② 放射光エフェクト（Sランク発見時のみ） */}
+                            {isS && actionModal.phase === 'result' && <div className="light-burst"></div>}
+
                             {imgPath && (
                                 <div className="w-full h-64 overflow-hidden relative">
                                     <div className="absolute inset-0 bg-gradient-to-t from-stone-900 via-transparent to-transparent z-10"></div>
@@ -2868,6 +3041,12 @@
                                 </div>
                             )}
                             <div className="p-8 text-center bg-stone-900 relative z-20">
+                                {/* ② ランク輝きテキスト（S/Aランク発見時） */}
+                                {isHighRank && actionModal.phase === 'result' && (
+                                    <div className={`mb-4 font-black tracking-widest ${isS ? 'rank-text-s' : 'rank-text-a'}`}>
+                                        ★ {isS ? 'S' : 'A'}-RANK ★
+                                    </div>
+                                )}
                                 <p className="text-lg font-bold text-[#E8E0D5] leading-relaxed whitespace-pre-wrap">{actionModal.message}</p>
                                 {actionModal.phase === 'searching' && (
                                     <div className="mt-6 flex justify-center gap-2">
