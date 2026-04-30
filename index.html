@@ -224,8 +224,124 @@
             BookOpen, ChevronRight, Landmark, ScrollText,
             Wand2, Hammer, ShoppingBag, EyeOff, UserPlus, Search, X: XIcon,
             Trophy, Flame, Handshake, Compass, MessageSquare, HeartHandshake,
-            UserMinus, Zap, Star, Shuffle
+            UserMinus, Zap, Star, Shuffle, Volume2, VolumeX
         } = window.LucideReact;
+
+        // --- Gemini Audio Engine ---
+        const GeminiAudio = {
+            ctx: null,
+            masterGain: null,
+            currentBgm: null,
+            bgmLoop: null,
+            isInitialized: false,
+
+            // 周波数マップ
+            notes: {
+                'C2': 65.41, 'G2': 98.00, 'A2': 110.00, 'F2': 87.31, 'E2': 82.41, 'D2': 73.42,
+                'A3': 220.00, 'C4': 261.63, 'E4': 329.63, 'G4': 392.00, 'B4': 493.88,
+                'D4': 293.66, 'F4': 349.23, 'Ab4': 415.30, 'Bb4': 466.16
+            },
+
+            init() {
+                if (this.isInitialized) return;
+                try {
+                    this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+                    this.masterGain = this.ctx.createGain();
+                    this.masterGain.connect(this.ctx.destination);
+                    this.masterGain.gain.value = 0.3;
+                    this.isInitialized = true;
+                } catch (e) { console.error("Audio init failed", e); }
+            },
+
+            // シンプルなシンセ音生成
+            createOsc(freq, type = 'triangle', duration = 0.5, volume = 0.2) {
+                if (!this.isInitialized) return;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                
+                osc.type = type;
+                osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+                
+                gain.gain.setValueAtTime(volume, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + duration);
+                
+                osc.connect(gain);
+                gain.connect(this.masterGain);
+                
+                osc.start();
+                osc.stop(this.ctx.currentTime + duration);
+            },
+
+            // 効果音
+            playSE(type) {
+                if (!this.isInitialized || this.masterGain.gain.value === 0) return;
+                switch(type) {
+                    case 'click': this.createOsc(440, 'sine', 0.1, 0.1); break;
+                    case 'success': 
+                        this.createOsc(523.25, 'triangle', 0.3, 0.2);
+                        setTimeout(() => this.createOsc(659.25, 'triangle', 0.3, 0.2), 100);
+                        break;
+                    case 'gacha_s':
+                        [523, 659, 783, 1046].forEach((f, i) => {
+                            setTimeout(() => this.createOsc(f, 'sine', 0.8, 0.1), i * 100);
+                        });
+                        break;
+                    case 'danger': this.createOsc(110, 'sawtooth', 0.5, 0.2); break;
+                }
+            },
+
+            // BGM再生
+            playBGM(type) {
+                if (!this.isInitialized) this.init();
+                if (this.currentBgm === type) return;
+                this.stopBGM();
+                this.currentBgm = type;
+
+                let step = 0;
+                const sequence = this.getSequence(type);
+                
+                this.bgmLoop = setInterval(() => {
+                    const note = sequence[step % sequence.length];
+                    if (note) {
+                        const freq = this.notes[note.key];
+                        this.createOsc(freq, note.type || 'triangle', note.dur || 0.8, note.vol || 0.1);
+                    }
+                    step++;
+                }, 400);
+            },
+
+            stopBGM() {
+                if (this.bgmLoop) clearInterval(this.bgmLoop);
+                this.currentBgm = null;
+            },
+
+            getSequence(type) {
+                switch(type) {
+                    case 'boss': // 緊迫感のある Dm - Eb
+                        return [
+                            {key:'D2', vol:0.2, type:'sawtooth'}, null, {key:'D2', vol:0.15}, {key:'Ab4', dur:0.2},
+                            {key:'E2', vol:0.2, type:'sawtooth'}, null, {key:'E2', vol:0.15}, {key:'Bb4', dur:0.2}
+                        ];
+                    case 'ending': // 穏やかな C Major
+                        return [
+                            {key:'C4'}, {key:'E4'}, {key:'G4'}, {key:'C4'},
+                            {key:'F4'}, {key:'A3'}, {key:'C4'}, {key:'F4'}
+                        ];
+                    default: // Home: 幻想的な Am
+                        return [
+                            {key:'A2', vol:0.2}, null, {key:'E4', dur:1.2}, null,
+                            {key:'F2', vol:0.2}, null, {key:'C4', dur:1.2}, null,
+                            {key:'G2', vol:0.2}, null, {key:'B4', dur:1.2}, null,
+                            {key:'E2', vol:0.2}, null, {key:'G4', dur:1.2}, null
+                        ];
+                }
+            },
+
+            setMute(isMuted) {
+                if (!this.isInitialized) this.init();
+                this.masterGain.gain.setTargetAtTime(isMuted ? 0 : 0.3, this.ctx.currentTime, 0.1);
+            }
+        };
 
         const MAX_TURNS = 120; // 30年 × 4四半期
         const ALIGNMENTS = ['safety', 'adventure', 'military', 'commerce'];
@@ -591,6 +707,8 @@
             const [reqParty, setReqParty] = useState([]);
             const [showHowToPlay, setShowHowToPlay] = useState(false);
             const [actionModal, setActionModal] = useState(null);
+            const [isMuted, setIsMuted] = useState(true); // ブラウザポリシーのため初期はミュート推奨
+
 
             const logsEndRef = useRef(null);
 
@@ -891,6 +1009,9 @@
                             addLog(`[人材捜索] 街の噂や裏ルートを辿り、${newAdv.name} (ランク${newAdv.rank}) を見つけ出し、勧誘に成功しました！`, "success");
                             
                             setTimeout(() => {
+                                if (newAdv.rank === 'S' || newAdv.rank === 'A') GeminiAudio.playSE('gacha_s');
+                                else GeminiAudio.playSE('success');
+
                                 setActionModal({ 
                                     type: 'recruit_found', phase: 'result', 
                                     message: `新たな冒険者を発見した！\n\n名前: ${newAdv.name}\nランク: ${newAdv.rank}\nクラス: ${newAdv.advClass.name}`,
@@ -902,6 +1023,7 @@
                         } else {
                             addLog(`[人材捜索] 懸命に捜索しましたが、今回は有能な人材を見つけることができませんでした...`, "warning");
                             setTimeout(() => {
+                                GeminiAudio.playSE('danger');
                                 setActionModal({ type: 'recruit_failed', phase: 'result', message: '懸命に捜索したが、\n有望な人材は見つからなかった...' });
                                 setTimeout(() => setActionModal(null), 3500);
                             }, 0);
@@ -1302,6 +1424,7 @@
 
             const processTurn = () => {
                 if (gameState.gameOver) return;
+                GeminiAudio.playSE('click');
 
                 let nextState = { ...gameState, turn: gameState.turn + 1, adventurers: [...gameState.adventurers.map(a => ({ ...a, history: [...a.history] }))], usedNames: [...gameState.usedNames], usedRepNames: [...gameState.usedRepNames] };
                 let year = Math.floor(gameState.turn / 4) + 1;
@@ -3131,6 +3254,13 @@
                                 </p>
                             </div>
                         </div>
+                        <button 
+                            onClick={toggleMute}
+                            className={`p-3 rounded-full transition-all active:scale-95 ${isMuted ? 'bg-stone-700 text-stone-400' : 'bg-amber-700 text-amber-50 shadow-[0_0_15px_rgba(180,130,0,0.4)]'}`}
+                            title={isMuted ? "音声を有効にする" : "ミュートにする"}
+                        >
+                            {isMuted ? <VolumeX className="w-6 h-6" /> : <Volume2 className="w-6 h-6" />}
+                        </button>
                     </header>
 
                     <main className="flex-1 overflow-hidden flex flex-col md:flex-row p-4 gap-6 max-w-7xl mx-auto w-full relative z-10">
