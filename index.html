@@ -470,7 +470,39 @@
             recruitment: { name: 'スカウト術', desc: '能動的な「人材捜索」の成功率と、発見する冒険者の質が向上します。' }
         };
 
+        const QUEST_TYPES = [
+            { id: 'subjugation', name: '魔物討伐', icon: Swords, baseReward: 300, risk: 'low', favorReq: 0 },
+            { id: 'escort', name: '商隊護衛', icon: Shield, baseReward: 500, risk: 'medium', favorReq: 10 },
+            { id: 'investigation', name: '遺跡調査', icon: Search, baseReward: 800, risk: 'medium', favorReq: 30 },
+            { id: 'harvest', name: '素材採取', icon: ShoppingBag, baseReward: 200, risk: 'low', favorReq: 0 },
+            { id: 'emergency', name: '緊急要請', icon: AlertTriangle, baseReward: 1200, risk: 'high', favorReq: 50 }
+        ];
+
         const SAVE_KEY = 'guildMasterSaveData_final';
+
+        const generateQuest = (turn, favor) => {
+            const type = QUEST_TYPES[Math.floor(Math.random() * QUEST_TYPES.length)];
+            const level = Math.max(1, Math.floor(turn / 10) + 1);
+            
+            // 友好度による報酬補正 (1.0 - 1.5倍)
+            const favorBonus = 1 + (favor / 200);
+            
+            const reward = Math.floor(type.baseReward * level * favorBonus);
+            const deposit = Math.random() < 0.4 ? Math.floor(reward * 0.2) : 0; // 40%の確率で前金あり
+            const powerReq = Math.floor(type.baseReward * level / 5) + (Math.random() * 50);
+
+            return {
+                id: `quest_${Math.random().toString(36).substr(2, 9)}`,
+                name: `${type.name} (Lv.${level})`,
+                type: type.id,
+                icon: type.id,
+                reward,
+                deposit,
+                powerReq: Math.floor(powerReq),
+                desc: `${type.name}の依頼です。成功すれば街からの信頼も厚くなるでしょう。`,
+                turnLimit: 4
+            };
+        };
 
         const generateReceptionist = (fame, notoriety, usedRepNames) => {
             let availableNames = REP_NAME_POOL.filter(n => !usedRepNames.includes(n));
@@ -626,6 +658,7 @@
             budget: 2000,
             fame: 10,
             notoriety: 0,
+            townFavor: 20, // 街との友好度 (0-100)
             alignment: { safety: 25, adventure: 25, military: 25, commerce: 25 },
             facilities: { residence: 1, tavern: 1, training: 1 },
             shops: { blacksmith: 0, magicShop: 0, itemShop: 0 },
@@ -635,6 +668,8 @@
             usedRepNames: [],
             adventurers: [],
             mainParty: [],
+            activeQuests: [], // 受注中のクエスト
+            availableQuests: [], // 掲示板のクエスト
             discoveredDungeons: [DUNGEON_POOL[0]],
             clearedDungeons: [],
             targetDungeon: null,
@@ -1452,28 +1487,49 @@
                     nextState.fame += 1;
                 }
 
-                if (Math.random() < 0.6) {
-                    let newCandidates = [...nextState.availableReceptionists];
-                    if (newCandidates.length > 0) newCandidates.shift();
-                    const newRep = generateReceptionist(nextState.fame, nextState.notoriety, nextState.usedRepNames);
-                    nextState.usedRepNames.push(newRep.baseName);
-                    newCandidates.push(newRep);
-                    nextState.availableReceptionists = newCandidates;
-                    summaryItems.push({ type: 'info', text: `受付担当の求人応募者が入れ替わりました。本部から確認できます。` });
-                }
-
-                let activeEvent = null;
-                if (Math.random() < 0.25) {
-                    const r = Math.random();
-                    if (r < 0.25) activeEvent = { type: 'MONSTER_STAMPEDE', name: '魔物スタンピード', desc: '近隣から魔物が溢れている！治安維持の報酬が倍増するが、極めて危険。' };
-                    else if (r < 0.5) activeEvent = { type: 'WAR', name: '隣国との戦端', desc: '近隣諸国で戦争が勃発。軍事介入の報酬は絶大だが、死亡率も跳ね上がる。' };
-                    else if (r < 0.75) activeEvent = { type: 'RECESSION', name: '大不況', desc: '深刻な物価高騰。この季節は商業・酒場からの収入が半減してしまう。' };
-                    else activeEvent = { type: 'BOOM', name: '空前の好景気', desc: '街はかつてない好景気！商業方針と酒場からの収入が倍増する。' };
-
-                    addLog(`【世界情勢】${activeEvent.name} - ${activeEvent.desc}`, "warning");
-                    summaryItems.push({ type: 'event', text: `【世界情勢】${activeEvent.name}\n${activeEvent.desc}` });
-                }
-                nextState.currentEvent = activeEvent;
+                // 受注済みクエストの進行と判定
+                const active = [...nextState.activeQuests];
+                nextState.activeQuests = []; // 一旦空にして、未完了のものだけ戻す
+                
+                active.forEach(q => {
+                    const partyPowerObj = calculatePartyPower(nextState.mainParty, nextState);
+                    const partyPower = partyPowerObj.total;
+                    
+                    // 成功判定 (戦力が足りていれば80%〜、不足していれば急減)
+                    let pSuccess = Math.floor((partyPower / q.powerReq) * 80);
+                    pSuccess = Math.min(95, Math.max(5, pSuccess));
+                    
+                    if (Math.random() * 100 < pSuccess) {
+                        // 成功！
+                        const guildCut = Math.floor(q.reward * 0.4);
+                        const advCut = q.reward - guildCut;
+                        
+                        nextState.budget += guildCut;
+                        nextState.townFavor = Math.min(100, nextState.townFavor + 5);
+                        nextState.fame += 2;
+                        
+                        addLog(`[クエスト達成] 『${q.name}』を完遂！ ギルド手数料として ${guildCut}G を獲得しました。`, "success");
+                        summaryItems.push({ type: 'success', text: `【クエスト達成】\n『${q.name}』を達成しました！\nギルド利益: ${guildCut}G / 報酬分配: ${advCut}G\n街の友好度が上昇しました。` });
+                        
+                        // 参加者に経験値（戦力上昇）
+                        const mainAdvs = nextState.adventurers.filter(a => nextState.mainParty.includes(a.id));
+                        mainAdvs.forEach(a => {
+                            a.power += 2;
+                            a.loyalty = Math.min(100, a.loyalty + 5);
+                            a.history.unshift(`第 ${year} 暦 【${season}】: 依頼『${q.name}』を達成。`);
+                        });
+                    } else {
+                        // 失敗（継続）
+                        if (q.turnLimit > 1) {
+                            addLog(`[継続中] 『${q.name}』は難航しており、次季に持ち越されました。`, "warning");
+                            nextState.activeQuests.push({ ...q, turnLimit: q.turnLimit - 1 });
+                        } else {
+                            addLog(`[不履行] 『${q.name}』は失敗に終わりました。街の信頼を失いました。`, "danger");
+                            nextState.townFavor = Math.max(0, nextState.townFavor - 15);
+                            summaryItems.push({ type: 'fail', text: `【クエスト失敗】\n『${q.name}』を達成できず、期限が切れました。\n街の友好度が大幅に低下しました。` });
+                        }
+                    }
+                });
 
                 const myDefInt = getDefenseIntelligence(nextState);
 
@@ -2255,6 +2311,19 @@
             const currentSeason = SEASONS[gameState.turn % 4];
             const canUsurp = gameState.alignment.military >= 80 && gameState.notoriety >= 50 && currentGuildPower >= 1000;
 
+            const acceptQuest = (quest) => {
+                if (gameState.activeQuests.some(q => q.id === quest.id)) return;
+                setGameState(prev => {
+                    addLog(`[受注] クエスト『${quest.name}』を受注しました。${quest.deposit > 0 ? `前金 ${quest.deposit}G を受領しました。` : ''}`, "info");
+                    return {
+                        ...prev,
+                        budget: prev.budget + quest.deposit,
+                        activeQuests: [...prev.activeQuests, quest],
+                        availableQuests: prev.availableQuests.filter(q => q.id !== quest.id)
+                    };
+                });
+            };
+
             const renderRightPanel = () => {
                 switch (currentView) {
                     case 'home':
@@ -2384,6 +2453,62 @@
                                         ))}
                                     </div>
                                 </div>
+                            </div>
+                        );
+
+                    case 'quests':
+                        return (
+                            <div key="quests" className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">
+                                <div>
+                                    <h3 className="font-bold text-stone-800 mb-3 flex items-center gap-2">
+                                        <ScrollText className="w-5 h-5 text-amber-600" /> 受注可能な依頼
+                                    </h3>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        {gameState.availableQuests.map(q => {
+                                            const type = QUEST_TYPES.find(t => t.id === q.type);
+                                            const Icon = type.icon;
+                                            return (
+                                                <div key={q.id} className="bg-white border border-[#E8E0D5] p-4 rounded-sm shadow-sm flex flex-col hover:border-amber-400 transition-colors">
+                                                    <div className="flex justify-between items-start mb-2">
+                                                        <h4 className="font-bold text-stone-800 flex items-center gap-2"><Icon className="w-5 h-5 text-indigo-600" /> {q.name}</h4>
+                                                        <span className="text-[10px] font-bold bg-stone-100 text-stone-500 px-2 py-1 rounded">期限: {q.turnLimit}季</span>
+                                                    </div>
+                                                    <p className="text-xs text-stone-600 mb-4 flex-1">{q.desc}</p>
+                                                    <div className="grid grid-cols-2 gap-2 text-[11px] font-bold mb-4 bg-stone-50 p-2 rounded">
+                                                        <div className="text-rose-700">必要戦力: {q.powerReq}</div>
+                                                        <div className="text-amber-600">報酬: {q.reward}G</div>
+                                                        {q.deposit > 0 && <div className="text-emerald-600 col-span-2">前金受領可: {q.deposit}G</div>}
+                                                    </div>
+                                                    <button 
+                                                        onClick={() => acceptQuest(q)}
+                                                        className="w-full bg-stone-800 hover:bg-stone-700 text-[#F2E8C6] py-2 rounded-sm font-bold text-xs shadow-sm transition-colors active:scale-95"
+                                                    >
+                                                        この依頼を引き受ける
+                                                    </button>
+                                                </div>
+                                            );
+                                        })}
+                                        {gameState.availableQuests.length === 0 && (
+                                            <div className="col-span-full text-center p-8 text-stone-400 border border-dashed border-[#D4C3A3]">現在、新しい依頼はありません。</div>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {gameState.activeQuests.length > 0 && (
+                                    <div className="mt-8">
+                                        <h3 className="font-bold text-stone-800 mb-3 flex items-center gap-2">
+                                            <CheckCircle2 className="w-5 h-5 text-emerald-600" /> 遂行中の依頼
+                                        </h3>
+                                        <div className="space-y-2">
+                                            {gameState.activeQuests.map(q => (
+                                                <div key={q.id} className="flex justify-between items-center p-3 bg-emerald-50 border border-emerald-200 rounded-sm">
+                                                    <div className="text-sm font-bold text-emerald-900">{q.name}</div>
+                                                    <div className="text-[10px] font-bold text-emerald-700">残り期限: {q.turnLimit}季</div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         );
 
@@ -3295,29 +3420,33 @@
                                         <span className="text-stone-300 font-bold text-sm">悪名 (Notoriety)</span>
                                         <span className="font-bold text-lg text-rose-400">{gameState.notoriety}</span>
                                     </div>
+                                    <div className="flex justify-between items-center pt-1">
+                                        <span className="text-stone-300 font-bold text-sm">街の友好度 (Town Favor)</span>
+                                        <span className={`font-bold text-lg ${gameState.townFavor >= 80 ? 'text-green-400' : gameState.townFavor >= 50 ? 'text-blue-300' : 'text-stone-400'}`}>{gameState.townFavor}</span>
+                                    </div>
                                     <div className="pt-3 border-t border-stone-700 flex justify-between items-center">
                                         <span className="text-stone-100 font-bold text-sm">現在推定戦力</span>
                                         <span className="font-bold text-2xl text-amber-500 drop-shadow-md">{currentGuildPower}</span>
                                     </div>
-                                </div>
-                            </div>
+                                    </div>
+                                    </div>
 
-                            <nav className="bg-[#FAF8F5] glass-panel rounded-sm shadow-md border border-[#D4C3A3] overflow-hidden flex flex-col">
-                                <NavButton id="home" label="ギルド本部" icon={Home} alert={!!gameState.specialRequest} />
-                                <NavButton id="roster" label="所属冒険者名簿" icon={Users} />
-                                <NavButton id="alignment" label="運営方針" icon={Activity} />
-                                <NavButton id="dungeons" label="未踏の迷宮" icon={Compass} alert={gameState.discoveredDungeons.length > 0 && !gameState.targetDungeon} />
-                                <NavButton id="facilities" label="施設拡張" icon={Dumbbell} />
-                                <NavButton id="shops" label="外部提携" icon={ShoppingBag} />
-                                <NavButton id="intrigue" label="諜報・裏工作" icon={EyeOff} />
-                                <NavButton id="skills" label="マスターの才能" icon={Crown} />
-                                <NavButton id="achievements" label="実績一覧" icon={Trophy} />
-                                <NavButton id="logs" label="活動日誌" icon={BookOpen} />
-                                <div className="border-t border-[#D4C3A3]">
+                                    <nav className="bg-[#FAF8F5] glass-panel rounded-sm shadow-md border border-[#D4C3A3] overflow-hidden flex flex-col">
+                                    <NavButton id="home" label="ギルド本部" icon={Home} alert={!!gameState.specialRequest} />
+                                    <NavButton id="quests" label="依頼掲示板" icon={ScrollText} alert={gameState.availableQuests.length > 0} />
+                                    <NavButton id="roster" label="所属冒険者名簿" icon={Users} />
+                                    <NavButton id="alignment" label="運営方針" icon={Activity} />
+                                    <NavButton id="dungeons" label="未踏の迷宮" icon={Compass} alert={gameState.discoveredDungeons.length > 0 && !gameState.targetDungeon} />
+                                    <NavButton id="facilities" label="施設拡張" icon={Dumbbell} />
+                                    <NavButton id="shops" label="外部提携" icon={ShoppingBag} />
+                                    <NavButton id="intrigue" label="諜報・裏工作" icon={EyeOff} />
+                                    <NavButton id="skills" label="マスターの才能" icon={Crown} />
+                                    <NavButton id="achievements" label="実績一覧" icon={Trophy} />
+                                    <NavButton id="logs" label="活動日誌" icon={BookOpen} />
+                                    <div className="border-t border-[#D4C3A3]">
                                     <NavButton id="decision" label="大いなる決断" icon={Crown} />
-                                </div>
-                            </nav>
-
+                                    </div>
+                                    </nav>
                             {gameState.activeBoss ? (
                                 <button
                                     onClick={() => setCurrentView('boss')}
