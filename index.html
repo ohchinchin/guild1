@@ -224,8 +224,8 @@
             BookOpen, ChevronRight, Landmark, ScrollText,
             Wand2, Hammer, ShoppingBag, EyeOff, UserPlus, Search, X: XIcon,
             Trophy, Flame, HeartHandshake, Compass, MessageSquare,
-            UserMinus, Zap, Star, Shuffle, Volume2, VolumeX
-        } = window.LucideReact;
+            UserMinus, Zap, Star, Shuffle, Volume2, VolumeX, PieChart
+            } = window.LucideReact;
 
         // --- Gemini Audio Engine ---
         const GeminiAudio = {
@@ -693,7 +693,7 @@
 
             const partyAdvs = state.adventurers.filter(a => partyIds.includes(a.id));
             let pCount = { hot: 0, cool: 0, ambitious: 0, gentle: 0 };
-            partyAdvs.forEach(a => { pCount[a.personality.id]++; });
+            partyAdvs.forEach(a => { if (pCount[a.personality.id] !== undefined) pCount[a.personality.id]++; });
 
             let conflictHotCool = (pCount.hot > 0 && pCount.cool > 0);
             let conflictAmbitious = (pCount.ambitious > 1);
@@ -722,7 +722,7 @@
 
             // マスターの統率力スキルボーナス
             if (state.masterSkills.leadership > 0) {
-                const bonusRates = [0, 0.1, 0.2, 0.3];
+                const bonusRates = [0, 0.1, 0.25, 0.5];
                 total = Math.floor(total * (1 + bonusRates[state.masterSkills.leadership]));
             }
 
@@ -1469,465 +1469,213 @@
                 }, 2000);
             };
 
+            const getFinancialReport = (state) => {
+                if (!state) return { expenditure: 0, income: 0, net: 0, details: {} };
+                const salaries = state.adventurers.reduce((sum, a) => sum + a.salary, 0) + state.receptionist.salary;
+                const baseMaintenance = state.facilities.residence * 100 + state.facilities.tavern * 50 + state.facilities.training * 50;
+
+                let discount = Math.min(0.5, state.shops.itemShop * 0.1);
+                if (state.receptionist.type === 'merchant') discount = Math.min(0.5, discount + 0.1);
+                if (state.masterSkills.business > 0) discount = Math.min(0.8, discount + (state.masterSkills.business * 0.1));
+                const maintenance = Math.floor(baseMaintenance * (1 - discount));
+
+                const reserveCount = state.adventurers.length - state.mainParty.length;
+                let reserveBase = 20;
+                if (state.masterSkills.business > 0) reserveBase += (state.masterSkills.business * 10);
+                const reserveIncome = reserveCount * reserveBase;
+
+                let commerceIncome = Math.floor(state.facilities.tavern * 300 * (state.alignment.commerce / 25));
+                if (state.masterSkills.business > 0) commerceIncome = Math.floor(commerceIncome * (1 + state.masterSkills.business * 0.2));
+
+                return {
+                    expenditure: salaries + maintenance,
+                    income: commerceIncome + reserveIncome,
+                    net: (commerceIncome + reserveIncome) - (salaries + maintenance),
+                    details: { salaries, maintenance, commerceIncome, reserveIncome }
+                };
+            };
+
             const processTurn = () => {
                 if (gameState.gameOver) return;
                 GeminiAudio.playSE('click');
 
-                let nextState = { ...gameState, turn: gameState.turn + 1, adventurers: [...gameState.adventurers.map(a => ({ ...a, history: [...a.history] }))], usedNames: [...gameState.usedNames], usedRepNames: [...gameState.usedRepNames] };
-                let year = Math.floor(gameState.turn / 4) + 1;
-                let season = SEASONS[gameState.turn % 4];
+                setGameState(prev => {
+                    try {
+                        let next = { 
+                            ...prev, 
+                            turn: prev.turn + 1,
+                            adventurers: prev.adventurers.map(a => ({ ...a, history: [...a.history] })),
+                            rivals: prev.rivals.map(r => ({ ...r, members: r.members.map(m => ({...m, history: [...m.history]})) })),
+                            usedNames: [...prev.usedNames],
+                            usedRepNames: [...prev.usedRepNames],
+                            activeQuests: prev.activeQuests.map(q => ({ ...q })),
+                            availableQuests: prev.availableQuests.map(q => ({ ...q })),
+                            discoveredDungeons: prev.discoveredDungeons.map(d => ({ ...d })),
+                            clearedDungeons: [...prev.clearedDungeons],
+                            ownedArtifacts: [...prev.ownedArtifacts],
+                            allianceRequests: { ...prev.allianceRequests }
+                        };
 
-                let summaryItems = [];
-                addLog(`--- 📜 第 ${year} 暦 【${season}】 ---`, "info");
+                        let year = Math.floor(prev.turn / 4) + 1;
+                        let season = SEASONS[prev.turn % 4];
+                        let summaryItems = [];
 
-                nextState.currentRumor = RUMORS[Math.floor(Math.random() * RUMORS.length)];
+                        addLog(`--- 📜 第 ${year} 暦 【${season}】 報告 ---`, "info");
+                        next.currentRumor = RUMORS[Math.floor(Math.random() * RUMORS.length)];
 
-                if (nextState.receptionist.type === 'diplomat') {
-                    nextState.rivals.forEach(r => r.relation = Math.min(100, r.relation + 3));
-                    nextState.fame += 1;
-                }
-
-                // 受注済みクエストの進行と判定
-                const active = [...nextState.activeQuests];
-                nextState.activeQuests = []; // 一旦空にして、未完了のものだけ戻す
-                
-                active.forEach(q => {
-                    const partyPowerObj = calculatePartyPower(nextState.mainParty, nextState);
-                    const partyPower = partyPowerObj.total;
-                    
-                    // 成功判定 (戦力が足りていれば80%〜、不足していれば急減)
-                    let pSuccess = Math.floor((partyPower / q.powerReq) * 80);
-                    pSuccess = Math.min(95, Math.max(5, pSuccess));
-                    
-                    if (Math.random() * 100 < pSuccess) {
-                        // 成功！
-                        const guildCut = Math.floor(q.reward * 0.4);
-                        const advCut = q.reward - guildCut;
-                        
-                        nextState.budget += guildCut;
-                        nextState.townFavor = Math.min(100, nextState.townFavor + 5);
-                        nextState.fame += 2;
-                        
-                        addLog(`[クエスト達成] 『${q.name}』を完遂！ ギルド手数料として ${guildCut}G を獲得しました。`, "success");
-                        summaryItems.push({ type: 'success', text: `【クエスト達成】\n『${q.name}』を達成しました！\nギルド利益: ${guildCut}G / 報酬分配: ${advCut}G\n街の友好度が上昇しました。` });
-                        
-                        // 参加者に経験値（戦力上昇）
-                        const mainAdvs = nextState.adventurers.filter(a => nextState.mainParty.includes(a.id));
-                        mainAdvs.forEach(a => {
-                            a.power += 2;
-                            a.loyalty = Math.min(100, a.loyalty + 5);
-                            a.history.unshift(`第 ${year} 暦 【${season}】: 依頼『${q.name}』を達成。`);
-                        });
-                    } else {
-                        // 失敗（継続）
-                        if (q.turnLimit > 1) {
-                            addLog(`[継続中] 『${q.name}』は難航しており、次季に持ち越されました。`, "warning");
-                            nextState.activeQuests.push({ ...q, turnLimit: q.turnLimit - 1 });
-                        } else {
-                            addLog(`[不履行] 『${q.name}』は失敗に終わりました。街の信頼を失いました。`, "danger");
-                            nextState.townFavor = Math.max(0, nextState.townFavor - 15);
-                            summaryItems.push({ type: 'fail', text: `【クエスト失敗】\n『${q.name}』を達成できず、期限が切れました。\n街の友好度が大幅に低下しました。` });
-                        }
-                    }
-                });
-
-                const myDefInt = getDefenseIntelligence(nextState);
-
-                nextState.rivals.forEach(rival => {
-                    let interfereChance = 0.10 + ((100 - rival.relation) / 200);
-                    if (Math.random() < interfereChance && rival.relation < 80) {
-
-                        if (Math.random() * 100 < myDefInt) {
-                            summaryItems.push({ type: 'info', text: `【防諜成功】『${rival.name}』の工作員の接近を事前に察知し、未然に防ぎました！` });
-                            addLog(`[防諜] 『${rival.name}』の干渉を防ぎました。`, "success");
-                            return;
+                        if (next.receptionist.type === 'diplomat') {
+                            next.rivals = next.rivals.map(r => ({ ...r, relation: Math.min(100, r.relation + 3) }));
+                            next.fame += 1;
                         }
 
-                        if (rival.style === 'military') {
-                            if (Math.random() < 0.5 && nextState.adventurers.length > 0) {
-                                let victim = nextState.adventurers[Math.floor(Math.random() * nextState.adventurers.length)];
-                                victim.power = Math.max(1, Math.floor(victim.power * 0.8));
-                                victim.loyalty -= 10;
-                                victim.history.unshift(`第 ${year} 暦 【${season}】: 敵対する『${rival.name}』の襲撃を受け負傷。`);
-                                summaryItems.push({ type: 'danger', text: `【敵襲】関係が悪化した『${rival.name}』の襲撃！\n${victim.name} が負傷し戦力が低下しました。` });
-                                rival.relation = Math.max(0, rival.relation - 10);
+                        // --- 1. クエスト進行 ---
+                        const active = [...next.activeQuests];
+                        next.activeQuests = [];
+                        active.forEach(q => {
+                            const { total: partyPower } = calculatePartyPower(next.mainParty, next);
+                            let pSuccess = Math.floor((partyPower / q.powerReq) * 80);
+                            pSuccess = Math.min(95, Math.max(5, pSuccess));
+                            
+                            if (Math.random() * 100 < pSuccess) {
+                                const guildCut = Math.floor(q.reward * 0.4);
+                                next.budget += guildCut;
+                                next.townFavor = Math.min(100, next.townFavor + 5);
+                                next.fame += 2;
+                                addLog(`[クエスト達成] 『${q.name}』を完遂。利益 ${guildCut}G を獲得しました。`, "success");
+                                summaryItems.push({ type: 'success', text: `【クエスト達成】\n『${q.name}』を達成しました！\nギルド利益: ${guildCut}G / 街の友好度が上昇しました。` });
+                                
+                                next.adventurers.filter(a => next.mainParty.includes(a.id)).forEach(a => {
+                                    a.power += 2;
+                                    a.loyalty = Math.min(100, a.loyalty + 5);
+                                    a.history.unshift(`第 ${year} 暦 【${season}】: 依頼『${q.name}』を達成。`);
+                                });
                             } else {
-                                let stolen = Math.floor(Math.random() * 300) + 100;
-                                nextState.budget -= stolen;
-                                summaryItems.push({ type: 'warning', text: `【強奪】関係が悪化した『${rival.name}』の嫌がらせにより、物資が強奪され ${stolen}G の損失が出ました。` });
+                                if (q.turnLimit > 1) {
+                                    next.activeQuests.push({ ...q, turnLimit: q.turnLimit - 1 });
+                                } else {
+                                    addLog(`[不履行] 『${q.name}』は失敗。街の信頼を失いました。`, "danger");
+                                    next.townFavor = Math.max(0, next.townFavor - 15);
+                                    summaryItems.push({ type: 'fail', text: `【クエスト失敗】\n『${q.name}』を達成できず、期限が切れました。` });
+                                }
                             }
-                        } else if (rival.style === 'commerce') {
-                            let stolen = Math.floor(Math.random() * 500) + 200;
-                            nextState.budget -= stolen;
-                            summaryItems.push({ type: 'warning', text: `【商業妨害】『${rival.name}』の悪質な価格競争と顧客引き抜きにより、${stolen}G の損失が出ました。` });
-                            rival.relation = Math.max(0, rival.relation - 5);
-                        } else if (rival.style === 'safety') {
-                            if (nextState.fame > 10) {
-                                let fameLoss = Math.floor(Math.random() * 5) + 2;
-                                nextState.fame -= fameLoss;
-                                summaryItems.push({ type: 'warning', text: `【政治工作】『${rival.name}』が街の有力者に根回しを行い、我がギルドの名声が ${fameLoss} 低下しました。` });
-                            }
-                        }
-
-                        if (Math.random() < 0.2 && nextState.adventurers.length > 0) {
-                            let lowLoyaltyAdvs = nextState.adventurers.filter(a => a.loyalty < 50);
-                            if (lowLoyaltyAdvs.length > 0) {
-                                let traitor = lowLoyaltyAdvs[Math.floor(Math.random() * lowLoyaltyAdvs.length)];
-                                summaryItems.push({ type: 'leave', text: `【裏切り】忠誠の低かった ${traitor.name} が、敵対する『${rival.name}』に引き抜かれて寝返りました！` });
-                                nextState.adventurers = nextState.adventurers.filter(a => a.id !== traitor.id);
-                                nextState.mainParty = nextState.mainParty.filter(id => id !== traitor.id);
-                                rival.power += traitor.power;
-                                traitor.history.unshift(`第 ${year} 暦 【${season}】: 『${rival.name}』の引き抜きに応じ、元のギルドを裏切った。`);
-                                rival.members.push(traitor);
-                            }
-                        }
-                    }
-                });
-
-                const rivalGrowth = Math.floor(20 + nextState.turn * 1.5);
-                nextState.rivals = nextState.rivals.map(r => ({ ...r, power: r.power + Math.floor(Math.random() * rivalGrowth) + Math.floor(rivalGrowth / 2) }));
-
-                // ライバル同士の抗争
-                if (nextState.rivals.length >= 2 && Math.random() < 0.4) {
-                    let r1 = nextState.rivals[Math.floor(Math.random() * nextState.rivals.length)];
-                    let others = nextState.rivals.filter(r => r.id !== r1.id);
-                    let r2 = others[Math.floor(Math.random() * others.length)];
-                    
-                    if (r1.type === 'cunning' && Math.random() < 0.7) {
-                        const dmg = Math.floor(r2.power * 0.15);
-                        r2.power = Math.max(0, r2.power - dmg);
-                        r1.power += Math.floor(dmg * 0.5);
-                        summaryItems.push({ type: 'warning', text: `【噂】暗躍する『${r1.name}』が『${r2.name}』の拠点を襲撃し、物資を強奪したらしい…（${r2.name}の戦力が低下）` });
-                    } else if (r1.type === 'giant' && Math.random() < 0.6) {
-                        const dmg = Math.floor(r2.power * 0.2);
-                        r2.power = Math.max(0, r2.power - dmg);
-                        summaryItems.push({ type: 'event', text: `【噂】大手ギルド『${r1.name}』が『${r2.name}』を武力で圧倒し、縄張りを奪ったようだ…（${r2.name}の戦力が低下）` });
-                    } else if (Math.random() < 0.3) {
-                        if (r2.members.length > 0) {
-                            let stolenIdx = Math.floor(Math.random() * r2.members.length);
-                            let stolen = r2.members[stolenIdx];
-                            r2.members.splice(stolenIdx, 1);
-                            r2.power = Math.max(0, r2.power - stolen.power);
-                            r1.members.push(stolen);
-                            r1.power += stolen.power;
-                            summaryItems.push({ type: 'info', text: `【噂】『${r1.name}』が『${r2.name}』から有能な冒険者を引き抜いたらしい。` });
-                        }
-                    }
-                }
-
-                let retiredAdvs = [];
-                nextState.adventurers.forEach(a => {
-                    a.age += 0.25;
-                    if (a.age >= 40) {
-                        let retireChance = (a.age - 39) * 0.05;
-                        if (a.age >= 50) retireChance = 1.0;
-                        if (Math.random() < retireChance) retiredAdvs.push(a);
-                    }
-                });
-
-                retiredAdvs.forEach(retA => {
-                    nextState.adventurers = nextState.adventurers.filter(a => a.id !== retA.id);
-                    nextState.mainParty = nextState.mainParty.filter(id => id !== retA.id);
-                    if (retA.equippedArtifactId) {
-                        nextState.ownedArtifacts.push(retA.equippedArtifactId);
-                    }
-
-                    if (nextState.adventurers.length > 0) {
-                        let heirs = [...nextState.adventurers].sort((a, b) => a.age - b.age);
-                        let heir = heirs[0];
-                        let inheritedPower = Math.floor(retA.power * 0.3);
-                        heir.power += inheritedPower;
-                        heir.history.unshift(`第 ${year} 暦 【${season}】: 引退した歴戦の勇士 ${retA.name} から想いを継承し、戦力が ${inheritedPower} 上昇した。`);
-                        summaryItems.push({ type: 'info', text: `【世代交代】\n歴戦の勇士 ${retA.name} が年齢(${Math.floor(retA.age)}歳)のため引退しました。\nその技と想いは若き ${heir.name} へと受け継がれました。` });
-                    } else {
-                        summaryItems.push({ type: 'info', text: `【引退】\n歴戦の勇士 ${retA.name} が年齢(${Math.floor(retA.age)}歳)のため引退し、静かな余生に入りました。` });
-                    }
-                });
-
-                // 死亡・引退・寝返りにより部隊が減っている場合、自動で補充を試みる。
-                // （おまかせ編成はプレイヤー自身が押すものとし、ここでは単にリストに残っているメンバーを維持する）
-                nextState.mainParty = nextState.mainParty.filter(id => nextState.adventurers.some(a => a.id === id));
-
-                let totalSalary = nextState.adventurers.reduce((sum, a) => sum + a.salary, 0);
-                totalSalary += nextState.receptionist.salary;
-                let baseMaintenance = nextState.facilities.residence * 100 + nextState.facilities.tavern * 50 + nextState.facilities.training * 50;
-
-                let discount = Math.min(0.5, nextState.shops.itemShop * 0.1);
-                if (nextState.receptionist.type === 'merchant') discount = Math.min(0.5, discount + 0.1);
-                if (nextState.masterSkills.business > 0) discount = Math.min(0.8, discount + (nextState.masterSkills.business * 0.1));
-
-                let maintenance = Math.floor(baseMaintenance * (1 - discount));
-
-                const reserveCount = nextState.adventurers.length - nextState.mainParty.length;
-                let reserveBase = 20;
-                if (nextState.masterSkills.business > 0) reserveBase += (nextState.masterSkills.business * 10);
-                let reserveIncome = reserveCount * reserveBase;
-
-                nextState.budget -= (totalSalary + maintenance);
-                nextState.budget += reserveIncome;
-                addLog(`四半期の給与(受付含む)・維持費 ${totalSalary + maintenance}G を支払いました。${discount > 0 ? `(支援等で ${baseMaintenance - maintenance}G 節約)` : ''}`, "normal");
-                if (reserveIncome > 0) addLog(`待機中の冒険者 ${reserveCount} 名が街で雑用をこなし、${reserveIncome}G を稼ぎました。`, "info");
-
-                if (nextState.budget < 0) {
-                    addLog("[危急] 金庫が空です！ 給与未払いで冒険者たちの不満が爆発寸前です。", "danger");
-                    summaryItems.push({ type: 'danger', text: `金庫が空です！給与未払いで冒険者たちの不満が爆発寸前です。` });
-                    nextState.adventurers.forEach(a => {
-                        let loss = a.trait.id === 'loyal' ? 5 : a.trait.id === 'greedy' ? 30 : 20;
-                        a.loyalty -= loss;
-                    });
-                }
-
-                let commerceIncome = Math.floor(nextState.facilities.tavern * 300 * (nextState.alignment.commerce / 25));
-                if (nextState.masterSkills.business > 0) commerceIncome = Math.floor(commerceIncome * (1 + nextState.masterSkills.business * 0.2));
-
-                if (activeEvent?.type === 'BOOM') commerceIncome *= 2;
-                if (activeEvent?.type === 'RECESSION') commerceIncome = Math.floor(commerceIncome / 2);
-                if (commerceIncome > 0) {
-                    nextState.budget += commerceIncome;
-                    addLog(`[商業] 宿屋・酒場の営業収益として ${commerceIncome}G が金庫に納められました。`, "success");
-                }
-
-                let incomeText = `給与・維持費として ${totalSalary + maintenance}G を支出しました。`;
-                if (commerceIncome > 0 || reserveIncome > 0) incomeText += `\n商業・内政により計 ${commerceIncome + reserveIncome}G を獲得しました。`;
-                summaryItems.push({ type: 'finance', text: incomeText });
-
-                const { total: partyPower, warnings: partyWarnings } = calculatePartyPower(nextState.mainParty, nextState);
-                if (partyWarnings.length > 0 && nextState.mainParty.length > 0) {
-                    summaryItems.push({ type: 'warning', text: `作戦部隊内で問題発生:\n${partyWarnings.join('\n')}` });
-                }
-
-                if (nextState.mainParty.length === 0 && !nextState.targetDungeon) {
-                    addLog("[警告] 作戦部隊が編成できなかったため、今季の任務は行われませんでした。", "warning");
-                    summaryItems.push({ type: 'warning', text: `作戦部隊が編成されていなかったため、任務は行われませんでした。` });
-                } else if (nextState.targetDungeon && nextState.mainParty.length > 0) {
-                    const dungeon = nextState.discoveredDungeons.find(d => d.id === nextState.targetDungeon);
-                    let pSuccessBase = (partyPower / dungeon.powerReq) * 80;
-
-                    const mainAdvs = nextState.adventurers.filter(a => nextState.mainParty.includes(a.id));
-                    const thiefCount = mainAdvs.filter(a => a.advClass.id === 'thief').length;
-                    const clericCount = mainAdvs.filter(a => a.advClass.id === 'cleric').length;
-                    pSuccessBase += (thiefCount * 10);
-                    pSuccessBase += (nextState.shops.blacksmith * 5);
-
-                    let pSuccess = Math.floor(Math.min(95, Math.max(5, pSuccessBase)));
-                    let isSuccess = (Math.random() * 100) <= pSuccess;
-
-                    addLog(`[迷宮] 作戦部隊が『${dungeon.name}』の攻略に挑みます... (成功予測: ${pSuccess}%)`, "info");
-
-                    if (isSuccess) {
-                        nextState.budget += dungeon.reward;
-                        nextState.fame += 10;
-                        nextState.clearedDungeons.push(dungeon.id);
-                        nextState.discoveredDungeons = nextState.discoveredDungeons.filter(d => d.id !== dungeon.id);
-                        nextState.targetDungeon = null;
-                        addLog(`[攻略成功] 見事『${dungeon.name}』を踏破しました！ 報酬 ${dungeon.reward}G を獲得！`, "success");
-                        summaryItems.push({ type: 'success', text: `迷宮『${dungeon.name}』の攻略に成功しました！\n莫大な財宝 ${dungeon.reward}G を獲得しました。` });
-
-                        const availableArtifacts = ARTIFACT_POOL.filter(art =>
-                            !nextState.ownedArtifacts.includes(art.id) &&
-                            !nextState.adventurers.some(a => a.equippedArtifactId === art.id)
-                        );
-                        if (availableArtifacts.length > 0 && Math.random() < 0.6) {
-                            let drop = availableArtifacts[Math.floor(Math.random() * availableArtifacts.length)];
-                            nextState.ownedArtifacts.push(drop.id);
-                            addLog(`[発掘] 迷宮の奥底で古代の遺物『${drop.name}』を発見しました！`, "info");
-                            summaryItems.push({ type: 'hero', text: `【遺物発見】\n古代の遺物『${drop.name}』を発見しました！冒険者に授与できます。` });
-                        }
-
-                        const powerCap = { E: 50, D: 80, C: 120, B: 180, A: 250, S: 400 };
-                        mainAdvs.forEach(a => {
-                            const growth = nextState.facilities.training * 3;
-                            const cap = powerCap[a.rank] || 999;
-                            a.power = Math.min(cap, a.power + growth);
-                            a.history.unshift(`第 ${year} 暦 【${season}】: 迷宮『${dungeon.name}』を見事踏破した。`);
                         });
-                    } else {
-                        addLog(`[攻略失敗] 『${dungeon.name}』の奥深くで部隊は壊滅しました...`, "danger");
-                        summaryItems.push({ type: 'fail', text: `迷宮『${dungeon.name}』の攻略に失敗しました。部隊は命からがら逃げ帰りました...` });
 
-                        let victimIdx = Math.floor(Math.random() * mainAdvs.length);
-                        let victim = mainAdvs[victimIdx];
-                        let deathRate = 0.4 - (nextState.shops.magicShop * 0.05) - (clericCount > 0 ? 0.1 : 0);
-                        if (victim.trait.id === 'coward') deathRate -= 0.15;
-
-                        if (Math.random() < deathRate) {
-                            addLog(`[訃報] 痛ましいことに、${victim.name} は迷宮から生還しませんでした...`, "danger");
-                            summaryItems.push({ type: 'death', text: `${victim.name} が迷宮の罠に倒れ、帰らぬ人となりました。` });
-                            nextState.adventurers = nextState.adventurers.filter(a => a.id !== victim.id);
-                            nextState.mainParty = nextState.mainParty.filter(id => id !== victim.id);
-                            if (victim.equippedArtifactId) nextState.ownedArtifacts.push(victim.equippedArtifactId);
-                        } else {
-                            victim.power = Math.max(1, Math.floor(victim.power * 0.7));
-                            victim.loyalty -= 20;
-                            victim.history.unshift(`第 ${year} 暦 【${season}】: 迷宮探索で重傷を負い撤退。`);
+                        // --- 2. 世界情勢とクエストボード更新 ---
+                        let activeEvent = null;
+                        if (Math.random() < 0.25) {
+                            const r = Math.random();
+                            if (r < 0.25) activeEvent = { type: 'MONSTER_STAMPEDE', name: '魔物スタンピード', desc: '治安維持報酬倍増。' };
+                            else if (r < 0.5) activeEvent = { type: 'WAR', name: '隣国との戦端', desc: '軍事介入報酬絶大。死亡率上昇。' };
+                            else if (r < 0.75) activeEvent = { type: 'RECESSION', name: '大不況', desc: '商業収入半減。' };
+                            else activeEvent = { type: 'BOOM', name: '空前の好景気', desc: '商業収入倍増。' };
+                            summaryItems.push({ type: 'event', text: `【世界情勢】${activeEvent.name}\n${activeEvent.desc}` });
                         }
-                    }
-                } else if (nextState.mainParty.length > 0) {
-                    const mainAdvs = nextState.adventurers.filter(a => nextState.mainParty.includes(a.id));
-                    let roll = Math.random() * 100;
-                    let cumulative = 0;
-                    let questType = 'safety';
-                    for (let a of ALIGNMENTS) {
-                        cumulative += nextState.alignment[a];
-                        if (roll <= cumulative) { questType = a; break; }
-                    }
+                        next.currentEvent = activeEvent;
 
-                    if (questType === 'commerce') {
-                        addLog("[方針] 今季は街での商売と内政に注力し、危険な遠征は控えました。", "normal");
-                        summaryItems.push({ type: 'info', text: `今季は街での商売と内政に注力し、危険な遠征は控えました。` });
-                    } else {
-                        let gBonus = nextState.alignment[questType] / 25;
-                        let qDiff = 30 + (nextState.turn * 4.5);
-                        let pSuccessBase = (partyPower * gBonus / qDiff) * 100;
+                        let newQuests = [];
+                        const questCount = 3 + Math.floor(next.townFavor / 30);
+                        for (let i = 0; i < questCount; i++) {
+                            newQuests.push(generateQuest(next.turn, next.townFavor));
+                        }
+                        next.availableQuests = newQuests;
 
-                        const thiefCount = mainAdvs.filter(a => a.advClass.id === 'thief').length;
-                        const clericCount = mainAdvs.filter(a => a.advClass.id === 'cleric').length;
-                        const heroicCount = mainAdvs.filter(a => a.trait.id === 'heroic').length;
+                        // --- 3. 収支計算 ---
+                        const report = getFinancialReport(prev); // 前期予算ベースで計算
+                        let finalCommerce = report.commerceIncome;
+                        if (activeEvent?.type === 'BOOM') finalCommerce *= 2;
+                        if (activeEvent?.type === 'RECESSION') finalCommerce = Math.floor(finalCommerce / 2);
 
-                        if (questType === 'adventure') pSuccessBase += (thiefCount * 10);
-                        if (questType === 'safety') pSuccessBase += (clericCount * 10);
-                        pSuccessBase += (heroicCount * 5);
-                        pSuccessBase += (nextState.shops.blacksmith * 5);
+                        next.budget -= report.expenditure;
+                        next.budget += (report.reserveIncome + finalCommerce);
 
-                        let pSuccess = Math.floor(Math.min(95, Math.max(5, pSuccessBase)));
-                        let isSuccess = (Math.random() * 100) <= pSuccess;
+                        summaryItems.push({ 
+                            type: 'finance', 
+                            text: `【収支報告】\n支出: -${report.expenditure}G / 収入: +${report.reserveIncome + finalCommerce}G\n今季純収支: ${report.reserveIncome + finalCommerce - report.expenditure}G` 
+                        });
 
-                        let rewardBase = Math.floor(qDiff * 10 + (nextState.turn * 15)); // 報酬のインフレを抑える
-                        const typeLabel = questType === 'safety' ? '街の治安維持' : questType === 'adventure' ? '未開の地の探索' : '他領への軍事侵攻';
-                        addLog(`[出撃] 作戦部隊が『${typeLabel}』へ出立！... (成功予測: ${pSuccess}%)`, "info");
+                        if (next.budget < 0) {
+                            next.adventurers.forEach(a => a.loyalty -= (a.trait.id === 'loyal' ? 5 : 20));
+                            summaryItems.push({ type: 'danger', text: `金庫が空です！給与未払いで不満が高まっています。` });
+                        }
 
-                        if (isSuccess) {
-                            let reward = rewardBase;
-                            if (questType === 'military') reward = Math.floor(reward * 1.5);
-                            if (questType === 'safety') reward = Math.floor(reward * 0.7);
-
-                            if (activeEvent?.type === 'MONSTER_STAMPEDE' && questType === 'safety') reward *= 2;
-                            if (activeEvent?.type === 'WAR' && questType === 'military') reward *= 2;
-
-                            nextState.budget += reward;
-                            addLog(`[戦果] 任務は見事成功！ 報酬の金貨 ${reward}G を持ち帰りました。`, "success");
-                            summaryItems.push({ type: 'success', text: `『${typeLabel}』の任務に見事成功！\n報酬 ${reward}G を獲得しました。` });
-
-                            if (questType === 'safety') { nextState.fame += 3; nextState.notoriety = Math.max(0, nextState.notoriety - 1); }
-                            if (questType === 'adventure') { nextState.fame += 2; }
-                            if (questType === 'military') { nextState.notoriety += 6; nextState.fame += 1; }
-
-                            mainAdvs.forEach(a => a.power += nextState.facilities.training);
-
-                            if (Math.random() < 0.3 && mainAdvs.length > 0) {
-                                const hero = mainAdvs[Math.floor(Math.random() * mainAdvs.length)];
-                                hero.history.unshift(`第 ${year} 暦 【${season}】: ${typeLabel}の任務において卓越した武勲を立てた。`);
-                                hero.influence += 5;
-                                summaryItems.push({ type: 'hero', text: `${hero.name} が任務で大活躍し、武勲を立てました！` });
+                        // --- 4. ライバル動向 ---
+                        const myDefInt = getDefenseIntelligence(next);
+                        next.rivals = next.rivals.map(rival => {
+                            let r = { ...rival };
+                            if (Math.random() < 0.15 && r.relation < 80) {
+                                if (Math.random() * 100 > myDefInt) {
+                                    if (r.style === 'military') {
+                                        let vIdx = Math.floor(Math.random() * next.adventurers.length);
+                                        if (next.adventurers[vIdx]) {
+                                            next.adventurers[vIdx].power = Math.max(1, Math.floor(next.adventurers[vIdx].power * 0.8));
+                                            summaryItems.push({ type: 'danger', text: `【敵襲】『${r.name}』の襲撃で ${next.adventurers[vIdx].name} が負傷。` });
+                                        }
+                                    } else if (r.style === 'commerce') {
+                                        let loss = Math.floor(Math.random() * 400) + 100;
+                                        next.budget -= loss;
+                                        summaryItems.push({ type: 'warning', text: `【妨害】『${r.name}』との競争で ${loss}G 損失。` });
+                                    }
+                                }
                             }
+                            r.power += Math.floor(25 + next.turn * 1.2);
+                            return r;
+                        });
 
-                        } else {
-                            addLog(`[悲報] 任務は凄惨たる失敗に終わりました。部隊は命からがら撤退しました...`, "danger");
-                            summaryItems.push({ type: 'fail', text: `『${typeLabel}』の任務は凄惨たる失敗に終わりました...` });
+                        // --- 5. 加齢・引退・加入 ---
+                        next.adventurers.forEach(a => a.age += 0.25);
+                        const retirees = next.adventurers.filter(a => a.age >= 40 && Math.random() < (a.age - 39) * 0.1);
+                        retirees.forEach(a => {
+                            summaryItems.push({ type: 'info', text: `【引退】${a.name} が勇退。` });
+                            if (a.equippedArtifactId) next.ownedArtifacts.push(a.equippedArtifactId);
+                        });
+                        next.adventurers = next.adventurers.filter(a => !retirees.some(r => r.id === a.id));
+                        next.mainParty = next.mainParty.filter(id => !retirees.some(r => r.id === id));
 
-                            if (questType === 'military') nextState.notoriety += 2;
-                            if (questType === 'safety') nextState.fame = Math.max(0, nextState.fame - 2);
-
-                            let victimIdx = Math.floor(Math.random() * mainAdvs.length);
-                            let victim = mainAdvs[victimIdx];
-
-                            let deathRate = 0.3;
-                            deathRate -= (nextState.shops.magicShop * 0.05);
-                            if (victim.trait.id === 'coward') deathRate -= 0.15;
-                            if (clericCount > 0) deathRate -= 0.05;
-                            if (activeEvent?.type === 'WAR' && questType === 'military') deathRate += 0.3;
-                            if (activeEvent?.type === 'MONSTER_STAMPEDE' && questType === 'safety') deathRate += 0.2;
-
-                            if (Math.random() < deathRate) {
-                                addLog(`[訃報] 痛ましいことに、${victim.name} は生きて帰ることはありませんでした...`, "danger");
-                                summaryItems.push({ type: 'death', text: `痛ましいことに、${victim.name} は生きて帰ることはありませんでした。` });
-                                nextState.adventurers = nextState.adventurers.filter(a => a.id !== victim.id);
-                                nextState.mainParty = nextState.mainParty.filter(id => id !== victim.id);
-                                if (victim.equippedArtifactId) nextState.ownedArtifacts.push(victim.equippedArtifactId);
-                            } else {
-                                addLog(`[負傷] ${victim.name} が深手を負いました。実力と忠誠が低下します。`, "warning");
-                                summaryItems.push({ type: 'injury', text: `${victim.name} が任務中に深手を負いました。` });
-                                victim.power = Math.max(1, Math.floor(victim.power * 0.8));
-                                victim.loyalty -= 15;
-                                victim.history.unshift(`第 ${year} 暦 【${season}】: 任務失敗により重傷を負う。`);
+                        if (next.adventurers.length < next.facilities.residence * 5) {
+                            if (Math.random() * 100 < (next.fame / 5 + 20)) {
+                                let newAdv = generateAdventurer(next.fame, next.notoriety, next.usedNames, null, false);
+                                next.adventurers.push(newAdv);
+                                next.usedNames.push(newAdv.name);
+                                summaryItems.push({ type: 'join', text: `新冒険者 ${newAdv.name} が加入。` });
                             }
                         }
-                    }
 
-                    if (Math.random() * 100 < nextState.alignment.adventure * 0.8) {
-                        const availableDungeons = DUNGEON_POOL.filter(d =>
-                            !nextState.discoveredDungeons.some(dd => dd.id === d.id) &&
-                            !nextState.clearedDungeons.includes(d.id)
-                        );
-                        if (availableDungeons.length > 0) {
-                            const found = availableDungeons[0];
-                            nextState.discoveredDungeons.push(found);
-                            addLog(`[発見] 探索の過程で新たな迷宮『${found.name}』を発見しました！`, "info");
-                            summaryItems.push({ type: 'info', text: `未知の迷宮『${found.name}』を発見しました！\n「未踏の迷宮」から次季の目標に設定できます。` });
+                        // --- 6. 汎用クエスト ---
+                        if (next.mainParty.length > 0 && !next.targetDungeon) {
+                            let roll = Math.random() * 100;
+                            let cumulative = 0;
+                            let qType = 'safety';
+                            for (let a of ALIGNMENTS) {
+                                cumulative += next.alignment[a];
+                                if (roll <= cumulative) { qType = a; break; }
+                            }
+                            if (qType !== 'commerce') {
+                                const { total: pPower } = calculatePartyPower(next.mainParty, next);
+                                let pSucc = Math.min(95, Math.max(5, Math.floor((pPower / (30 + next.turn * 4)) * 100)));
+                                if (Math.random() * 100 < pSucc) {
+                                    let rew = Math.floor(300 + next.turn * 20);
+                                    next.budget += rew;
+                                    summaryItems.push({ type: 'success', text: `遠征任務成功: +${rew}G` });
+                                    next.adventurers.filter(a => next.mainParty.includes(a.id)).forEach(a => a.power += next.facilities.training);
+                                }
+                            }
                         }
+
+                        if (next.turn >= MAX_TURNS) { next.gameOver = true; next.endType = "TIME_UP"; }
+                        if (next.budget < -5000) { next.gameOver = true; next.endType = "BANKRUPT"; }
+                        if (BOSS_DATA[next.turn]) {
+                            next.activeBoss = { ...BOSS_DATA[next.turn] };
+                            summaryItems.push({ type: 'danger', text: `【警告】厄災『${next.activeBoss.name}』接近中！` });
+                        }
+
+                        setQuarterResult({ year, season, items: summaryItems, budget: next.budget, fame: next.fame, notoriety: next.notoriety, isGameOver: next.gameOver });
+                        setSelectedCandidate(null);
+                        return next;
+                    } catch (err) {
+                        console.error("Turn processing error:", err);
+                        return prev;
                     }
-                }
-
-                for (let i = nextState.adventurers.length - 1; i >= 0; i--) {
-                    let a = nextState.adventurers[i];
-                    if (nextState.budget > 0 && a.loyalty < 100) {
-                        let rec = (a.trait.id === 'loyal' ? 5 : 2);
-                        if (nextState.masterSkills.charisma > 0) rec += (nextState.masterSkills.charisma * 2);
-                        a.loyalty = Math.min(100, a.loyalty + rec);
-                    }
-                    if (a.loyalty <= 0) {
-                        addLog(`[決別] 愛想を尽かした ${a.name} が、ギルドの紋章を投げ捨てて去っていきました。`, "danger");
-                        summaryItems.push({ type: 'leave', text: `愛想を尽かした ${a.name} が自発的にギルドを去っていきました。` });
-                        if (a.equippedArtifactId) nextState.ownedArtifacts.push(a.equippedArtifactId);
-                        nextState.adventurers.splice(i, 1);
-                        nextState.mainParty = nextState.mainParty.filter(id => id !== a.id);
-                    }
-                }
-
-                let maxRoster = nextState.facilities.residence * 5;
-                if (nextState.adventurers.length < maxRoster) {
-                    const isRecruiter = nextState.receptionist.type === 'recruiter';
-                    const joinChance = (nextState.fame / 5) + 20 + (isRecruiter ? 15 : 0);
-
-                    if (Math.random() * 100 < joinChance) {
-                        let newAdv = generateAdventurer(nextState.fame, nextState.notoriety, nextState.usedNames, null, isRecruiter);
-                        nextState.adventurers.push(newAdv);
-                        nextState.usedNames.push(newAdv.name);
-                        addLog(`[来訪] ギルドの噂を聞きつけ、${newAdv.name} (ランク${newAdv.rank}・${newAdv.advClass.name}) が門を叩きました！`, "success");
-                        summaryItems.push({ type: 'join', text: `新たな冒険者 ${newAdv.name} (ランク${newAdv.rank}) が加入しました！` });
-                    }
-                }
-
-                if (!nextState.specialRequest && !nextState.activeBoss && Math.random() < 0.2) {
-                    nextState.specialRequest = SPECIAL_REQUESTS[Math.floor(Math.random() * SPECIAL_REQUESTS.length)];
-                    addLog(`[至急] ギルドに特別な指名依頼が舞い込みました。本部で確認してください。`, "accent");
-                }
-
-                checkAchievements(nextState, summaryItems);
-
-                if (nextState.turn >= MAX_TURNS) {
-                    nextState.gameOver = true; nextState.endType = "TIME_UP";
-                } else if (nextState.budget < -5000) {
-                    nextState.gameOver = true; nextState.endType = "BANKRUPT";
-                } else if (nextState.adventurers.length === 0 && nextState.budget < 1000) {
-                    nextState.gameOver = true; nextState.endType = "RUIN";
-                }
-
-                if (BOSS_DATA[nextState.turn]) {
-                    nextState.activeBoss = { ...BOSS_DATA[nextState.turn] };
-                    nextState.allianceRequests = {};
-                    nextState.specialRequest = null;
-                    summaryItems.push({ type: 'danger', text: `【緊急事態】\n${nextState.activeBoss.name}が迫っています！次季は全勢力を挙げて迎撃にあたります。` });
-                }
-
-                setQuarterResult({
-                    year, season, items: summaryItems,
-                    budget: nextState.budget, fame: nextState.fame, notoriety: nextState.notoriety,
-                    isGameOver: nextState.gameOver
                 });
-
-                setSelectedCandidate(null);
-                setGameState(nextState);
             };
 
             const fightBoss = () => {
@@ -2311,6 +2059,28 @@
             const currentSeason = SEASONS[gameState.turn % 4];
             const canUsurp = gameState.alignment.military >= 80 && gameState.notoriety >= 50 && currentGuildPower >= 1000;
 
+            const getFinancialReport = () => {
+                const salaries = gameState.adventurers.reduce((sum, a) => sum + a.salary, 0) + gameState.receptionist.salary;
+                const baseMaintenance = gameState.facilities.residence * 100 + gameState.facilities.tavern * 50 + gameState.facilities.training * 50;
+                
+                let discount = Math.min(0.5, gameState.shops.itemShop * 0.1);
+                if (gameState.receptionist.type === 'merchant') discount = Math.min(0.5, discount + 0.1);
+                if (gameState.masterSkills.business > 0) discount = Math.min(0.8, discount + (gameState.masterSkills.business * 0.1));
+                const maintenance = Math.floor(baseMaintenance * (1 - discount));
+
+                let reserveBase = 20;
+                if (gameState.masterSkills.business > 0) reserveBase += (gameState.masterSkills.business * 10);
+                const choresIncome = (gameState.adventurers.length - gameState.mainParty.length) * reserveBase;
+                
+                let commerceIncome = Math.floor(gameState.facilities.tavern * 300 * (gameState.alignment.commerce / 25));
+                if (gameState.masterSkills.business > 0) commerceIncome = Math.floor(commerceIncome * (1 + gameState.masterSkills.business * 0.2));
+                
+                const totalIncome = choresIncome + commerceIncome;
+                const totalExpense = salaries + maintenance;
+                
+                return { salaries, maintenance, choresIncome, commerceIncome, totalIncome, totalExpense, balance: totalIncome - totalExpense };
+            };
+
             const acceptQuest = (quest) => {
                 if (gameState.activeQuests.some(q => q.id === quest.id)) return;
                 setGameState(prev => {
@@ -2374,6 +2144,55 @@
                                             <br />
                                             世間の評価についてですが、我がギルドは現在、<strong>{getReputationText()}</strong>
                                         </p>
+                                    </div>
+
+                                    {/* 収支見込みパネル */}
+                                    <div className="bg-stone-50 p-5 border border-[#D4C3A3] rounded-sm shadow-sm flex flex-col">
+                                        <h3 className="text-lg font-bold text-stone-800 mb-3 flex items-center gap-2 border-b border-[#D4C3A3] pb-2">
+                                            <Coins className="w-5 h-5 text-amber-600" /> 次季の収支見込み
+                                        </h3>
+                                        {(() => {
+                                            const report = getFinancialReport();
+                                            return (
+                                                <div className="space-y-3 flex-1">
+                                                    <div className="space-y-1">
+                                                        <div className="flex justify-between text-xs font-bold text-emerald-700">
+                                                            <span>商業・雑用収入 (見込)</span>
+                                                            <span>+{report.totalIncome} G</span>
+                                                        </div>
+                                                        <div className="flex justify-between text-[10px] text-stone-500 pl-2">
+                                                            <span>- 酒場/宿屋収益</span>
+                                                            <span>+{report.commerceIncome} G</span>
+                                                        </div>
+                                                        <div className="flex justify-between text-[10px] text-stone-500 pl-2">
+                                                            <span>- 待機メンバー雑用</span>
+                                                            <span>+{report.choresIncome} G</span>
+                                                        </div>
+                                                    </div>
+                                                    <div className="space-y-1 pt-1 border-t border-stone-200">
+                                                        <div className="flex justify-between text-xs font-bold text-rose-700">
+                                                            <span>維持費・給与 (確定)</span>
+                                                            <span>-{report.totalExpense} G</span>
+                                                        </div>
+                                                        <div className="flex justify-between text-[10px] text-stone-500 pl-2">
+                                                            <span>- 冒険者/受付給与</span>
+                                                            <span>-{report.salaries} G</span>
+                                                        </div>
+                                                        <div className="flex justify-between text-[10px] text-stone-500 pl-2">
+                                                            <span>- 施設維持費</span>
+                                                            <span>-{report.maintenance} G</span>
+                                                        </div>
+                                                    </div>
+                                                    <div className="pt-2 border-t-2 border-stone-300 flex justify-between items-center">
+                                                        <span className="text-sm font-bold text-stone-700">次季の純収支</span>
+                                                        <span className={`text-lg font-bold ${report.balance >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                                                            {report.balance >= 0 ? '+' : ''}{report.balance} G
+                                                        </span>
+                                                    </div>
+                                                    <p className="text-[10px] text-stone-400 italic">※クエスト報酬や突発イベントは含まれません。</p>
+                                                </div>
+                                            );
+                                        })()}
                                     </div>
 
                                     {/* 受付嬢変更パネル */}
