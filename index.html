@@ -223,7 +223,7 @@
             Target, Activity, LogOut, CheckCircle2, RotateCcw,
             BookOpen, ChevronRight, Landmark, ScrollText,
             Wand2, Hammer, ShoppingBag, EyeOff, UserPlus, Search, X: XIcon,
-            Trophy, Flame, Handshake, Compass, MessageSquare, HeartHandshake,
+            Trophy, Flame, HeartHandshake, Compass, MessageSquare,
             UserMinus, Zap, Star, Shuffle, Volume2, VolumeX
         } = window.LucideReact;
 
@@ -428,7 +428,7 @@
             { id: 'boss_1', name: '岩竜殺し', desc: '第一の厄災「目覚めし岩竜」を討伐した。', icon: Target },
             { id: 'boss_2', name: '魔将討ち', desc: '第二の厄災「深淵の魔将」を討伐した。', icon: Target },
             { id: 'boss_3', name: '神話の終焉', desc: '最終の厄災「終焉を呼ぶ巨神」を討伐した。', icon: Crown },
-            { id: 'coop', name: '呉越同舟', desc: 'ライバルギルドと手を取り合い、共に厄災に立ち向かった。', icon: Handshake }
+            { id: 'coop', name: '呉越同舟', desc: 'ライバルギルドと手を取り合い、共に厄災に立ち向かった。', icon: HeartHandshake }
         ];
 
         const BOSS_DATA = {
@@ -2818,7 +2818,7 @@
                                 </div>
 
                                 <div className="bg-white p-5 border border-[#E8E0D5] rounded-sm shadow-sm">
-                                    <h4 className="font-bold text-stone-800 mb-4 flex items-center gap-2"><Handshake className="w-5 h-5 text-indigo-600" /> 他ギルドへの共闘要請 (交渉資金: 1000G)</h4>
+                                    <h4 className="font-bold text-stone-800 mb-4 flex items-center gap-2"><HeartHandshake className="w-5 h-5 text-indigo-600" /> 他ギルドへの共闘要請 (交渉資金: 1000G)</h4>
                                     <p className="text-xs text-stone-600 mb-4">友好度（関係性）が高いギルドほど要請に応じやすくなります。</p>
                                     <div className="space-y-3">
                                         {gameState.rivals.map(rival => {
