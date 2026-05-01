@@ -117,6 +117,7 @@
             width: 100%;
             height: 200px;
             object-fit: cover;
+            object-position: center;
             border-radius: 4px;
             border: 2px solid rgba(120, 113, 108, 0.5);
         }
@@ -126,6 +127,7 @@
             width: 100%;
             height: 220px;
             object-fit: cover;
+            object-position: center;
             border-radius: 4px;
         }
 
@@ -3249,7 +3251,7 @@
                             {imgPath && (
                                 <div className="w-full h-64 overflow-hidden relative">
                                     <div className="absolute inset-0 bg-gradient-to-t from-stone-900 via-transparent to-transparent z-10"></div>
-                                    <img src={imgPath} className={`w-full h-full object-cover ${actionModal.phase === 'searching' ? 'animate-pulse scale-105' : 'scale-100'} transition-transform duration-1000`} alt="" />
+                                    <img src={imgPath} className={`w-full h-full object-cover object-center ${actionModal.phase === 'searching' ? 'animate-pulse scale-105' : 'scale-100'} transition-transform duration-1000`} alt="" />
                                 </div>
                             )}
                             <div className="p-8 text-center bg-stone-900 relative z-20">
