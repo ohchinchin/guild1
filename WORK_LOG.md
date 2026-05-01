@@ -1,4 +1,14 @@
 # Work Log
+## 2026-05-01
+- **大規模リファクタリング**: 3300行を超える巨大な `index.html` を、Reactのコンポーネントベースのモジュール構造に分割しました。
+    - `src/data/constants.js`: ゲーム定数とデータの分離。
+    - `src/utils/audio.js`: オーディオエンジンの独立。
+    - `src/utils/gameLogic.js`: 戦力計算やNPC生成ロジックの共通化。
+    - `src/components/`: UIコンポーネントの部品化。
+    - `src/App.js`: メインロジックの整理。
+- **軽量化と起動改善**: ファイル分割によりブラウザの解析負荷を軽減し、起動しない問題を解消しました。
+- **ディレクトリ構造の整理**: `src/` フォルダ配下に整理し、今後の機能追加やデバッグを容易にしました。
+
 ## 2026-04-30
 - プロジェクト開始: https://ohchinchin.github.io/guild1/ からのファイル取得
 - GitHubリポジトリ https://github.com/ohchinchin/guild1 を特定し、ファイルをプルしました。
