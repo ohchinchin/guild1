@@ -1,4 +1,5 @@
-import React, { useEffect } from 'react';
+const React = window.React;
+const { useEffect } = React;
 
 const ConfettiEffect = ({ rank }) => {
     useEffect(() => {
