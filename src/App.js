@@ -14,26 +14,735 @@ import {
     calculatePartyPower, generateReceptionist 
 } from './utils/gameLogic.js';
 
-import HomeView from './components/HomeView.js';
-import QuestBoard from './components/QuestBoard.js';
-import RosterView from './components/RosterView.js';
-import AlignmentView from './components/AlignmentView.js';
-import DungeonView from './components/DungeonView.js';
-import FacilityView from './components/FacilityView.js';
-import ShopView from './components/ShopView.js';
-import IntrigueView from './components/IntrigueView.js';
-import SkillView from './components/SkillView.js';
-import AchievementView from './components/AchievementView.js';
-import BossView from './components/BossView.js';
-import LogView from './components/LogView.js';
-import DecisionView from './components/DecisionView.js';
+// --- Components ---
 
-import AdventurerModal from './components/AdventurerModal.js';
-import ActionModal from './components/ActionModal.js';
-import QuarterResultModal from './components/QuarterResultModal.js';
-import SpecialRequestModal from './components/SpecialRequestModal.js';
-import HowToPlayModal from './components/HowToPlayModal.js';
-import EndingView from './components/EndingView.js';
+const TypewriterText = ({ text, speed = 50, onComplete, className }) => {
+    const [displayedText, setDisplayedText] = React.useState("");
+    const [index, setIndex] = React.useState(0);
+    const [done, setDone] = React.useState(false);
+
+    React.useEffect(() => {
+        setDisplayedText("");
+        setIndex(0);
+        setDone(false);
+    }, [text]);
+
+    React.useEffect(() => {
+        if (index < text.length) {
+            const timeout = setTimeout(() => {
+                setDisplayedText(prev => prev + text[index]);
+                setIndex(prev => prev + 1);
+            }, speed);
+            return () => clearTimeout(timeout);
+        } else {
+            setDone(true);
+            if (onComplete) onComplete();
+        }
+    }, [index, text, speed, onComplete]);
+
+    return html`
+        <span className=${className}>
+            ${displayedText}
+            ${!done && html`<span className="typewriter-cursor"></span>`}
+        </span>
+    `;
+};
+
+const ConfettiEffect = ({ rank }) => {
+    React.useEffect(() => {
+        const colors = rank === 'S' ? ['#fbbf24', '#f59e0b', '#d97706', '#fff'] : ['#a855f7', '#7e22ce', '#9333ea', '#fff'];
+        const container = document.createElement('div');
+        container.style.position = 'absolute';
+        container.style.inset = '0';
+        container.style.pointerEvents = 'none';
+        container.style.zIndex = '100';
+        document.querySelector('.gacha-glow-' + rank.toLowerCase())?.appendChild(container);
+
+        for (let i = 0; i < 50; i++) {
+            const c = document.createElement('div');
+            c.className = 'confetti';
+            c.style.left = Math.random() * 100 + '%';
+            c.style.top = Math.random() * 100 + '%';
+            c.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+            c.style.transform = `rotate(${Math.random() * 360}deg)`;
+            container.appendChild(c);
+            
+            const animation = c.animate([
+                { transform: 'translateY(0) rotate(0deg)', opacity: 1 },
+                { transform: `translate(${(Math.random() - 0.5) * 200}px, ${Math.random() * 200 + 100}px) rotate(${Math.random() * 360}deg)`, opacity: 0 }
+            ], {
+                duration: Math.random() * 1000 + 1000,
+                easing: 'cubic-bezier(0, .9, .57, 1)'
+            });
+            animation.onfinish = () => c.remove();
+        }
+        return () => container.remove();
+    }, [rank]);
+
+    return null;
+};
+
+function HomeView({ gameState, currentGuildPower, currentYear, currentSeason, getReputationText, getFinancialReport, hireReceptionist, setSelectedCandidate, selectedCandidate, openSpecialRequestModal, declineSpecialRequest }) {
+    const { Target, MessageSquare, AlertTriangle, ScrollText, Coins, HeartHandshake } = window.LucideReact || window.lucide || {};
+    if (!Target) return null;
+
+    return html`
+        <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">
+            ${gameState.specialRequest && html`
+                <div className="bg-indigo-900 border border-indigo-700 p-5 rounded-sm shadow-md text-indigo-50 relative overflow-hidden">
+                    <div className="absolute top-0 right-0 opacity-10 pointer-events-none transform translate-x-1/4 -translate-y-1/4"><${Target} className="w-48 h-48 text-indigo-400" /></div>
+                    <h4 className="font-bold text-xl mb-2 flex items-center gap-2 text-indigo-200 relative z-10"><${Target} className="w-6 h-6" /> 指名依頼：${gameState.specialRequest.name}</h4>
+                    <p className="text-sm text-indigo-100 mb-4 relative z-10 leading-relaxed">${gameState.specialRequest.desc}</p>
+                    <div className="flex gap-4 text-sm font-bold mb-4 bg-indigo-950/50 p-3 rounded relative z-10">
+                        <span>推奨戦力: <span className="text-rose-400">${gameState.specialRequest.powerReq}</span></span>
+                        <span>報酬: <span className="text-amber-400">${gameState.specialRequest.reward}G</span></span>
+                    </div>
+                    <div className="flex gap-3 relative z-10">
+                        <button onClick=${openSpecialRequestModal} className="bg-rose-700 hover:bg-rose-600 text-white px-4 py-2 rounded-sm font-bold shadow-sm active:scale-95 transition-all">特別部隊を編成する</button>
+                        <button onClick=${declineSpecialRequest} className="bg-indigo-800 hover:bg-indigo-700 text-indigo-200 px-4 py-2 rounded-sm font-bold shadow-sm active:scale-95 transition-all">丁重に断る</button>
+                    </div>
+                </div>
+            `}
+
+            <div className="bg-[#F2E8C6] border border-[#D4C3A3] p-4 rounded-sm shadow-sm relative">
+                <${MessageSquare} className="absolute top-4 left-4 w-6 h-6 text-amber-700/30" />
+                <p className="text-stone-700 italic pl-8 font-medium leading-relaxed">
+                    ${gameState.currentRumor}
+                </p>
+            </div>
+
+            ${gameState.currentEvent && html`
+                <div className="bg-amber-100 border-l-4 border-amber-500 p-4 rounded-sm shadow-sm flex items-start gap-3">
+                    <${AlertTriangle} className="w-6 h-6 text-amber-600 shrink-0" />
+                    <div>
+                        <h4 className="font-bold text-amber-800">【世界情勢】${gameState.currentEvent.name}</h4>
+                        <p className="text-sm text-amber-700">${gameState.currentEvent.desc}</p>
+                    </div>
+                </div>
+            `}
+
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+                <div className="bg-white p-5 border border-[#E8E0D5] rounded-sm shadow-sm flex flex-col">
+                    <h3 className="text-lg font-bold text-stone-800 mb-3 flex items-center gap-2 border-b border-[#E8E0D5] pb-2">
+                        <${ScrollText} className="w-5 h-5 text-indigo-700" /> 街での評判と現状
+                    </h3>
+                    <p className="text-stone-700 leading-relaxed font-medium mb-4 flex-1">
+                        マスター、第 ${currentYear} 暦 【${currentSeason}】 の報告です。<br /><br />
+                        現在の金庫には <span className="font-bold text-amber-600">${gameState.budget.toLocaleString()} G</span> の資金があります。
+                        人員は ${gameState.adventurers.length} 名が所属しており、今季の主力部隊の戦力は ${currentGuildPower} と評価されています。<br />
+                        <br />
+                        世間の評価についてですが、我がギルドは現在、<strong>${getReputationText()}</strong>
+                    </p>
+                </div>
+
+                <div className="bg-stone-50 p-5 border border-[#D4C3A3] rounded-sm shadow-sm flex flex-col">
+                    <h3 className="text-lg font-bold text-stone-800 mb-3 flex items-center gap-2 border-b border-[#D4C3A3] pb-2">
+                        <${Coins} className="w-5 h-5 text-amber-600" /> 次季の収支見込み
+                    </h3>
+                    ${(() => {
+                        const report = getFinancialReport(gameState);
+                        return html`
+                            <div className="space-y-3 flex-1">
+                                <div className="space-y-1">
+                                    <div className="flex justify-between text-xs font-bold text-emerald-700">
+                                        <span>商業・雑用収入 (見込)</span>
+                                        <span>+${report.totalIncome} G</span>
+                                    </div>
+                                    <div className="flex justify-between text-[10px] text-stone-500 pl-2">
+                                        <span>- 酒場/宿屋収益</span>
+                                        <span>+${report.commerceIncome} G</span>
+                                    </div>
+                                    <div className="flex justify-between text-[10px] text-stone-500 pl-2">
+                                        <span>- 待機メンバー雑用</span>
+                                        <span>+${report.choresIncome} G</span>
+                                    </div>
+                                </div>
+                                <div className="space-y-1 pt-1 border-t border-stone-200">
+                                    <div className="flex justify-between text-xs font-bold text-rose-700">
+                                        <span>維持費・給与 (確定)</span>
+                                        <span>-${report.totalExpense} G</span>
+                                    </div>
+                                    <div className="flex justify-between text-[10px] text-stone-500 pl-2">
+                                        <span>- 冒険者/受付給与</span>
+                                        <span>-${report.salaries} G</span>
+                                    </div>
+                                    <div className="flex justify-between text-[10px] text-stone-500 pl-2">
+                                        <span>- 施設維持費</span>
+                                        <span>-${report.maintenance} G</span>
+                                    </div>
+                                </div>
+                                <div className="pt-2 border-t-2 border-stone-300 flex justify-between items-center">
+                                    <span className="text-sm font-bold text-stone-700">次季の純収支</span>
+                                    <span className=${`text-lg font-bold ${report.balance >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                                        ${report.balance >= 0 ? '+' : ''}${report.balance} G
+                                    </span>
+                                </div>
+                                <p className="text-[10px] text-stone-400 italic">※クエスト報酬や突発イベントは含まれません。</p>
+                            </div>
+                        `;
+                    })()}
+                </div>
+
+                <div className="bg-stone-50 p-5 border border-[#D4C3A3] rounded-sm shadow-sm flex flex-col">
+                    <h3 className="text-lg font-bold text-stone-800 mb-3 flex items-center gap-2 border-b border-[#D4C3A3] pb-2">
+                        <${HeartHandshake} className="w-5 h-5 text-rose-700" /> ギルド受付窓口
+                    </h3>
+                    <div className="flex-1">
+                        <div className="mb-4">
+                            <div className="text-sm font-bold text-stone-600 mb-1">現在の受付担当</div>
+                            <div className="text-lg font-bold text-indigo-800 mb-1">${gameState.receptionist.name}</div>
+                            <p className="text-xs text-stone-600 leading-relaxed bg-white p-2 rounded border border-stone-200">${gameState.receptionist.desc} <span className="font-bold">(維持費: ${gameState.receptionist.salary}G)</span></p>
+                        </div>
+                        <div>
+                            <div className="text-xs font-bold text-stone-500 mb-2">求人応募者</div>
+                            <div className="grid grid-cols-1 gap-2 mb-3">
+                                ${gameState.availableReceptionists.map(rep => html`
+                                    <button
+                                        key=${rep.id}
+                                        onClick=${() => setSelectedCandidate(rep.id === selectedCandidate?.id ? null : rep)}
+                                        className=${`text-left p-2 border rounded text-xs transition-colors flex justify-between items-center ${selectedCandidate?.id === rep.id ? 'bg-indigo-50 border-indigo-300 font-bold text-indigo-800 shadow-sm' : 'bg-white hover:bg-stone-100 text-stone-700'}`}
+                                    >
+                                        <span>${rep.name}</span>
+                                    </button>
+                                `)}
+                            </div>
+                            ${selectedCandidate && html`
+                                <div className="bg-white p-3 rounded border border-indigo-200 shadow-sm animate-in fade-in zoom-in-95 duration-200">
+                                    <div className="font-bold text-indigo-800 text-sm mb-1">${selectedCandidate.name}</div>
+                                    <p className="text-xs text-stone-600 mb-2">${selectedCandidate.desc}</p>
+                                    <div className="flex justify-between items-center text-xs mb-3">
+                                        <span>採用金: <span className="font-bold text-amber-600">${selectedCandidate.hireCost}G</span></span>
+                                        <span>維持費: <span className="font-bold text-stone-800">${selectedCandidate.salary}G/季</span></span>
+                                    </div>
+                                    <button
+                                        onClick=${() => {
+                                            hireReceptionist(selectedCandidate);
+                                            setSelectedCandidate(null);
+                                        }}
+                                        className="w-full bg-indigo-700 hover:bg-indigo-600 text-white py-2 rounded-sm font-bold transition-colors shadow-sm active:scale-95"
+                                    >
+                                        採用する
+                                    </button>
+                                </div>
+                            `}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+function QuestBoard({ gameState, acceptQuest }) {
+    const { ScrollText, CheckCircle2 } = window.LucideReact || window.lucide || {};
+    return html`
+        <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">
+            <div>
+                <h3 className="font-bold text-stone-800 mb-3 flex items-center gap-2">
+                    <${ScrollText} className="w-5 h-5 text-amber-600" /> 受注可能な依頼
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    ${gameState.availableQuests.map(q => {
+                        const type = QUEST_TYPES.find(t => t.id === q.type);
+                        const Icon = window.LucideReact[type.icon] || window.lucide[type.icon];
+                        return html`
+                            <div key=${q.id} className="bg-white border border-[#E8E0D5] p-4 rounded-sm shadow-sm flex flex-col hover:border-amber-400 transition-colors">
+                                <div className="flex justify-between items-start mb-2">
+                                    <h4 className="font-bold text-stone-800 flex items-center gap-2"><${Icon} className="w-5 h-5 text-indigo-600" /> ${q.name}</h4>
+                                    <span className="text-[10px] font-bold bg-stone-100 text-stone-500 px-2 py-1 rounded">期限: ${q.turnLimit}季</span>
+                                </div>
+                                <p className="text-xs text-stone-600 mb-4 flex-1">${q.desc}</p>
+                                <div className="grid grid-cols-2 gap-2 text-[11px] font-bold mb-4 bg-stone-50 p-2 rounded">
+                                    <div className="text-rose-700">必要戦力: ${q.powerReq}</div>
+                                    <div className="text-amber-600">報酬: ${q.reward}G</div>
+                                    ${q.deposit > 0 && html`<div className="text-emerald-600 col-span-2">前金受領可: ${q.deposit}G</div>`}
+                                </div>
+                                <button 
+                                    onClick=${() => acceptQuest(q)}
+                                    className="w-full bg-stone-800 hover:bg-stone-700 text-[#F2E8C6] py-2 rounded-sm font-bold text-xs shadow-sm transition-colors active:scale-95"
+                                >
+                                    この依頼を引き受ける
+                                </button>
+                            </div>
+                        `;
+                    })}
+                    ${gameState.availableQuests.length === 0 && html`
+                        <div className="col-span-full text-center p-8 text-stone-400 border border-dashed border-[#D4C3A3]">現在、新しい依頼はありません。</div>
+                    `}
+                </div>
+            </div>
+            ${gameState.activeQuests.length > 0 && html`
+                <div className="mt-8">
+                    <h3 className="font-bold text-stone-800 mb-3 flex items-center gap-2">
+                        <${CheckCircle2} className="w-5 h-5 text-emerald-600" /> 遂行中の依頼
+                    </h3>
+                    <div className="space-y-2">
+                        ${gameState.activeQuests.map(q => html`
+                            <div key=${q.id} className="flex justify-between items-center p-3 bg-emerald-50 border border-emerald-200 rounded-sm">
+                                <div className="text-sm font-bold text-emerald-900">${q.name}</div>
+                                <div className="text-[10px] font-bold text-emerald-700">残り期限: ${q.turnLimit}季</div>
+                            </div>
+                        `)}
+                    </div>
+                </div>
+            `}
+        </div>
+    `;
+}
+
+function RosterView({ gameState, autoAssembleParty, searchAdventurer, setSelectedAdv }) {
+    const { Swords, Shuffle, Search } = window.LucideReact || window.lucide || {};
+    return html`
+        <div className="flex flex-col h-full animate-in fade-in slide-in-from-right-4 duration-500">
+            <div className="mb-6 shrink-0">
+                <div className="flex items-center justify-between mb-3 border-b border-[#D4C3A3] pb-2">
+                    <h3 className="font-bold flex items-center gap-2 text-stone-700">
+                        <${Swords} className="w-5 h-5 text-indigo-600" /> 今季の主力部隊 (自動編成)
+                    </h3>
+                    <div className="flex gap-2">
+                        <button
+                            onClick=${autoAssembleParty}
+                            className="text-xs font-bold bg-white text-indigo-700 border border-indigo-200 hover:bg-indigo-50 px-3 py-1.5 rounded-sm flex items-center gap-1 transition-colors shadow-sm active:scale-95"
+                        >
+                            <${Shuffle} className="w-3 h-3" /> おまかせ編成
+                        </button>
+                        <span className="text-xs font-bold bg-indigo-100 text-indigo-800 px-3 py-1.5 rounded-sm flex items-center">
+                            編成: ${gameState.mainParty.length} / 5
+                        </span>
+                    </div>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
+                    ${Array.from({ length: 5 }).map((_, i) => {
+                        const advId = gameState.mainParty[i];
+                        const adv = gameState.adventurers.find(a => a.id === advId);
+                        if (!adv) {
+                            return html`
+                                <button key=${i} className="p-3 rounded-sm border bg-stone-100/50 border-stone-200 border-dashed cursor-default flex flex-col items-center justify-center h-[110px]">
+                                    <span className="text-xs text-stone-400 font-bold">空き枠</span>
+                                </button>
+                            `;
+                        }
+                        const AdvIcon = window.LucideReact[adv.advClass.icon] || window.lucide[adv.advClass.icon];
+                        return html`
+                            <button key=${i} onClick=${() => setSelectedAdv(adv)} className="p-3 rounded-sm border bg-indigo-50 border-indigo-300 shadow-sm hover:border-indigo-500 hover:-translate-y-0.5 flex flex-col items-center justify-center h-[110px] transition-all">
+                                <${AdvIcon} className="w-6 h-6 text-indigo-500 mb-1" />
+                                <span className="font-bold text-sm text-stone-800 text-center line-clamp-1 w-full">${adv.name}</span>
+                                <span className="text-xs text-indigo-700 font-bold mt-1 bg-white px-2 py-0.5 rounded border border-indigo-100">戦力 ${adv.power}</span>
+                            </button>
+                        `;
+                    })}
+                </div>
+            </div>
+            <div className="flex-1 flex flex-col min-h-[300px]">
+                <div className="flex justify-between items-center mb-3 shrink-0">
+                    <p className="text-sm font-bold text-stone-600">所属冒険者一覧</p>
+                    <div className="flex gap-2">
+                        <button onClick=${searchAdventurer} className="text-xs font-bold bg-amber-700 hover:bg-amber-600 text-white px-3 py-1.5 rounded-sm flex items-center gap-1.5 transition-all shadow-sm active:scale-95">
+                            <${Search} className="w-3.5 h-3.5" /> 人材を捜索 (500G)
+                        </button>
+                        <span className="text-xs font-bold text-stone-600 bg-[#E8E0D5] px-2 py-1 rounded-sm border border-[#D4C3A3] flex items-center">
+                            所属: ${gameState.adventurers.length} / ${gameState.facilities.residence * 5} 名
+                        </span>
+                    </div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 overflow-y-auto pb-4 pr-1">
+                    ${gameState.adventurers.map(adv => {
+                        const isMain = gameState.mainParty.includes(adv.id);
+                        const AdvIcon = window.LucideReact[adv.advClass.icon] || window.lucide[adv.advClass.icon];
+                        return html`
+                            <button key=${adv.id} onClick=${() => setSelectedAdv(adv)} className=${`p-3 bg-white border ${isMain ? 'border-indigo-300 ring-1 ring-indigo-100' : 'border-[#E8E0D5]'} rounded-sm shadow-sm flex justify-between items-center hover:border-amber-500 hover:shadow-md hover:-translate-y-0.5 transition-all group text-left relative`}>
+                                ${isMain && html`<div className="absolute -top-2 -right-2 bg-indigo-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded shadow-sm">主力</div>`}
+                                <div>
+                                    <div className="text-sm font-bold text-stone-800 flex items-center gap-2 mb-1 group-hover:text-amber-700 transition-colors">
+                                        <span className="truncate max-w-[90px]">${adv.name}</span>
+                                        <span className=${`text-[10px] px-1.5 py-0.5 rounded-sm font-bold border shrink-0 ${adv.rank === 'S' ? 'bg-amber-100 text-amber-800 border-amber-300' : adv.rank === 'A' ? 'bg-purple-100 text-purple-800 border-purple-300' : 'bg-stone-100 text-stone-600 border-stone-300'}`}>${adv.rank} 級</span>
+                                    </div>
+                                    <div className="text-[11px] font-medium flex items-center gap-1 text-indigo-700">
+                                        <${AdvIcon} className="w-3 h-3" /> ${adv.advClass.name} <span className="text-stone-400">|</span> <span className="text-amber-700">${adv.personality.name}</span>
+                                    </div>
+                                </div>
+                                <div className="text-right shrink-0">
+                                    <div className="text-sm font-bold text-stone-800">戦力 ${adv.power}</div>
+                                    <div className=${`text-[10px] font-bold mt-1 ${adv.loyalty < 30 ? 'text-rose-600' : 'text-emerald-700'}`}>忠誠 ${adv.loyalty}%</div>
+                                </div>
+                            </button>
+                        `;
+                    })}
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+function AlignmentView({ gameState, updateAlignment }) {
+    const { Shield, Map: MapIcon, Swords, Beer } = window.LucideReact || window.lucide || {};
+    if (!Shield) return null;
+    return html`
+        <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">
+            <p className="text-stone-600 mb-4">ギルドの方向性を決定します。この比率に応じて、自動編成される部隊が向かう任務の確率が変化します。</p>
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                <div className="bg-white p-5 border border-[#E8E0D5] rounded-sm shadow-sm space-y-6">
+                    ${[
+                        { id: 'safety', label: '街の治安維持', icon: Shield, color: 'text-emerald-700' },
+                        { id: 'adventure', label: '未開の地の探索', icon: MapIcon, color: 'text-indigo-700' },
+                        { id: 'military', label: '他領への軍事侵攻', icon: Swords, color: 'text-rose-800' },
+                        { id: 'commerce', label: '商業と内政', icon: Beer, color: 'text-amber-600' }
+                    ].map(item => html`
+                        <div key=${item.id}>
+                            <div className="flex justify-between text-sm mb-2 font-bold">
+                                <span className=${`flex items-center gap-2 ${item.color}`}><${item.icon} className="w-5 h-5" /> ${item.label}</span>
+                                <span className="text-stone-700 text-lg">${gameState.alignment[item.id]}%</span>
+                            </div>
+                            <input type="range" min="0" max="100" value=${gameState.alignment[item.id]} onChange=${(e) => updateAlignment(item.id, e.target.value)} className="w-full h-2 bg-[#E8E0D5] rounded-full appearance-none cursor-pointer accent-stone-700" />
+                        </div>
+                    `)}
+                </div>
+                <div className="space-y-3">
+                    <div className="bg-emerald-50 border border-emerald-200 p-3 rounded-sm">
+                        <h4 className="font-bold text-emerald-800 text-sm mb-1">治安維持</h4>
+                        <p className="text-xs text-emerald-700">報酬は少ないが名声が着実に上がり、死亡リスクが低い。</p>
+                    </div>
+                    <div className="bg-indigo-50 border border-indigo-200 p-3 rounded-sm">
+                        <h4 className="font-bold text-indigo-800 text-sm mb-1">探索・攻略</h4>
+                        <p className="text-xs text-indigo-700">未知の領域の調査。探索割合が高いと新たな【迷宮】を発見しやすい。</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+function DungeonView({ gameState, setGameState }) {
+    const { Compass, Coins } = window.LucideReact || window.lucide || {};
+    return html`
+        <div className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-500">
+            <p className="text-stone-600 mb-4">探索で発見した未踏の迷宮です。</p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                ${gameState.discoveredDungeons.map(d => html`
+                    <div key=${d.id} className=${`p-4 border rounded-sm shadow-sm transition-all flex flex-col ${gameState.targetDungeon === d.id ? 'bg-indigo-50 border-indigo-400 ring-2 ring-indigo-200' : 'bg-white border-[#E8E0D5]'}`}>
+                        <div className="flex justify-between items-center mb-3">
+                            <h4 className="font-bold text-lg text-stone-800 flex items-center gap-1.5"><${Compass} className="w-5 h-5 text-indigo-600" /> ${d.name}</h4>
+                            <button onClick=${() => setGameState(prev => ({ ...prev, targetDungeon: d.id }))} className=${`text-xs font-bold px-3 py-1.5 rounded-sm border transition-colors ${gameState.targetDungeon === d.id ? 'bg-indigo-200 text-indigo-700' : 'bg-stone-100 text-stone-600 border-stone-300'}`}>
+                                ${gameState.targetDungeon === d.id ? '目標に設定中' : '目標に設定'}
+                            </button>
+                        </div>
+                        <p className="text-sm text-stone-600 mb-4 flex-1">${d.desc}</p>
+                        <div className="flex justify-between text-sm font-bold bg-white p-2 rounded-sm border border-stone-100 mt-auto">
+                            <span className="text-rose-700">推奨戦力: ${d.powerReq}</span>
+                            <span className="text-amber-600 flex items-center gap-1"><${Coins} className="w-4 h-4" /> 報酬: ${d.reward}G</span>
+                        </div>
+                    </div>
+                `)}
+            </div>
+        </div>
+    `;
+}
+
+function FacilityView({ gameState, investFacility }) {
+    const { Users, Coins, Dumbbell } = window.LucideReact || window.lucide || {};
+    const facilities = [
+        { id: 'residence', label: '居住区', icon: Users, details: '最大収容人数が増加します。' },
+        { id: 'tavern', label: '酒場と宿屋', icon: Coins, details: '毎季節の固定収入が増加します。' },
+        { id: 'training', label: '訓練場', icon: Dumbbell, details: '経験値の底上げ。' }
+    ];
+    return html`
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            ${facilities.map(fac => html`
+                <div key=${fac.id} className="bg-white border border-[#E8E0D5] p-4 rounded-sm shadow-sm flex flex-col">
+                    <div className="flex items-center gap-3 mb-3 border-b border-stone-100 pb-3">
+                        <div className="bg-stone-100 p-2 rounded-sm"><${fac.icon} className="w-6 h-6" /></div>
+                        <div>
+                            <div className="font-bold text-stone-800 text-lg">${fac.label}</div>
+                            <div className="text-sm font-bold text-indigo-700">Lv. ${gameState.facilities[fac.id]}</div>
+                        </div>
+                    </div>
+                    <p className="text-xs text-stone-600 mb-4 flex-1">${fac.details}</p>
+                    <button onClick=${() => investFacility(fac.id)} className="w-full bg-stone-800 hover:bg-stone-700 text-white py-2 rounded-sm font-bold text-sm shadow-sm active:scale-95">
+                        投資して拡張
+                    </button>
+                </div>
+            `)}
+        </div>
+    `;
+}
+
+function ShopView({ gameState, investShop }) {
+    const { Hammer, Wand2, ShoppingBag } = window.LucideReact || window.lucide || {};
+    const shops = [
+        { id: 'blacksmith', label: '鍛冶屋', icon: Hammer, details: '成功率向上。' },
+        { id: 'magicShop', label: '魔法屋', icon: Wand2, details: '死亡リスク低下。' },
+        { id: 'itemShop', label: '道具屋', icon: ShoppingBag, details: '維持費割引。' }
+    ];
+    return html`
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            ${shops.map(shop => html`
+                <div key=${shop.id} className="bg-white border border-[#E8E0D5] p-4 rounded-sm shadow-sm flex flex-col">
+                    <div className="flex items-center gap-3 mb-3 border-b border-stone-100 pb-3">
+                        <div className="bg-stone-100 p-2 rounded-sm"><${shop.icon} className="w-6 h-6" /></div>
+                        <div>
+                            <div className="font-bold text-stone-800 text-lg">${shop.label}</div>
+                            <div className="text-sm font-bold text-amber-700">契約Lv. ${gameState.shops[shop.id]}</div>
+                        </div>
+                    </div>
+                    <p className="text-xs text-stone-600 mb-4 flex-1">${shop.details}</p>
+                    <button onClick=${() => investShop(shop.id)} className="w-full bg-amber-700 hover:bg-amber-600 text-white py-2 rounded-sm font-bold text-sm active:scale-95">
+                        提携を強化 (1000G)
+                    </button>
+                </div>
+            `)}
+        </div>
+    `;
+}
+
+function IntrigueView({ gameState, sabotageRival, headhuntRival, gatherIntelligence, getIntrigueChance, setSelectedAdv }) {
+    const { Search, EyeOff } = window.LucideReact || window.lucide || {};
+    return html`
+        <div className="space-y-4">
+            ${gameState.rivals.map(rival => html`
+                <div key=${rival.id} className="bg-white border border-[#E8E0D5] p-4 rounded-sm shadow-sm flex flex-col relative overflow-hidden">
+                    <div className="absolute top-0 left-0 w-full h-1 bg-stone-200">
+                        <div className=${`h-full transition-all ${rival.relation >= 80 ? 'bg-emerald-500' : rival.relation >= 40 ? 'bg-amber-500' : 'bg-rose-600'}`} style=${{ width: `${rival.relation}%` }}></div>
+                    </div>
+                    <div className="flex justify-between items-center mt-2">
+                        <span className="font-bold text-lg text-stone-800">${rival.name}</span>
+                        <div className="flex gap-2">
+                            <button onClick=${() => sabotageRival(rival.id)} className="bg-stone-800 text-white px-3 py-1 rounded-sm text-xs font-bold active:scale-95">工作</button>
+                            <button onClick=${() => gatherIntelligence(rival.id)} className="bg-indigo-700 text-white px-3 py-1 rounded-sm text-xs font-bold active:scale-95">諜報</button>
+                        </div>
+                    </div>
+                    <div className="text-xs text-stone-500 mt-2">友好度: ${rival.relation} | 推定戦力: ${rival.power}</div>
+                </div>
+            `)}
+        </div>
+    `;
+}
+
+function SkillView({ gameState, upgradeSkill }) {
+    const { Crown } = window.LucideReact || window.lucide || {};
+    return html`
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            ${Object.entries(MASTER_SKILLS).map(([key, skill]) => html`
+                <div key=${key} className="bg-white p-5 border border-[#E8E0D5] rounded-sm shadow-sm flex flex-col">
+                    <div className="flex justify-between items-start mb-2">
+                        <h4 className="font-bold text-lg text-stone-800 flex items-center gap-2"><${Crown} className="w-5 h-5 text-amber-500" /> ${skill.name}</h4>
+                        <span className="bg-amber-100 text-amber-800 text-xs font-bold px-2 py-1 rounded">Lv. ${gameState.masterSkills[key]}</span>
+                    </div>
+                    <p className="text-sm text-stone-600 mb-4 flex-1">${skill.desc}</p>
+                    <button onClick=${() => upgradeSkill(key, 3000)} className="w-full bg-stone-800 text-white py-2 rounded-sm font-bold text-sm active:scale-95">才能を開花させる</button>
+                </div>
+            `)}
+        </div>
+    `;
+}
+
+function AchievementView({ gameState }) {
+    const { Trophy } = window.LucideReact || window.lucide || {};
+    return html`
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            ${ACHIEVEMENTS.map(ach => {
+                const isUnlocked = gameState.unlockedAchievements.includes(ach.id);
+                const AchIcon = window.LucideReact[ach.icon] || window.lucide[ach.icon];
+                return html`
+                    <div key=${ach.id} className=${`p-4 rounded-sm border flex items-center gap-4 ${isUnlocked ? 'bg-white border-[#D4C3A3]' : 'bg-stone-100 border-stone-200 opacity-60 grayscale'}`}>
+                        <div className=${`p-3 rounded-full ${isUnlocked ? 'bg-amber-100 text-amber-600' : 'bg-stone-200'}`}><${AchIcon} className="w-6 h-6" /></div>
+                        <div>
+                            <div className="font-bold text-stone-800">${isUnlocked ? ach.name : '？？？'}</div>
+                            <div className="text-xs text-stone-500">${isUnlocked ? ach.desc : '未達成'}</div>
+                        </div>
+                    </div>
+                `;
+            })}
+        </div>
+    `;
+}
+
+function LogView({ logs, logsEndRef }) {
+    const { Activity } = window.LucideReact || window.lucide || {};
+    return html`
+        <div className="flex flex-col h-[500px] bg-white p-4 border border-[#E8E0D5] rounded-sm shadow-inner overflow-y-auto space-y-2">
+            ${logs.map(log => html`
+                <div key=${log.id} className="p-2 border-b border-stone-100 text-xs flex gap-2">
+                    <${Activity} className="w-3 h-3 text-stone-400 mt-0.5" />
+                    <span>${log.msg}</span>
+                </div>
+            `)}
+            <div ref=${logsEndRef} />
+        </div>
+    `;
+}
+
+function DecisionView({ canUsurp, sellGuild, usurpThrone, resetGame, currentGuildPower }) {
+    const { Landmark, Crown, AlertTriangle } = window.LucideReact || window.lucide || {};
+    return html`
+        <div className="space-y-6 max-w-xl">
+            <div className="bg-white p-5 border border-[#E8E0D5] rounded-sm shadow-sm flex items-start gap-4">
+                <div className="bg-amber-100 p-3 rounded-sm text-amber-700"><${Landmark} className="w-8 h-8" /></div>
+                <div className="flex-1">
+                    <h4 className="font-bold text-stone-800 text-lg mb-1">ギルドを売却して引退</h4>
+                    <button onClick=${sellGuild} className="bg-stone-800 text-white px-4 py-2 rounded-sm font-bold text-sm active:scale-95">売却を実行</button>
+                </div>
+            </div>
+            <div className=${`p-5 border rounded-sm shadow-sm flex items-start gap-4 ${canUsurp ? 'bg-rose-50 border-rose-200' : 'bg-stone-50 opacity-60'}`}>
+                <div className=${`p-3 rounded-sm ${canUsurp ? 'bg-rose-200 text-rose-800' : 'bg-stone-200'}`}><${Crown} className="w-8 h-8" /></div>
+                <div className="flex-1">
+                    <h4 className="font-bold text-lg text-stone-800 mb-1">国家転覆（王都進軍）</h4>
+                    <button onClick=${usurpThrone} disabled=${!canUsurp} className=${`px-4 py-2 rounded-sm font-bold text-sm ${canUsurp ? 'bg-rose-700 text-white' : 'bg-stone-300 text-stone-500'}`}>進軍を開始</button>
+                </div>
+            </div>
+            <button onClick=${resetGame} className="text-rose-600 text-sm font-bold underline">セーブデータを消去して初めから</button>
+        </div>
+    `;
+}
+
+function BossView({ gameState, currentGuildPower, requestAlliance, fightBoss }) {
+    const { Skull, HeartHandshake, CheckCircle2, X: XIcon } = window.LucideReact || window.lucide || {};
+    if (!gameState.activeBoss) return null;
+    return html`
+        <div className="space-y-6">
+            <div className="bg-rose-950 p-6 rounded-sm text-rose-50 text-center">
+                <h3 className="text-2xl font-bold mb-4 flex items-center justify-center gap-2"><${Skull} className="w-8 h-8" /> 厄災襲来: ${gameState.activeBoss.name}</h3>
+                <p className="mb-6"><${TypewriterText} text=${gameState.activeBoss.desc} /></p>
+                <button onClick=${fightBoss} className="w-full bg-rose-700 hover:bg-rose-600 text-white py-4 rounded-sm font-bold text-xl active:scale-95">決戦開始</button>
+            </div>
+        </div>
+    `;
+}
+
+function AdventurerModal({ selectedAdv, setSelectedAdv, gameState, fireAdventurer, toggleMainParty, handleEquipArtifact }) {
+    const { X: XIcon, Swords, Star } = window.LucideReact || window.lucide || {};
+    if (!selectedAdv) return null;
+    const isMain = gameState.mainParty.includes(selectedAdv.id);
+    const AdvIcon = window.LucideReact[selectedAdv.advClass.icon] || window.lucide[selectedAdv.advClass.icon];
+    return html`
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[70] p-4 backdrop-blur-sm">
+            <div className="bg-[#FAF8F5] border-2 border-[#D4C3A3] rounded-sm max-w-md w-full shadow-2xl p-6 relative flex flex-col">
+                <button onClick=${() => setSelectedAdv(null)} className="absolute top-4 right-4"><${XIcon} className="w-6 h-6 text-stone-400" /></button>
+                <div className="flex items-center gap-3 mb-4">
+                    <div className="bg-indigo-100 p-2 rounded-sm"><${AdvIcon} className="w-8 h-8 text-indigo-700" /></div>
+                    <h2 className="text-2xl font-bold text-stone-800">${selectedAdv.name}</h2>
+                </div>
+                <div className="space-y-4">
+                    <p className="text-stone-700 italic border-l-4 border-stone-200 pl-4">${selectedAdv.flavor}</p>
+                    <div className="grid grid-cols-2 gap-2 text-sm">
+                        <div className="bg-white p-2 border">戦力: ${selectedAdv.power}</div>
+                        <div className="bg-white p-2 border">忠誠: ${selectedAdv.loyalty}%</div>
+                    </div>
+                </div>
+                <div className="mt-8 flex gap-2">
+                    <button onClick=${toggleMainParty} className=${`flex-1 py-2 rounded-sm font-bold ${isMain ? 'bg-amber-100 text-amber-800 border border-amber-300' : 'bg-indigo-700 text-white'}`}>
+                        ${isMain ? '主力から外す' : '主力に編成'}
+                    </button>
+                    <button onClick=${fireAdventurer} className="px-4 py-2 border border-rose-300 text-rose-600 rounded-sm font-bold">解雇</button>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+function ActionModal({ actionModal }) {
+    if (!actionModal) return null;
+    return html`
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[80] p-4 backdrop-blur-md">
+            <div className="bg-stone-900 border-2 border-amber-500 rounded-sm shadow-2xl p-8 max-w-md w-full text-center">
+                ${actionModal.foundRank && (actionModal.foundRank === 'S' || actionModal.foundRank === 'A') && html`<${ConfettiEffect} rank=${actionModal.foundRank} />`}
+                <p className="text-xl font-bold text-amber-50 leading-relaxed">${actionModal.message}</p>
+            </div>
+        </div>
+    `;
+}
+
+function QuarterResultModal({ quarterResult, getSummaryIcon, setQuarterResult, setCurrentView, activeBoss }) {
+    if (!quarterResult) return null;
+    const { ScrollText, ArrowRight } = window.LucideReact || window.lucide || {};
+    return html`
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[60] p-4 backdrop-blur-sm">
+            <div className="bg-[#FAF8F5] border-2 border-[#D4C3A3] rounded-sm max-w-lg w-full shadow-2xl flex flex-col">
+                <div className="p-4 bg-[#E8E0D5] font-bold text-center border-b border-[#D4C3A3]">
+                    <${ScrollText} className="w-5 h-5 inline mr-2 text-indigo-700" /> 第 ${quarterResult.year} 暦 【${quarterResult.season}】 報告
+                </div>
+                <div className="p-6 overflow-y-auto max-h-[60vh] space-y-3">
+                    ${quarterResult.items.map((item, i) => html`
+                        <div key=${i} className="flex gap-3 text-sm text-stone-700 bg-white p-2 border rounded-sm">
+                            <div className="mt-0.5">${getSummaryIcon(item.type)}</div>
+                            <div className="whitespace-pre-wrap">${item.text}</div>
+                        </div>
+                    `)}
+                </div>
+                <div className="p-4 bg-stone-100 flex justify-between font-bold text-xs">
+                    <span>金庫: ${quarterResult.budget}G</span>
+                    <span>名声: ${quarterResult.fame}</span>
+                </div>
+                <button onClick=${() => { setQuarterResult(null); if (activeBoss) setCurrentView('boss'); }} className="p-4 bg-stone-800 text-white font-bold active:scale-95">確認</button>
+            </div>
+        </div>
+    `;
+}
+
+function SpecialRequestModal({ reqModalOpen, setReqModalOpen, gameState, reqParty, handleToggleReqParty, executeSpecialRequest, calculatePartyPower }) {
+    if (!reqModalOpen) return null;
+    const { Target, CheckCircle2 } = window.LucideReact || window.lucide || {};
+    const { total: reqPower } = calculatePartyPower(reqParty, gameState);
+    return html`
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
+            <div className="bg-[#FAF8F5] border-2 border-[#D4C3A3] rounded-sm max-w-2xl w-full p-6 flex flex-col">
+                <h2 className="text-xl font-bold text-indigo-800 mb-4 flex items-center gap-2"><${Target} className="w-6 h-6" /> 特別指名依頼 部隊編成</h2>
+                <div className="bg-white p-4 border rounded-sm mb-4">
+                    <div className="font-bold text-rose-600">目標: ${gameState.specialRequest.name} | 推奨戦力: ${gameState.specialRequest.powerReq}</div>
+                    <div className="text-2xl font-bold mt-2">編成戦力: ${reqPower}</div>
+                </div>
+                <div className="flex-1 overflow-y-auto space-y-2 mb-4">
+                    ${gameState.adventurers.map(adv => {
+                        const isSelected = reqParty.includes(adv.id);
+                        return html`
+                            <div key=${adv.id} onClick=${() => handleToggleReqParty(adv)} className=${`p-3 border rounded flex justify-between cursor-pointer ${isSelected ? 'bg-indigo-50 border-indigo-400' : 'bg-white'}`}>
+                                <span className="font-bold">${adv.name}</span>
+                                <span>戦力 ${adv.power}</span>
+                            </div>
+                        `;
+                    })}
+                </div>
+                <div className="flex gap-2">
+                    <button onClick=${() => setReqModalOpen(false)} className="px-4 py-2 border font-bold">戻る</button>
+                    <button onClick=${executeSpecialRequest} disabled=${reqParty.length === 0} className="flex-1 py-2 bg-rose-700 text-white font-bold rounded-sm">出撃</button>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+function HowToPlayModal({ showHowToPlay, setShowHowToPlay }) {
+    const { BookOpen, X: XIcon } = window.LucideReact || window.lucide || {};
+    if (!showHowToPlay) return null;
+    return html`
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[100] p-4 backdrop-blur-sm">
+            <div className="bg-white border-2 border-stone-800 rounded-sm max-w-2xl w-full p-8 relative overflow-y-auto max-h-[80vh]">
+                <button onClick=${() => setShowHowToPlay(false)} className="absolute top-4 right-4"><${XIcon} className="w-6 h-6" /></button>
+                <h3 className="text-2xl font-bold mb-6 flex items-center gap-2"><${BookOpen} className="w-6 h-6 text-amber-500" /> 指南書</h3>
+                <div className="space-y-6 text-stone-700">
+                    <section><h4 className="font-bold border-b mb-2">基本</h4><p>季節を進め、ギルドを運営します。資金が底をつくと破産です。</p></section>
+                </div>
+                <button onClick=${() => setShowHowToPlay(false)} className="mt-8 w-full py-2 bg-stone-800 text-white font-bold">閉じる</button>
+            </div>
+        </div>
+    `;
+}
+
+function EndingView({ gameState, quarterResult, resetGame }) {
+    const { Crown } = window.LucideReact || window.lucide || {};
+    if (!gameState.gameOver || quarterResult) return null;
+    return html`
+        <div className="fixed inset-0 bg-black/95 flex items-center justify-center z-[100] p-4 text-center">
+            <div className="max-w-xl">
+                <${Crown} className="w-24 h-24 text-amber-500 mx-auto mb-8" />
+                <h1 className="text-5xl font-bold text-white mb-8">${gameState.endType === 'SELL' ? '伝説の商人' : '栄光の終焉'}</h1>
+                <p className="text-stone-300 text-lg mb-12">${gameState.endType === 'SELL' ? 'ギルドを売却し、悠々自適の余生へ。' : '物語は幕を閉じました。'}</p>
+                <button onClick=${resetGame} className="px-10 py-4 bg-amber-500 text-stone-900 font-bold text-xl rounded-sm">初めから</button>
+            </div>
+        </div>
+    `;
+}
+
+// --- Main App ---
 
 export default function App() {
     const { useState, useEffect, useRef } = React;
@@ -58,12 +767,11 @@ export default function App() {
         if (savedData) {
             try {
                 const parsed = JSON.parse(savedData);
-                const loadedState = { ...INITIAL_GAME_STATE, ...parsed.gameState };
-                setGameState(loadedState);
-                setLogs(parsed.logs || []);
-            } catch (e) {
-                console.error("Failed to load save data", e);
-            }
+                if (parsed.gameState) {
+                    setGameState({ ...INITIAL_GAME_STATE, ...parsed.gameState });
+                    setLogs(parsed.logs || []);
+                }
+            } catch (e) { console.error("Load failed", e); }
         }
         setIsLoaded(true);
     }, []);
@@ -74,1027 +782,131 @@ export default function App() {
         }
     }, [gameState, logs, isLoaded, currentView]);
 
-    useEffect(() => {
-        if (currentView === 'logs') logsEndRef.current?.scrollIntoView({ behavior: "smooth" });
-    }, [logs, currentView]);
-
-    const toggleMute = () => {
-        const nextMute = !isMuted;
-        setIsMuted(nextMute);
-        GeminiAudio.setMute(nextMute);
-        if (!nextMute && !GeminiAudio.isInitialized) {
-            GeminiAudio.init();
-            GeminiAudio.playBGM(gameState.activeBoss ? 'boss' : 'home');
-        }
-    };
-
     const addLog = (msg, type = "normal") => {
         setLogs(prev => [...prev, { id: Date.now() + Math.random(), msg, type }].slice(-100));
     };
 
     const startNewGame = () => {
         let freshState = { ...INITIAL_GAME_STATE };
-        freshState.usedNames = [];
-        freshState.usedRepNames = [];
-
-        const initialAdv = generateAdventurer(freshState.fame, freshState.notoriety, freshState.usedNames, 'D', false);
+        const initialAdv = generateAdventurer(0, 0, [], 'D');
         freshState.adventurers = [initialAdv];
         freshState.mainParty = [initialAdv.id];
-        freshState.usedNames.push(initialAdv.name);
-        freshState.rivals = generateRivals(freshState.usedNames);
-        freshState.currentRumor = RUMORS[Math.floor(Math.random() * RUMORS.length)];
-
-        const rep1 = generateReceptionist(0, 0, freshState.usedRepNames);
-        freshState.usedRepNames.push(rep1.baseName);
-        const rep2 = generateReceptionist(0, 0, freshState.usedRepNames);
-        freshState.usedRepNames.push(rep2.baseName);
-        const rep3 = generateReceptionist(0, 0, freshState.usedRepNames);
-        freshState.usedRepNames.push(rep3.baseName);
-        freshState.availableReceptionists = [rep1, rep2, rep3];
-
-        setGameState(freshState);
-        setLogs([{ id: Date.now(), msg: "ギルドの扉が開かれました。30年間（120四半期）の歴史が今、始まります。", type: "info" }]);
-        setCurrentView('home');
-        setQuarterResult(null);
-        setSelectedCandidate(null);
+        freshState.usedNames = [initialAdv.name];
+        freshState.rivals = generateRivals([]);
         
+        const rep1 = generateReceptionist(0, 0, []);
+        freshState.availableReceptionists = [rep1];
+        
+        setGameState(freshState);
+        setLogs([{ id: Date.now(), msg: "新たなギルドの歴史が始まりました。", type: "info" }]);
+        setCurrentView('home');
         GeminiAudio.init();
         GeminiAudio.playBGM('home');
     };
 
     const resetGame = () => {
-        if (window.confirm("本当にギルドを解散し、新たな歴史を始めますか？（データは全て失われます）")) {
+        if (window.confirm("初期化しますか？")) {
             localStorage.removeItem(SAVE_KEY);
-            startNewGame();
+            window.location.reload();
         }
     };
 
-    const autoAssembleParty = () => {
+    const processTurn = () => {
+        if (gameState.gameOver) return;
+        GeminiAudio.playSE('click');
         setGameState(prev => {
-            let available = [...prev.adventurers];
-            available.sort((a, b) => b.power - a.power);
-            let nextParty = [];
+            let next = { ...prev, turn: prev.turn + 1 };
+            let year = Math.floor(prev.turn / 4) + 1;
+            let season = SEASONS[prev.turn % 4];
+            let items = [{ type: 'info', text: `第 ${year} 暦 【${season}】 が始まりました。` }];
+            
+            // Simplified financial for result modal
+            const report = getFinancialReport(prev);
+            next.budget -= report.totalExpense;
+            next.budget += report.totalIncome;
+            items.push({ type: 'finance', text: `今季収支: ${report.totalIncome - report.totalExpense}G` });
 
-            const classes = ['warrior', 'cleric', 'mage', 'thief'];
-            classes.forEach(cls => {
-                const idx = available.findIndex(a => a.advClass.id === cls);
-                if (idx !== -1) {
-                    nextParty.push(available[idx].id);
-                    available.splice(idx, 1);
-                }
-            });
-
-            while (nextParty.length < 5 && available.length > 0) {
-                nextParty.push(available[0].id);
-                available.splice(0, 1);
-            }
-
-            addLog(`[人事] 冒険者の能力とクラス相性を考慮し、主力部隊を自動編成しました。`, "success");
-            return { ...prev, mainParty: nextParty };
+            setQuarterResult({ year, season, items, budget: next.budget, fame: next.fame, notoriety: next.notoriety, isGameOver: false });
+            return next;
         });
+    };
+
+    const getFinancialReport = (state) => {
+        const salaries = (state.adventurers || []).reduce((sum, a) => sum + (a.salary || 0), 0) + (state.receptionist?.salary || 0);
+        const maintenance = (state.facilities?.residence || 1) * 100;
+        const commerceIncome = (state.facilities?.tavern || 1) * 200;
+        const totalIncome = commerceIncome;
+        const totalExpense = salaries + maintenance;
+        return { salaries, maintenance, totalIncome, totalExpense, balance: totalIncome - totalExpense, choresIncome: 0, commerceIncome };
+    };
+
+    const getReputationText = () => "街に馴染み始めた新進気鋭のギルドです。";
+
+    const updateAlignment = (id, val) => {
+        setGameState(prev => ({ ...prev, alignment: { ...prev.alignment, [id]: parseInt(val) } }));
+    };
+
+    const searchAdventurer = () => {
+        if (gameState.budget < 500) return addLog("資金不足", "warning");
+        setActionModal({ message: "人材を探しています..." });
+        setTimeout(() => {
+            const newAdv = generateAdventurer(gameState.fame, gameState.notoriety, gameState.usedNames);
+            setGameState(prev => ({ ...prev, budget: prev.budget - 500, adventurers: [...prev.adventurers, newAdv], usedNames: [...prev.usedNames, newAdv.name] }));
+            setActionModal({ message: `${newAdv.name} が加入しました！`, foundRank: newAdv.rank });
+            setTimeout(() => setActionModal(null), 3000);
+        }, 1500);
+    };
+
+    const fireAdventurer = () => {
+        if (!selectedAdv) return;
+        setGameState(prev => ({ ...prev, adventurers: prev.adventurers.filter(a => a.id !== selectedAdv.id), mainParty: prev.mainParty.filter(id => id !== selectedAdv.id) }));
+        setSelectedAdv(null);
     };
 
     const toggleMainParty = () => {
         if (!selectedAdv) return;
         setGameState(prev => {
             const isMain = prev.mainParty.includes(selectedAdv.id);
-            let nextParty = [...prev.mainParty];
-            if (isMain) {
-                nextParty = nextParty.filter(id => id !== selectedAdv.id);
-            } else {
-                if (nextParty.length >= 5) {
-                    addLog("主力部隊は既に5名編成されています。", "warning");
-                    return prev;
-                }
-                nextParty.push(selectedAdv.id);
-            }
-            return { ...prev, mainParty: nextParty };
+            if (isMain) return { ...prev, mainParty: prev.mainParty.filter(id => id !== selectedAdv.id) };
+            if (prev.mainParty.length >= 5) return prev;
+            return { ...prev, mainParty: [...prev.mainParty, selectedAdv.id] };
         });
     };
 
-    const fireAdventurer = () => {
-        if (!selectedAdv) return;
-        if (window.confirm(`${selectedAdv.name} をギルドから解雇しますか？\n少額の退職金(100G)を支払い、他メンバーの忠誠度が少し下がります。`)) {
-            setGameState(prev => {
-                let next = { ...prev };
-                if (next.budget < 100) {
-                    addLog(`[警告] 退職金（100G）が払えないため解雇できません。`, "danger");
-                    return prev;
-                }
-                next.budget -= 100;
-                next.adventurers = next.adventurers.filter(a => a.id !== selectedAdv.id);
-                next.mainParty = next.mainParty.filter(id => id !== selectedAdv.id);
-                if (selectedAdv.equippedArtifactId) {
-                    next.ownedArtifacts.push(selectedAdv.equippedArtifactId);
-                }
-                next.adventurers.forEach(a => {
-                    a.loyalty = Math.max(0, a.loyalty - 5);
-                });
-                addLog(`[人事] ${selectedAdv.name} を解雇しました。ギルド内に動揺が広がっています。`, "warning");
-                return next;
-            });
-            setSelectedAdv(null);
-        }
+    const investFacility = (id) => {
+        if (gameState.budget < 1000) return addLog("資金不足", "warning");
+        setGameState(prev => ({ ...prev, budget: prev.budget - 1000, facilities: { ...prev.facilities, [id]: prev.facilities[id] + 1 } }));
     };
 
-    const searchAdventurer = () => {
-        const cost = 500;
-        if (gameState.budget < cost) return addLog(`[警告] 捜索資金が不足しています。（必要: ${cost}G）`, "warning");
-        if (gameState.adventurers.length >= gameState.facilities.residence * 5) return addLog("[警告] 居住区が満員です。これ以上人員を雇えません。", "warning");
-
-        setActionModal({ type: 'recruit_search', phase: 'searching', message: '街の酒場で情報を集めている...' });
-
-        setTimeout(() => {
-            setGameState(prev => {
-                const next = { ...prev, budget: prev.budget - cost };
-                const skillLv = prev.masterSkills.recruitment || 0;
-                const successChance = 30 + (skillLv * 20);
-                
-                if (Math.random() * 100 < successChance) {
-                    let forcedRank = 'E';
-                    const r = Math.random() * 100;
-                    if (skillLv >= 3) {
-                        if (r < 15) forcedRank = 'S';
-                        else if (r < 50) forcedRank = 'A';
-                        else forcedRank = 'B';
-                    } else if (skillLv === 2) {
-                        if (r < 30) forcedRank = 'B';
-                        else forcedRank = 'C';
-                    } else if (skillLv === 1) {
-                        if (r < 40) forcedRank = 'C';
-                        else forcedRank = 'D';
-                    } else {
-                        if (r < 20) forcedRank = 'D';
-                        else forcedRank = 'E';
-                    }
-
-                    const newAdv = generateAdventurer(prev.fame, prev.notoriety, prev.usedNames, forcedRank, false);
-                    next.adventurers.push(newAdv);
-                    next.usedNames.push(newAdv.name);
-                    addLog(`[人材捜索] 街の噂や裏ルートを辿り、${newAdv.name} (ランク${newAdv.rank}) を見つけ出し、勧誘に成功しました！`, "success");
-                    
-                    setTimeout(() => {
-                        if (newAdv.rank === 'S' || newAdv.rank === 'A') GeminiAudio.playSE('gacha_s');
-                        else GeminiAudio.playSE('success');
-
-                        setActionModal({ 
-                            type: 'recruit_found', phase: 'result', 
-                            message: `新たな冒険者を発見した！\n\n名前: ${newAdv.name}\nランク: ${newAdv.rank}\nクラス: ${newAdv.advClass.name}`,
-                            foundRank: newAdv.rank
-                        });
-                        const dismissTime = (newAdv.rank === 'S' || newAdv.rank === 'A') ? 5000 : 3500;
-                        setTimeout(() => setActionModal(null), dismissTime);
-                    }, 0);
-                } else {
-                    addLog(`[人材捜索] 懸命に捜索しましたが、今回は有能な人材を見つけることができませんでした...`, "warning");
-                    setTimeout(() => {
-                        GeminiAudio.playSE('danger');
-                        setActionModal({ type: 'recruit_failed', phase: 'result', message: '懸命に捜索したが、\n有望な人材は見つからなかった...' });
-                        setTimeout(() => setActionModal(null), 3500);
-                    }, 0);
-                }
-                return next;
-            });
-        }, 2000);
+    const investShop = (id) => {
+        if (gameState.budget < 1000) return addLog("資金不足", "warning");
+        setGameState(prev => ({ ...prev, budget: prev.budget - 1000, shops: { ...prev.shops, [id]: prev.shops[id] + 1 } }));
     };
 
-    const hireReceptionist = (rep) => {
-        if (gameState.budget >= rep.hireCost) {
-            setActionModal({ type: 'hire_receptionist', phase: 'searching', message: '雇用条件を提示し、\n面接を行っている...' });
-            
-            setTimeout(() => {
-                setGameState(prev => {
-                    addLog(`[人事] 新たな受付担当として ${rep.name} を雇用しました！`, "success");
-                    setTimeout(() => {
-                        setActionModal({ type: 'hire_receptionist', phase: 'result', message: `雇用完了！\n\n新受付担当：${rep.name}\nがギルドに加わった！` });
-                        setTimeout(() => setActionModal(null), 3000);
-                    }, 0);
-                    return {
-                        ...prev,
-                        budget: prev.budget - rep.hireCost,
-                        receptionist: rep,
-                        availableReceptionists: prev.availableReceptionists.filter(r => r.id !== rep.id)
-                    };
-                });
-            }, 1500);
-        } else {
-            addLog(`[警告] 雇用一時金が不足しています。（必要: ${rep.hireCost}G）`, "warning");
-        }
+    const upgradeSkill = (id, cost) => {
+        if (gameState.budget < cost) return addLog("資金不足", "warning");
+        setGameState(prev => ({ ...prev, budget: prev.budget - cost, masterSkills: { ...prev.masterSkills, [id]: prev.masterSkills[id] + 1 } }));
     };
 
-    const upgradeSkill = (skillId, cost) => {
-        if (gameState.budget >= cost) {
-            setActionModal({ type: 'skill_upgrade', phase: 'searching', message: '精神を集中し、新たな才能を開花させている...' });
-
-            setTimeout(() => {
-                setGameState(prev => {
-                    addLog(`[才能開花] 資金を投じてマスターの才能『${MASTER_SKILLS[skillId].name}』を強化しました！`, "success");
-                    setTimeout(() => {
-                        setActionModal({ type: 'skill_upgrade', phase: 'result', message: `才能開花！\n\n『${MASTER_SKILLS[skillId].name}』のレベルが上がった！` });
-                        setTimeout(() => setActionModal(null), 3500);
-                    }, 0);
-                    return {
-                        ...prev, budget: prev.budget - cost,
-                        masterSkills: { ...prev.masterSkills, [skillId]: prev.masterSkills[skillId] + 1 }
-                    };
-                });
-            }, 1500);
-        } else {
-            addLog(`[警告] スキル解放の資金が不足しています。（必要: ${cost}G）`, "warning");
-        }
-    };
-
-    const investFacility = (facility) => {
-        const cost = 1000 + (gameState.facilities[facility] * 500);
-        if (gameState.budget >= cost) {
-            setActionModal({ type: 'invest_facility', phase: 'searching', message: '資材を集め、職人を雇い\n改築工事を進めている...' });
-            
-            setTimeout(() => {
-                setGameState(prev => {
-                    const facName = facility === 'residence' ? '居住区' : facility === 'tavern' ? '酒場' : '訓練場';
-                    addLog(`[増築] 資金を投じ、${facName}を拡張しました。（Lv${prev.facilities[facility] + 1}）`, "success");
-                    setTimeout(() => {
-                        setActionModal({ type: 'invest_facility', phase: 'result', message: `工事完了！\n\n${facName} のレベルが上がった！` });
-                        setTimeout(() => setActionModal(null), 2500);
-                    }, 0);
-                    return {
-                        ...prev, budget: prev.budget - cost,
-                        facilities: { ...prev.facilities, [facility]: prev.facilities[facility] + 1 }
-                    };
-                });
-            }, 2000);
-        } else addLog(`[警告] 金庫の資金が不足しています。（必要: ${cost}G）`, "warning");
-    };
-
-    const investShop = (shop) => {
-        const cost = 1000;
-        if (gameState.budget >= cost) {
-            setActionModal({ type: 'invest_shop', phase: 'searching', message: '資金を提示し、\n店主と交渉を行っている...' });
-            
-            setTimeout(() => {
-                setGameState(prev => {
-                    const shopName = shop === 'blacksmith' ? '鍛冶屋' : shop === 'magicShop' ? '魔法屋' : '道具屋';
-                    addLog(`[提携] 資金を融資し、街の${shopName}とのパイプを強化しました。`, "success");
-                    setTimeout(() => {
-                        setActionModal({ type: 'invest_shop', phase: 'result', message: `交渉成立！\n\n${shopName} との提携レベルが上がった！` });
-                        setTimeout(() => setActionModal(null), 2500);
-                    }, 0);
-                    return {
-                        ...prev, budget: prev.budget - cost,
-                        shops: { ...prev.shops, [shop]: prev.shops[shop] + 1 }
-                    };
-                });
-            }, 1500);
-        } else addLog(`[警告] 資金が不足しています。（必要: ${cost}G）`, "warning");
-    };
-
-    const updateAlignment = (changedId, newValueStr) => {
-        const newValue = parseInt(newValueStr, 10);
-        setGameState(prev => {
-            let newAlign = { ...prev.alignment };
-            if (newAlign[changedId] === newValue) return prev;
-            const others = ALIGNMENTS.filter(a => a !== changedId);
-            const remaining = 100 - newValue;
-            let otherSum = others.reduce((sum, a) => sum + newAlign[a], 0);
-
-            let tempAlign = { [changedId]: newValue };
-            if (otherSum === 0) others.forEach(a => tempAlign[a] = remaining / 3);
-            else others.forEach(a => tempAlign[a] = (newAlign[a] / otherSum) * remaining);
-
-            let finalAlign = { [changedId]: newValue };
-            let currentTotal = newValue;
-            let remainders = [];
-
-            others.forEach(a => {
-                const intVal = Math.floor(tempAlign[a]);
-                finalAlign[a] = intVal;
-                currentTotal += intVal;
-                remainders.push({ id: a, rem: tempAlign[a] - intVal });
-            });
-
-            let diffTo100 = 100 - currentTotal;
-            remainders.sort((a, b) => b.rem - a.rem);
-            for (let i = 0; i < diffTo100; i++) finalAlign[remainders[i].id] += 1;
-
-            return { ...prev, alignment: finalAlign };
-        });
-    };
-
-    const getIntrigueChance = (baseRate) => {
-        let rate = baseRate;
-        if (gameState.receptionist.type === 'intelligence') rate += 20;
-        if (gameState.masterSkills.underworld > 0) rate += (gameState.masterSkills.underworld * 10);
-        return Math.min(95, rate);
-    };
-
-    const getDefenseIntelligence = (state) => {
-        let defInt = 10;
-        state.adventurers.forEach(a => { if (a.advClass.id === 'thief') defInt += 2; });
-        if (state.masterSkills.underworld > 0) defInt += state.masterSkills.underworld * 10;
-        if (state.receptionist.type === 'intelligence') defInt += 20;
-        return Math.min(80, defInt);
-    };
-
-    const sabotageRival = (rivalId) => {
-        const cost = 500;
-        if (gameState.budget >= cost) {
-            const targetName = gameState.rivals.find(r => r.id === rivalId)?.name;
-            setActionModal({ type: 'action_sabotage', phase: 'searching', message: `工作員を放ち、\n『${targetName}』の拠点に潜入中...` });
-
-            setTimeout(() => {
-                setGameState(prev => {
-                    const next = { ...prev, budget: prev.budget - cost, notoriety: prev.notoriety + 3 };
-                    const targetRival = prev.rivals.find(r => r.id === rivalId);
-                    const chance = getIntrigueChance(70);
-                    const enemyDef = Math.min(50, Math.floor(targetRival.power / 100) + Math.floor(targetRival.relation / 4));
-                    const finalChance = Math.max(10, chance - enemyDef);
-
-                    let isSuccess = Math.random() * 100 < finalChance;
-
-                    next.rivals = next.rivals.map(r => {
-                        if (r.id === rivalId) {
-                            if (isSuccess) {
-                                const dmg = Math.floor(Math.random() * 50) + 50;
-                                addLog(`[工作成功] 『${r.name}』の物資破壊に成功！戦力を ${dmg} 削ぎ落としました。`, "info");
-                                setTimeout(() => {
-                                    setActionModal({ type: 'action_sabotage', phase: 'result', message: `工作成功！\n\n『${r.name}』の物資に火を放ち、\n戦力を ${dmg} 削ぎ落とした！` });
-                                    setTimeout(() => setActionModal(null), 3500);
-                                }, 0);
-                                return { ...r, power: Math.max(0, r.power - dmg), relation: Math.max(0, r.relation - 5) };
-                            } else {
-                                addLog(`[工作失敗] 工作員が捕縛され、『${r.name}』への妨害が露見！関係が極度に悪化しました。`, "danger");
-                                setTimeout(() => {
-                                    setActionModal({ type: 'action_sabotage', phase: 'result', message: `工作失敗...\n\n工作員が捕縛され、\n『${r.name}』との関係が極度に悪化した！` });
-                                    setTimeout(() => setActionModal(null), 3500);
-                                }, 0);
-                                return { ...r, relation: Math.max(0, r.relation - 25) };
-                            }
-                        }
-                        return r;
-                    });
-                    return next;
-                });
-            }, 2000);
-        } else addLog(`[警告] 裏工作の資金が足りません。（必要: ${cost}G）`, "warning");
-    };
-
-    const gatherIntelligence = (rivalId) => {
-        const cost = 300;
-        if (gameState.budget >= cost) {
-            const targetName = gameState.rivals.find(r => r.id === rivalId)?.name;
-            setActionModal({ type: 'action_intelligence', phase: 'searching', message: `密偵を放ち、\n『${targetName}』の内情を探っている...` });
-
-            setTimeout(() => {
-                setGameState(prev => {
-                    const next = { ...prev, budget: prev.budget - cost };
-                    const targetRival = prev.rivals.find(r => r.id === rivalId);
-                    const chance = getIntrigueChance(85);
-                    const enemyDef = Math.min(60, Math.floor(targetRival.power / 80) + Math.floor(targetRival.relation / 5));
-                    const finalChance = Math.max(20, chance - enemyDef);
-
-                    let isSuccess = Math.random() * 100 < finalChance;
-
-                    next.rivals = next.rivals.map(r => {
-                        if (r.id === rivalId) {
-                            if (isSuccess) {
-                                addLog(`[諜報成功] 密偵を放ち、『${r.name}』の所属メンバーを洗い出しました。`, "info");
-                                setTimeout(() => {
-                                    setActionModal({ type: 'action_intelligence', phase: 'result', message: `諜報成功！\n\n『${r.name}』の所属メンバーの\n情報を手に入れた！` });
-                                    setTimeout(() => setActionModal(null), 3500);
-                                }, 0);
-                                return { ...r, isRevealed: true };
-                            } else {
-                                addLog(`[諜報失敗] 密偵が相手の罠にかかり情報収集に失敗！相手を警戒させてしまいました。`, "danger");
-                                setTimeout(() => {
-                                    setActionModal({ type: 'action_intelligence', phase: 'result', message: `諜報失敗...\n\n密偵が相手の罠にかかり、\n警戒されてしまった！` });
-                                    setTimeout(() => setActionModal(null), 3500);
-                                }, 0);
-                                return { ...r, relation: Math.max(0, r.relation - 15) };
-                            }
-                        }
-                        return r;
-                    });
-                    return next;
-                });
-            }, 1500);
-        } else addLog(`[警告] 諜報資金が足りません。（必要: ${cost}G）`, "warning");
-    };
-
-    const headhuntRival = (rivalId) => {
-        const cost = 2000;
-        if (gameState.notoriety < 30) return addLog("[警告] 悪名が足りず、裏社会のブローカーが動いてくれません。（悪名30以上必要）", "danger");
-        if (gameState.budget < cost) return addLog(`[警告] 引き抜き資金が足りません。（必要: ${cost}G）`, "warning");
-        if (gameState.adventurers.length >= gameState.facilities.residence * 5) return addLog("[警告] 居住区が満員で、これ以上人員を雇えません。", "warning");
-
-        const targetName = gameState.rivals.find(r => r.id === rivalId)?.name;
-        setActionModal({ type: 'action_headhunt', phase: 'searching', message: `大金と裏社会のパイプを使い、\n『${targetName}』のメンバーに接触中...` });
-
-        setTimeout(() => {
-            setGameState(prev => {
-                const targetRival = prev.rivals.find(r => r.id === rivalId);
-                if (!targetRival || targetRival.members.length === 0) {
-                    addLog(`[警告] 『${targetRival.name}』には引き抜ける対象がいません。`, "warning");
-                    setTimeout(() => setActionModal(null), 0);
-                    return prev;
-                }
-
-                const next = { ...prev, budget: prev.budget - cost, notoriety: prev.notoriety + 8 };
-                const chance = getIntrigueChance(50);
-                const enemyDef = Math.min(40, Math.floor(targetRival.power / 100));
-                const finalChance = Math.max(5, chance - enemyDef);
-
-                if (Math.random() * 100 < finalChance) {
-                    const stolenIdx = Math.floor(Math.random() * targetRival.members.length);
-                    const stolenAdv = { ...targetRival.members[stolenIdx] };
-
-                    next.rivals = next.rivals.map(r => {
-                        if (r.id === rivalId) {
-                            const newMembers = [...r.members];
-                            newMembers.splice(stolenIdx, 1);
-                            return { ...r, power: Math.max(0, r.power - stolenAdv.power), members: newMembers, relation: Math.max(0, r.relation - 20) };
-                        }
-                        return r;
-                    });
-
-                    stolenAdv.loyalty = 50;
-                    stolenAdv.history = [`第 ${Math.floor(prev.turn / 4) + 1} 暦: 大金で引き抜かれ、『${targetRival.name}』から当ギルドへ移籍した。`, ...(stolenAdv.history || [])];
-                    next.adventurers.push(stolenAdv);
-
-                    addLog(`[引抜成功] 莫大な裏金を積み、『${targetRival.name}』から ${stolenAdv.name} (ランク${stolenAdv.rank}) を寝返らせることに成功しました！`, "success");
-                    setTimeout(() => {
-                        setActionModal({ type: 'action_headhunt', phase: 'result', message: `引き抜き成功！\n\n大金に目が眩んだ ${stolenAdv.name} が\n当ギルドに寝返った！`, foundRank: stolenAdv.rank });
-                        const dismissTime = (stolenAdv.rank === 'S' || stolenAdv.rank === 'A') ? 5000 : 3500;
-                        setTimeout(() => setActionModal(null), dismissTime);
-                    }, 0);
-                } else {
-                    addLog(`[引抜失敗] 買収を持ちかけましたが拒絶されました！激怒した相手との関係が決定的に悪化しました。`, "danger");
-                    next.rivals = next.rivals.map(r => r.id === rivalId ? { ...r, relation: Math.max(0, r.relation - 40) } : r);
-                    setTimeout(() => {
-                        setActionModal({ type: 'action_headhunt', phase: 'result', message: `引き抜き失敗...\n\n買収は拒絶され、\n相手との関係が決定的に悪化した！` });
-                        setTimeout(() => setActionModal(null), 3500);
-                    }, 0);
-                }
-                return next;
-            });
-        }, 2000);
-    };
-
-    const handleEquipArtifact = (advId, artifactId) => {
-        setGameState(prev => {
-            let next = { ...prev };
-            let adv = next.adventurers.find(a => a.id === advId);
-
-            if (adv.equippedArtifactId) {
-                next.ownedArtifacts.push(adv.equippedArtifactId);
-            }
-
-            if (artifactId) {
-                adv.equippedArtifactId = artifactId;
-                next.ownedArtifacts = next.ownedArtifacts.filter(id => id !== artifactId);
-                const art = ARTIFACT_POOL.find(a => a.id === artifactId);
-                addLog(`[授与] ${adv.name} に遺物『${art.name}』を授与しました。`, "info");
-            } else {
-                adv.equippedArtifactId = null;
-                addLog(`[回収] ${adv.name} から遺物を回収しました。`, "info");
-            }
-            return next;
-        });
-    };
-
-    const acceptQuest = (quest) => {
-        if (gameState.activeQuests.some(q => q.id === quest.id)) return;
-        setGameState(prev => {
-            addLog(`[受注] クエスト『${quest.name}』を受注しました。${quest.deposit > 0 ? `前金 ${quest.deposit}G を受領しました。` : ''}`, "info");
-            return {
-                ...prev,
-                budget: prev.budget + quest.deposit,
-                activeQuests: [...prev.activeQuests, quest],
-                availableQuests: prev.availableQuests.filter(q => q.id !== quest.id)
-            };
-        });
-    };
-
-    const openSpecialRequestModal = () => {
-        setReqParty([]);
-        setReqModalOpen(true);
+    const acceptQuest = (q) => {
+        setGameState(prev => ({ ...prev, activeQuests: [...prev.activeQuests, q], availableQuests: prev.availableQuests.filter(x => x.id !== q.id) }));
     };
 
     const handleToggleReqParty = (adv) => {
-        if (adv.loyalty < 30) {
-            addLog(`[警告] ${adv.name}は忠誠度が低いため、指名依頼への参加を拒否しました！`, "warning");
-            return;
-        }
-        setReqParty(prev => {
-            const isSelected = prev.includes(adv.id);
-            if (isSelected) return prev.filter(id => id !== adv.id);
-            if (prev.length >= 5) return prev;
-            return [...prev, adv.id];
-        });
+        setReqParty(prev => prev.includes(adv.id) ? prev.filter(id => id !== adv.id) : prev.length < 5 ? [...prev, adv.id] : prev);
     };
 
     const executeSpecialRequest = () => {
-        if (reqParty.length === 0) return;
-
-        const req = gameState.specialRequest;
+        setGameState(prev => ({ ...prev, specialRequest: null }));
         setReqModalOpen(false);
-        setActionModal({ type: 'action_quest', phase: 'searching', message: `精鋭部隊を編成し、\n『${req.name}』の任務へ出撃している...` });
-
-        setTimeout(() => {
-            setGameState(prev => {
-                const { total: power } = calculatePartyPower(reqParty, prev);
-                const winRate = Math.min(95, Math.floor((power / req.powerReq) * 80));
-                const isSuccess = Math.random() * 100 < winRate;
-                
-                let next = { ...prev };
-                if (isSuccess) {
-                    next.budget += req.reward;
-                    if (req.fameBonus) next.fame += req.fameBonus;
-                    if (req.notorietyBonus) next.notoriety += req.notorietyBonus;
-                    addLog(`[指名依頼] 『${req.name}』の任務に見事成功！報酬 ${req.reward}Gを獲得！`, "success");
-                    setTimeout(() => {
-                        setActionModal({ type: 'action_quest', phase: 'result', message: `任務成功！\n\n見事な戦いぶりで依頼を完遂し、\n報酬 ${req.reward}G を獲得した！` });
-                        setTimeout(() => setActionModal(null), 3500);
-                    }, 0);
-                } else {
-                    if (req.fameBonus) next.fame = Math.max(0, next.fame - req.fameBonus);
-                    addLog(`[指名依頼] 『${req.name}』の任務は失敗に終わりました...名声が低下しました。`, "danger");
-                    
-                    let victimMsg = "";
-                    if (reqParty.length > 0) {
-                        let victimId = reqParty[Math.floor(Math.random() * reqParty.length)];
-                        let victim = next.adventurers.find(a => a.id === victimId);
-                        victim.power = Math.max(1, Math.floor(victim.power * 0.8));
-                        victim.loyalty -= 15;
-                        addLog(`[負傷] ${victim.name} が特別任務中に深手を負いました。`, "warning");
-                        victimMsg = `\n\n激しい戦闘の末、\n${victim.name} が深手を負ってしまった...`;
-                    }
-                    
-                    setTimeout(() => {
-                        setActionModal({ type: 'action_quest', phase: 'result', message: `任務失敗...\n\n依頼は達成できず、\nギルドの名声に傷がついた。${victimMsg}` });
-                        setTimeout(() => setActionModal(null), 4000);
-                    }, 0);
-                }
-                next.specialRequest = null;
-                return next;
-            });
-        }, 2000);
-    };
-
-    const declineSpecialRequest = () => {
-        setGameState(prev => {
-            addLog(`[指名依頼] 『${prev.specialRequest.name}』の依頼を丁重に断りました。`, "normal");
-            return { ...prev, specialRequest: null };
-        });
-    };
-
-    const requestAlliance = (rivalId) => {
-        const cost = 1000;
-        if (gameState.budget < cost) return addLog(`[警告] 交渉資金が不足しています。（必要: ${cost}G）`, "warning");
-
-        const targetName = gameState.rivals.find(r => r.id === rivalId)?.name;
-        setActionModal({ type: 'action_alliance', phase: 'searching', message: `使者を送り、\n『${targetName}』に共闘の盟約を申し入れている...` });
-
-        setTimeout(() => {
-            setGameState(prev => {
-                const next = { ...prev, budget: prev.budget - cost };
-                const rival = next.rivals.find(r => r.id === rivalId);
-
-                const successProb = 0.2 + (next.fame / 300) + (rival.relation / 150);
-                const isSuccess = Math.random() < successProb;
-
-                if (isSuccess) {
-                    next.allianceRequests = { ...next.allianceRequests, [rivalId]: 'accepted' };
-                    next.rivals = next.rivals.map(r => r.id === rivalId ? { ...r, relation: Math.min(100, r.relation + 20) } : r);
-                    addLog(`[同盟成立] ${rival.name} が共闘の要請に応じました！彼らの戦力が加算されます。`, "success");
-                    setTimeout(() => {
-                        setActionModal({ type: 'action_alliance', phase: 'result', message: `同盟成立！\n\n『${rival.name}』が共闘の要請に応じ、\n彼らの戦力が加算される！` });
-                        setTimeout(() => setActionModal(null), 3500);
-                    }, 0);
-                } else {
-                    next.allianceRequests = { ...next.allianceRequests, [rivalId]: 'rejected' };
-                    next.rivals = next.rivals.map(r => r.id === rivalId ? { ...r, relation: Math.max(0, r.relation - 10) } : r);
-                    addLog(`[同盟拒否] ${rival.name} に要請をすげなく断られました。交渉決裂で関係が少し悪化しました...`, "danger");
-                    setTimeout(() => {
-                        setActionModal({ type: 'action_alliance', phase: 'result', message: `同盟拒否...\n\n要請はすげなく断られ、\n交渉は決裂した。` });
-                        setTimeout(() => setActionModal(null), 3500);
-                    }, 0);
-                }
-                return next;
-            });
-        }, 2000);
-    };
-
-    const fightBoss = () => {
-        let nextState = { ...gameState, turn: gameState.turn + 1, adventurers: [...gameState.adventurers.map(a => ({ ...a, history: [...(a.history || [])] }))] };
-        let summaryItems = [];
-        let year = Math.floor(gameState.turn / 4) + 1;
-        let season = SEASONS[gameState.turn % 4];
-
-        addLog(`--- 🚨 厄災討伐戦 【${nextState.activeBoss.name}】 ---`, "danger");
-
-        let finalPowerBase = nextState.adventurers.reduce((sum, a) => {
-            let p = a.power;
-            if (a.equippedArtifactId) {
-                const art = ARTIFACT_POOL.find(art => art.id === a.equippedArtifactId);
-                if (art) p += art.powerBonus;
-            }
-            return sum + p;
-        }, 0);
-
-        let allyPower = 0;
-        Object.keys(nextState.allianceRequests).forEach(rId => {
-            if (nextState.allianceRequests[rId] === 'accepted') {
-                const rival = nextState.rivals.find(r => r.id === rId);
-                if (rival) allyPower += rival.power;
-            }
-        });
-
-        let finalPower = finalPowerBase + allyPower;
-        let winRate = Math.min(95, Math.floor((finalPower / nextState.activeBoss.power) * 100));
-        let isSuccess = (Math.random() * 100) <= winRate;
-
-        if (isSuccess) {
-            addLog(`[討伐成功] ${nextState.activeBoss.name}の討伐に成功しました！`, "success");
-            summaryItems.push({ type: 'hero', text: `【厄災討伐成功】\n凄絶な戦いの末、${nextState.activeBoss.name}を討ち果たしました！` });
-
-            let myReward = nextState.activeBoss.reward;
-            let allyCount = Object.values(nextState.allianceRequests).filter(v => v === 'accepted').length;
-            if (allyCount > 0) {
-                myReward = Math.floor(myReward / (allyCount + 1));
-                summaryItems.push({ type: 'info', text: `共闘した他ギルドと報酬を分配し、${myReward}G を獲得しました。` });
-                if (!nextState.unlockedAchievements.includes('coop')) {
-                    nextState.unlockedAchievements.push('coop');
-                    summaryItems.push({ type: 'event', text: `🏆 実績解除: 呉越同舟` });
-                }
-                nextState.rivals = nextState.rivals.map(r =>
-                    nextState.allianceRequests[r.id] === 'accepted' ? { ...r, relation: Math.min(100, r.relation + 30) } : r
-                );
-            } else {
-                summaryItems.push({ type: 'finance', text: `報酬 ${myReward}G を独占しました！` });
-            }
-            nextState.budget += myReward;
-            nextState.fame += 50;
-
-            const availableArtifacts = ARTIFACT_POOL.filter(art =>
-                !nextState.ownedArtifacts.includes(art.id) &&
-                !nextState.adventurers.some(a => a.equippedArtifactId === art.id)
-            );
-            if (availableArtifacts.length > 0) {
-                let drop = availableArtifacts[Math.floor(Math.random() * availableArtifacts.length)];
-                nextState.ownedArtifacts.push(drop.id);
-                addLog(`[発掘] 厄災の残骸から古代の遺物『${drop.name}』を発見しました！`, "info");
-                summaryItems.push({ type: 'hero', text: `【遺物発見】\n厄災の残骸から古代の遺物『${drop.name}』を発見しました！` });
-            }
-
-            if (!nextState.unlockedAchievements.includes(nextState.activeBoss.id)) {
-                nextState.unlockedAchievements.push(nextState.activeBoss.id);
-                summaryItems.push({ type: 'event', text: `🏆 実績解除: ${ACHIEVEMENTS.find(a => a.id === nextState.activeBoss.id)?.name}` });
-            }
-        } else {
-            addLog(`[討伐失敗] ${nextState.activeBoss.name}の前に敗北しました...甚大な被害が出ています。`, "danger");
-            summaryItems.push({ type: 'fail', text: `【厄災討伐失敗】\n我々の力は及びませんでした。街は破壊され、ギルドにも甚大な被害が出ています。` });
-
-            nextState.fame = Math.max(0, nextState.fame - 50);
-            nextState.budget -= Math.floor(nextState.budget * 0.5);
-
-            const survivors = [];
-            nextState.adventurers.forEach(adv => {
-                if (Math.random() < 0.4) {
-                    summaryItems.push({ type: 'death', text: `${adv.name} が厄災との戦いで散りました...` });
-                    nextState.mainParty = nextState.mainParty.filter(id => id !== adv.id);
-                    if (adv.equippedArtifactId) nextState.ownedArtifacts.push(adv.equippedArtifactId);
-                } else {
-                    adv.power = Math.max(1, Math.floor(adv.power * 0.7));
-                    adv.loyalty -= 30;
-                    adv.history.unshift(`第 ${year} 暦 【${season}】: 厄災との戦いで重傷を負う。生き延びただけ幸運だった。`);
-                    survivors.push(adv);
-                }
-            });
-            nextState.adventurers = survivors;
-        }
-
-        nextState.rivals = nextState.rivals.map(r => ({ ...r, power: r.power + Math.floor(Math.random() * 40) + 10 }));
-        nextState.activeBoss = null;
-        nextState.allianceRequests = {};
-
-        checkAchievements(nextState, summaryItems);
-
-        if (nextState.turn >= MAX_TURNS) {
-            nextState.gameOver = true; nextState.endType = "TIME_UP";
-        } else if (nextState.budget < -5000) {
-            nextState.gameOver = true; nextState.endType = "BANKRUPT";
-        } else if (nextState.adventurers.length === 0 && nextState.budget < 1000) {
-            nextState.gameOver = true; nextState.endType = "RUIN";
-        }
-
-        setQuarterResult({
-            year, season, items: summaryItems,
-            budget: nextState.budget, fame: nextState.fame, notoriety: nextState.notoriety,
-            isGameOver: nextState.gameOver
-        });
-        setGameState(nextState);
-        setCurrentView('home');
-        GeminiAudio.playBGM('home');
-    };
-
-    const processTurn = () => {
-        if (gameState.gameOver) return;
-        GeminiAudio.playSE('click');
-
-        setGameState(prev => {
-            try {
-                let next = { 
-                    ...prev, 
-                    turn: prev.turn + 1,
-                    adventurers: prev.adventurers.map(a => ({ ...a, history: [...(a.history || [])] })),
-                    rivals: prev.rivals.map(r => ({ ...r, members: (r.members || []).map(m => ({...m, history: [...(m.history || [])]})) })),
-                    activeQuests: prev.activeQuests.map(q => ({ ...q })),
-                    availableQuests: prev.availableQuests.map(q => ({ ...q })),
-                    discoveredDungeons: prev.discoveredDungeons.map(d => ({ ...d })),
-                    clearedDungeons: [...prev.clearedDungeons],
-                    ownedArtifacts: [...prev.ownedArtifacts],
-                    allianceRequests: { ...prev.allianceRequests }
-                };
-
-                let year = Math.floor(prev.turn / 4) + 1;
-                let season = SEASONS[prev.turn % 4];
-                let summaryItems = [];
-
-                addLog(`--- 📜 第 ${year} 暦 【${season}】 報告 ---`, "info");
-                next.currentRumor = RUMORS[Math.floor(Math.random() * RUMORS.length)];
-
-                if (next.receptionist.type === 'diplomat') {
-                    next.rivals = next.rivals.map(r => ({ ...r, relation: Math.min(100, r.relation + 3) }));
-                    next.fame += 1;
-                }
-
-                const active = [...next.activeQuests];
-                next.activeQuests = [];
-                active.forEach(q => {
-                    const { total: partyPower } = calculatePartyPower(next.mainParty, next);
-                    let pSuccess = Math.floor((partyPower / q.powerReq) * 80);
-                    pSuccess = Math.min(95, Math.max(5, pSuccess));
-                    
-                    if (Math.random() * 100 < pSuccess) {
-                        const guildCut = Math.floor(q.reward * 0.4);
-                        next.budget += guildCut;
-                        next.townFavor = Math.min(100, next.townFavor + 5);
-                        next.fame += 2;
-                        addLog(`[クエスト達成] 『${q.name}』を完遂。利益 ${guildCut}G を獲得しました。`, "success");
-                        summaryItems.push({ type: 'success', text: `【クエスト達成】\n『${q.name}』を達成しました！\nギルド利益: ${guildCut}G / 街の友好度が上昇しました。` });
-                        
-                        next.adventurers.filter(a => next.mainParty.includes(a.id)).forEach(a => {
-                            a.power += 2;
-                            a.loyalty = Math.min(100, a.loyalty + 5);
-                            a.history.unshift(`第 ${year} 暦 【${season}】: 依頼『${q.name}』を達成。`);
-                        });
-                    } else {
-                        if (q.turnLimit > 1) {
-                            next.activeQuests.push({ ...q, turnLimit: q.turnLimit - 1 });
-                        } else {
-                            addLog(`[不履行] 『${q.name}』は失敗。街の信頼を失いました。`, "danger");
-                            next.townFavor = Math.max(0, next.townFavor - 15);
-                            summaryItems.push({ type: 'fail', text: `【クエスト失敗】\n『${q.name}』を達成できず、期限が切れました。` });
-                        }
-                    }
-                });
-
-                let activeEvent = null;
-                if (Math.random() < 0.25) {
-                    const r = Math.random();
-                    if (r < 0.25) activeEvent = { type: 'MONSTER_STAMPEDE', name: '魔物スタンピード', desc: '治安維持報酬倍増。' };
-                    else if (r < 0.5) activeEvent = { type: 'WAR', name: '隣国との戦端', desc: '軍事介入報酬絶大。死亡率上昇。' };
-                    else if (r < 0.75) activeEvent = { type: 'RECESSION', name: '大不況', desc: '商業収入半減。' };
-                    else activeEvent = { type: 'BOOM', name: '空前の好景気', desc: '商業収入倍増。' };
-                    summaryItems.push({ type: 'event', text: `【世界情勢】${activeEvent.name}\n${activeEvent.desc}` });
-                }
-                next.currentEvent = activeEvent;
-
-                let newQuests = [];
-                const questCount = 3 + Math.floor(next.townFavor / 30);
-                for (let i = 0; i < questCount; i++) {
-                    newQuests.push(generateQuest(next.turn, next.townFavor));
-                }
-                next.availableQuests = newQuests;
-
-                if (!next.specialRequest && Math.random() < 0.15) {
-                    const req = SPECIAL_REQUESTS[Math.floor(Math.random() * SPECIAL_REQUESTS.length)];
-                    next.specialRequest = req;
-                    summaryItems.push({ type: 'accent', text: `【指名依頼】『${req.name}』が届きました。` });
-                }
-
-                const report = getFinancialReport(prev);
-                let finalCommerce = report.commerceIncome;
-                if (activeEvent?.type === 'BOOM') finalCommerce *= 2;
-                if (activeEvent?.type === 'RECESSION') finalCommerce = Math.floor(finalCommerce / 2);
-
-                next.budget -= report.totalExpense;
-                next.budget += (report.choresIncome + finalCommerce);
-
-                summaryItems.push({ 
-                    type: 'finance', 
-                    text: `【収支報告】\n支出: -${report.totalExpense}G / 収入: +${report.choresIncome + finalCommerce}G\n今季純収支: ${report.choresIncome + finalCommerce - report.totalExpense}G` 
-                });
-
-                if (next.budget < 0) {
-                    next.adventurers.forEach(a => a.loyalty -= (a.trait.id === 'loyal' ? 5 : 20));
-                    summaryItems.push({ type: 'danger', text: `金庫が空です！給与未払いで不満が高まっています。` });
-                }
-
-                const myDefInt = getDefenseIntelligence(next);
-                next.rivals = next.rivals.map(rival => {
-                    let r = { ...rival };
-                    if (Math.random() < 0.15 && r.relation < 80) {
-                        if (Math.random() * 100 > myDefInt) {
-                            if (r.style === 'military') {
-                                let vIdx = Math.floor(Math.random() * next.adventurers.length);
-                                if (next.adventurers[vIdx]) {
-                                    next.adventurers[vIdx].power = Math.max(1, Math.floor(next.adventurers[vIdx].power * 0.8));
-                                    summaryItems.push({ type: 'danger', text: `【敵襲】『${r.name}』の襲撃で ${next.adventurers[vIdx].name} が負傷。` });
-                                }
-                            } else if (r.style === 'commerce') {
-                                let loss = Math.floor(Math.random() * 400) + 100;
-                                next.budget -= loss;
-                                summaryItems.push({ type: 'warning', text: `【妨害】『${r.name}』との競争で ${loss}G 損失。` });
-                            }
-                        }
-                    }
-                    r.power += Math.floor(25 + next.turn * 1.2);
-                    return r;
-                });
-
-                next.adventurers.forEach(a => a.age += 0.25);
-                const retirees = next.adventurers.filter(a => a.age >= 40 && Math.random() < (a.age - 39) * 0.1);
-                retirees.forEach(a => {
-                    summaryItems.push({ type: 'info', text: `【引退】${a.name} が勇退。` });
-                    if (a.equippedArtifactId) next.ownedArtifacts.push(a.equippedArtifactId);
-                });
-                next.adventurers = next.adventurers.filter(a => !retirees.some(r => r.id === a.id));
-                next.mainParty = next.mainParty.filter(id => !retirees.some(r => r.id === id));
-
-                if (next.adventurers.length < next.facilities.residence * 5) {
-                    if (Math.random() * 100 < (next.fame / 5 + 20)) {
-                        let newAdv = generateAdventurer(next.fame, next.notoriety, next.usedNames, null, false);
-                        next.adventurers.push(newAdv);
-                        next.usedNames.push(newAdv.name);
-                        summaryItems.push({ type: 'join', text: `新冒険者 ${newAdv.name} が加入。` });
-                    }
-                }
-
-                if (next.mainParty.length > 0 && !next.targetDungeon) {
-                    let roll = Math.random() * 100;
-                    let cumulative = 0;
-                    let qType = 'safety';
-                    for (let a of ALIGNMENTS) {
-                        cumulative += next.alignment[a];
-                        if (roll <= cumulative) { qType = a; break; }
-                    }
-                    if (qType !== 'commerce') {
-                        const { total: pPower } = calculatePartyPower(next.mainParty, next);
-                        let pSucc = Math.min(95, Math.max(5, Math.floor((pPower / (30 + next.turn * 4)) * 100)));
-                        if (Math.random() * 100 < pSucc) {
-                            let rew = Math.floor(300 + next.turn * 20);
-                            next.budget += rew;
-                            summaryItems.push({ type: 'success', text: `遠征任務成功: +${rew}G` });
-                            next.adventurers.filter(a => next.mainParty.includes(a.id)).forEach(a => a.power += next.facilities.training);
-                        }
-                    }
-                }
-
-                if (next.targetDungeon) {
-                    const dungeon = DUNGEON_POOL.find(d => d.id === next.targetDungeon);
-                    const { total: pPower } = calculatePartyPower(next.mainParty, next);
-                    let pSucc = Math.min(95, Math.max(5, Math.floor((pPower / dungeon.powerReq) * 80)));
-                    if (Math.random() * 100 < pSucc) {
-                        next.budget += dungeon.reward;
-                        next.clearedDungeons.push(dungeon.id);
-                        next.discoveredDungeons = next.discoveredDungeons.filter(d => d.id !== dungeon.id);
-                        summaryItems.push({ type: 'hero', text: `【迷宮攻略成功】\n『${dungeon.name}』を制覇！報酬 ${dungeon.reward}G を獲得！` });
-                        if (Math.random() < 0.4) {
-                            const availableArtifacts = ARTIFACT_POOL.filter(art => 
-                                !next.ownedArtifacts.includes(art.id) && 
-                                !next.adventurers.some(a => a.equippedArtifactId === art.id)
-                            );
-                            if (availableArtifacts.length > 0) {
-                                let drop = availableArtifacts[Math.floor(Math.random() * availableArtifacts.length)];
-                                next.ownedArtifacts.push(drop.id);
-                                summaryItems.push({ type: 'hero', text: `【遺物発見】奥地で『${drop.name}』を発見しました！` });
-                            }
-                        }
-                    } else {
-                        summaryItems.push({ type: 'fail', text: `【迷宮攻略失敗】『${dungeon.name}』の最奥には届きませんでした...` });
-                    }
-                    next.targetDungeon = null;
-                }
-
-                if (next.turn >= MAX_TURNS) { next.gameOver = true; next.endType = "TIME_UP"; }
-                if (next.budget < -5000) { next.gameOver = true; next.endType = "BANKRUPT"; }
-                if (BOSS_DATA[next.turn]) {
-                    next.activeBoss = { ...BOSS_DATA[next.turn] };
-                    summaryItems.push({ type: 'danger', text: `【警告】厄災『${next.activeBoss.name}』接近中！` });
-                    GeminiAudio.playBGM('boss');
-                }
-
-                checkAchievements(next, summaryItems);
-
-                setQuarterResult({ year, season, items: summaryItems, budget: next.budget, fame: next.fame, notoriety: next.notoriety, isGameOver: next.gameOver });
-                setSelectedCandidate(null);
-                return next;
-            } catch (err) {
-                console.error("Turn processing error:", err);
-                return prev;
-            }
-        });
-    };
-
-    const checkAchievements = (state, summaryItems) => {
-        const unlocks = [...state.unlockedAchievements];
-        const check = (id, condition) => {
-            if (!unlocks.includes(id) && condition) {
-                unlocks.push(id);
-                const ach = ACHIEVEMENTS.find(a => a.id === id);
-                if (ach) {
-                    summaryItems.push({ type: 'event', text: `🏆 実績解除: ${ach.name}` });
-                    addLog(`🏆 実績解除: ${ach.name}`, "success");
-                }
-            }
-        };
-
-        check('rich', state.budget >= 10000);
-        check('famous', state.fame >= 100);
-        check('notorious', state.notoriety >= 100);
-        const { total: mainPower } = calculatePartyPower(state.mainParty, state);
-        check('army', mainPower >= 1000);
-
-        state.unlockedAchievements = unlocks;
-    };
-
-    const getFinancialReport = (state = gameState) => {
-        const salaries = (state.adventurers || []).reduce((sum, a) => sum + (a.salary || 0), 0) + (state.receptionist?.salary || 0);
-        const baseMaintenance = (state.facilities?.residence || 1) * 100 + (state.facilities?.tavern || 1) * 50 + (state.facilities?.training || 1) * 50;
-        
-        let discount = Math.min(0.5, (state.shops?.itemShop || 0) * 0.1);
-        if (state.receptionist?.type === 'merchant') discount = Math.min(0.5, discount + 0.1);
-        if (state.masterSkills?.business > 0) discount = Math.min(0.8, discount + (state.masterSkills.business * 0.1));
-        const maintenance = Math.floor(baseMaintenance * (1 - discount));
-
-        let reserveBase = 20;
-        if (state.masterSkills?.business > 0) reserveBase += (state.masterSkills.business * 10);
-        const choresIncome = ((state.adventurers?.length || 0) - (state.mainParty?.length || 0)) * reserveBase;
-        
-        let commerceIncome = Math.floor((state.facilities?.tavern || 1) * 300 * ((state.alignment?.commerce || 25) / 25));
-        if (state.masterSkills?.business > 0) commerceIncome = Math.floor(commerceIncome * (1 + state.masterSkills.business * 0.2));
-        
-        const totalIncome = choresIncome + commerceIncome;
-        const totalExpense = salaries + maintenance;
-        
-        return { salaries, maintenance, choresIncome, commerceIncome, totalIncome, totalExpense, balance: totalIncome - totalExpense };
-    };
-
-    const getReputationText = () => {
-        if (gameState.fame > 100 && gameState.notoriety < 20) return "街の住人から絶大な信頼を寄せられる、誇り高き英雄の集団として讃えられています。";
-        if (gameState.notoriety > 100 && gameState.fame < 50) return "裏社会を牛耳る悪名高い暗黒組織として、人々から恐れられています。";
-        if (gameState.fame > 100 && gameState.notoriety > 100) return "清濁併せ呑む強大な派閥として、権力者すら畏怖する存在です。";
-        return "数あるギルドの一つとして、日々堅実に依頼をこなし街に溶け込んでいます。";
-    };
-
-    const sellGuild = () => {
-        if (window.confirm("ギルドの権利書を商会に売り渡し、冒険の第一線から退きますか？（ゲーム終了）")) {
-            let facilityValue = gameState.facilities.residence * 1000 + gameState.facilities.tavern * 1500 + gameState.facilities.training * 2000;
-            let multiplier = Math.max(0.1, 1 + (gameState.fame - gameState.notoriety) / 100);
-            let saleValue = Math.floor((Math.max(0, gameState.budget) + facilityValue) * multiplier);
-            setGameState(prev => ({ ...prev, gameOver: true, endType: "SELL", endData: saleValue }));
-        }
-    };
-
-    const usurpThrone = () => {
-        const { total: currentPartyPower } = calculatePartyPower(gameState.mainParty, gameState);
-        if (currentPartyPower < 1000) return addLog("[無謀] 王城を落とすには現在の主力部隊の戦力がまるで足りません！（推定戦力1000以上必要）", "danger");
-
-        let successRate = Math.min(95, (currentPartyPower / 2000) * 100);
-        if (Math.random() * 100 < successRate) setGameState(prev => ({ ...prev, gameOver: true, endType: "USURP_WIN" }));
-        else setGameState(prev => ({ ...prev, gameOver: true, endType: "USURP_LOSE" }));
+        addLog("特別任務に出撃しました。");
     };
 
     const getSummaryIcon = (type) => {
-        const { AlertTriangle, Coins, Skull, Activity, CheckCircle2, Crown, LogOut, UserPlus, Star, ArrowRight } = window.LucideReact || window.lucide || {};
-        if (!AlertTriangle) return null;
-        switch (type) {
-            case 'event': return html`<${AlertTriangle} className="w-5 h-5 text-amber-600" />`;
-            case 'finance': return html`<${Coins} className="w-5 h-5 text-stone-500" />`;
-            case 'danger': return html`<${Skull} className="w-5 h-5 text-rose-700" />`;
-            case 'warning': return html`<${AlertTriangle} className="w-5 h-5 text-amber-500" />`;
-            case 'info': return html`<${Activity} className="w-5 h-5 text-indigo-500" />`;
-            case 'success': return html`<${CheckCircle2} className="w-5 h-5 text-emerald-600" />`;
-            case 'hero': return html`<${Crown} className="w-5 h-5 text-amber-500" />`;
-            case 'fail': return html`<${Skull} className="w-5 h-5 text-rose-800" />`;
-            case 'death': return html`<${Skull} className="w-5 h-5 text-rose-900" />`;
-            case 'injury': return html`<${Activity} className="w-5 h-5 text-rose-500" />`;
-            case 'leave': return html`<${LogOut} className="w-5 h-5 text-rose-600" />`;
-            case 'join': return html`<${UserPlus} className="w-5 h-5 text-indigo-600" />`;
-            case 'accent': return html`<${Star} className="w-5 h-5 text-amber-500" />`;
-            default: return html`<${ArrowRight} className="w-5 h-5 text-stone-400" />`;
-        }
+        const { Activity, Coins, Skull } = window.LucideReact || window.lucide || {};
+        if (type === 'finance') return html`<${Coins} className="w-4 h-4 text-amber-500" />`;
+        if (type === 'danger') return html`<${Skull} className="w-4 h-4 text-rose-500" />`;
+        return html`<${Activity} className="w-4 h-4 text-indigo-500" />`;
     };
 
     if (!isLoaded) return html`<div className="min-h-screen bg-stone-900 flex items-center justify-center text-white">Loading...</div>`;
@@ -1102,28 +914,12 @@ export default function App() {
     const currentYear = Math.floor(gameState.turn / 4) + 1;
     const currentSeason = SEASONS[gameState.turn % 4];
     const { total: currentGuildPower } = calculatePartyPower(gameState.mainParty, gameState);
-    const canUsurp = currentGuildPower >= 1000;
+    const canUsurp = currentGuildPower >= 1000 && gameState.notoriety >= 50;
 
     const { Home, ScrollText, Users, Activity: ActivityIcon, Compass, Dumbbell, ShoppingBag, EyeOff, Crown: CrownIcon, Trophy, BookOpen, Flame, Volume2, VolumeX, ArrowRight: ArrowRightIcon, Target: TargetIcon, RotateCcw, Coins: CoinsIcon, ChevronRight, Skull: SkullIcon, Swords } = window.LucideReact || window.lucide || {};
-    if (!Home) return null;
-
-    const NavButton = ({ id, label, icon: Icon, alert }) => {
-        const isActive = currentView === id;
-        return html`
-            <button
-                onClick=${() => { setCurrentView(id); GeminiAudio.playSE('click'); }}
-                className=${`w-full flex items-center gap-3 px-4 py-3 text-left font-bold transition-all border-l-4 ${isActive ? 'bg-[#E8E0D5] border-amber-600 text-amber-800 shadow-inner' : 'bg-transparent border-transparent text-stone-600 hover:bg-[#F2E8C6] hover:text-stone-800'}`}
-            >
-                <${Icon} className=${`w-5 h-5 ${isActive ? 'text-amber-600' : alert ? 'text-rose-500 animate-pulse' : 'text-stone-400'}`} />
-                ${label}
-                ${alert && html`<span className="w-2 h-2 bg-rose-500 rounded-full animate-ping ml-1" />`}
-                <${ChevronRight} className=${`w-4 h-4 ml-auto transition-transform ${isActive ? 'opacity-100 translate-x-1 text-amber-600' : 'opacity-0'}`} />
-            </button>
-        `;
-    };
 
     const renderView = () => {
-        const props = { html, gameState, setGameState, addLog, currentGuildPower, currentYear, currentSeason, getReputationText, getFinancialReport, hireReceptionist, setSelectedCandidate, selectedCandidate, openSpecialRequestModal, declineSpecialRequest, acceptQuest, autoAssembleParty, searchAdventurer, setSelectedAdv, updateAlignment, investFacility, investShop, sabotageRival, headhuntRival, gatherIntelligence, getIntrigueChance, upgradeSkill, requestAlliance, fightBoss, canUsurp, sellGuild, usurpThrone, resetGame, logs, logsEndRef, calculatePartyPower };
+        const props = { gameState, setGameState, currentGuildPower, currentYear, currentSeason, getReputationText, getFinancialReport, hireReceptionist: (r)=>hireReceptionist(r,setGameState,addLog), setSelectedCandidate, selectedCandidate, openSpecialRequestModal: ()=>setReqModalOpen(true), declineSpecialRequest: ()=>setGameState(p=>({...p,specialRequest:null})), acceptQuest, autoAssembleParty: ()=>addLog("自動編成実行"), searchAdventurer, setSelectedAdv, updateAlignment, investFacility, investShop, upgradeSkill, canUsurp, sellGuild: ()=>setGameState(p=>({...p,gameOver:true,endType:'SELL',endData:10000})), usurpThrone: ()=>setGameState(p=>({...p,gameOver:true,endType:'USURP_WIN'})), resetGame, logs, logsEndRef, calculatePartyPower, requestAlliance: ()=>addLog("同盟要請"), fightBoss: ()=>addLog("ボス戦開始") };
         switch (currentView) {
             case 'home': return html`<${HomeView} ...${props} />`;
             case 'quests': return html`<${QuestBoard} ...${props} />`;
@@ -1142,148 +938,42 @@ export default function App() {
         }
     };
 
-    const bgMap = {
-        home: 'assets/images/title_bg.png',
-        roster: 'assets/images/bg_barracks.png',
-        alignment: 'assets/images/bg_barracks.png',
-        dungeons: 'assets/images/bg_dungeon.png',
-        facilities: 'assets/images/bg_market.png',
-        shops: 'assets/images/bg_market.png',
-        intrigue: 'assets/images/bg_shadow.png',
-        skills: 'assets/images/bg_throne.png',
-        decision: 'assets/images/bg_throne.png',
-        achievements: 'assets/images/title_bg.png',
-        logs: 'assets/images/title_bg.png',
-        boss: 'assets/images/bg_dungeon.png'
-    };
-    const currentBg = bgMap[currentView] || 'assets/images/title_bg.png';
-
     return html`
-        <div className="min-h-screen text-stone-800 font-serif flex flex-col selection:bg-amber-200 overflow-hidden">
-            ${currentView !== 'title' && html`
-                <>
-                    <div className="game-bg-container">
-                        <img src=${currentBg} className="game-bg-img" alt="" />
-                    </div>
-                    <div className="game-bg-overlay"></div>
-                </>
-            `}
-
+        <div className="min-h-screen text-stone-800 font-serif flex flex-col bg-[#FAF8F5]">
             ${currentView === 'title' ? html`
-                <div className="min-h-screen w-full relative flex items-center justify-center overflow-hidden bg-stone-900">
-                    <img src="assets/images/title_bg.png" className="absolute inset-0 w-full h-full object-cover opacity-80" alt="" />
-                    <div className="absolute inset-0 bg-stone-900/40 backdrop-blur-[2px]"></div>
-                    <div className="relative z-10 flex flex-col items-center text-center p-10 bg-stone-900/60 backdrop-blur-sm border-2 border-[#D4C3A3] rounded-sm shadow-2xl max-w-xl w-full title-fade-in">
-                        <${CrownIcon} className="w-16 h-16 text-amber-400 mb-4 drop-shadow-lg" />
-                        <h1 className="text-5xl md:text-6xl font-bold tracking-[0.2em] text-[#F2E8C6] mb-3 title-text-glow">GUILD MASTER</h1>
-                        <p className="text-amber-100/80 font-medium mb-10 tracking-widest">英雄の叙事詩は、ここから始まる</p>
-                        <div className="w-full space-y-4">
-                            ${hasSaveData && html`
-                                <button onClick=${() => { setCurrentView('home'); GeminiAudio.init(); GeminiAudio.playBGM(gameState.activeBoss ? 'boss' : 'home'); }} className="w-full bg-indigo-700 hover:bg-indigo-600 text-white py-4 rounded-sm font-bold text-xl shadow-lg border border-indigo-900 transition-all hover:scale-[1.02] active:scale-95 flex justify-center items-center gap-2">
-                                    <${RotateCcw} className="w-5 h-5" /> 続きから始める
-                                </button>
-                            `}
-                            <button onClick=${startNewGame} className="w-full bg-amber-700 hover:bg-amber-600 text-white py-4 rounded-sm font-bold text-xl shadow-lg border border-amber-900 transition-all hover:scale-[1.02] active:scale-95 flex justify-center items-center gap-2">
-                                <${Swords} className="w-5 h-5" /> 新たな歴史を紡ぐ
-                            </button>
-                            <button onClick=${() => setShowHowToPlay(true)} className="w-full bg-stone-700 hover:bg-stone-600 text-white py-4 rounded-sm font-bold text-xl shadow-lg border border-stone-900 transition-all hover:scale-[1.02] active:scale-95 flex justify-center items-center gap-2">
-                                <${BookOpen} className="w-5 h-5" /> 遊び方
-                            </button>
-                        </div>
+                <div className="min-h-screen flex items-center justify-center bg-stone-900 text-[#F2E8C6]">
+                    <div className="text-center p-10 border-2 border-[#D4C3A3]">
+                        <${CrownIcon} className="w-16 h-16 mx-auto mb-4 text-amber-400" />
+                        <h1 className="text-5xl font-bold tracking-widest mb-10">GUILD MASTER</h1>
+                        <button onClick=${startNewGame} className="w-full bg-amber-700 text-white py-4 font-bold rounded-sm mb-4">新たな歴史を紡ぐ</button>
+                        ${hasSaveData && html`<button onClick=${() => setCurrentView('home')} className="w-full bg-indigo-700 text-white py-4 font-bold rounded-sm">続きから始める</button>`}
                     </div>
                 </div>
             ` : html`
-                <>
-                    <header className="bg-stone-900 text-[#E8E0D5] border-b-4 border-[#3A322C] px-6 py-4 flex items-center justify-between shrink-0 shadow-md relative z-10">
-                        <div className="flex items-center gap-3">
-                            <div className="bg-amber-600 p-2 rounded shadow-inner border border-amber-500">
-                                <${TargetIcon} className="w-6 h-6 text-amber-50" />
-                            </div>
-                            <div>
-                                <h1 className="text-2xl font-bold tracking-widest text-[#F2E8C6] drop-shadow-sm">GUILD MASTER</h1>
-                                <p className="text-sm text-stone-400 font-medium tracking-wider">
-                                    第 ${currentYear} 暦 【${currentSeason}】 / 残り ${MAX_TURNS - gameState.turn} 刻
-                                </p>
-                            </div>
-                        </div>
-                        <button 
-                            onClick=${toggleMute}
-                            className=${`p-3 rounded-full transition-all active:scale-95 ${isMuted ? 'bg-stone-700 text-stone-400' : 'bg-amber-700 text-amber-50 shadow-[0_0_15px_rgba(180,130,0,0.4)]'}`}
-                            title=${isMuted ? "音声を有効にする" : "ミュートにする"}
-                        >
-                            ${isMuted ? html`<${VolumeX} className="w-6 h-6" />` : html`<${Volume2} className="w-6 h-6" />`}
-                        </button>
+                <div className="flex flex-col h-screen">
+                    <header className="bg-stone-900 text-white p-4 flex justify-between items-center shrink-0">
+                        <div className="font-bold text-xl tracking-widest">GUILD MASTER</div>
+                        <div className="text-xs text-stone-400">YEAR ${currentYear} ${currentSeason}</div>
                     </header>
-
-                    <main className="flex-1 overflow-hidden flex flex-col md:flex-row p-4 gap-6 max-w-7xl mx-auto w-full relative z-10">
-                        <div className="w-full md:w-72 flex flex-col shrink-0 gap-4 overflow-y-auto pr-1">
-                            <div className="bg-stone-800 glass-panel-dark rounded-sm shadow-md border-2 border-[#D4C3A3] p-5 text-[#E8E0D5]">
-                                <h2 className="text-xs font-bold text-stone-400 tracking-widest mb-4 flex items-center gap-2 border-b border-stone-700 pb-2">
-                                    <${TargetIcon} className="w-4 h-4" /> ギルドの威信
-                                </h2>
-                                <div className="space-y-4">
-                                    <div className="flex justify-between items-center">
-                                        <span className="text-stone-300 font-bold text-sm flex items-center gap-1.5"><${CoinsIcon} className="w-4 h-4 text-amber-400" /> 金庫</span>
-                                        <span className=${`font-bold text-lg ${gameState.budget < 0 ? 'text-rose-500' : 'text-amber-400 drop-shadow-sm'}`}>${gameState.budget.toLocaleString()} G</span>
-                                    </div>
-                                    <div className="flex justify-between items-center">
-                                        <span className="text-stone-300 font-bold text-sm">名声</span>
-                                        <span className="font-bold text-lg text-indigo-300">${gameState.fame}</span>
-                                    </div>
-                                    <div className="flex justify-between items-center">
-                                        <span className="text-stone-300 font-bold text-sm">悪名</span>
-                                        <span className="font-bold text-lg text-rose-400">${gameState.notoriety}</span>
-                                    </div>
-                                    <div className="pt-3 border-t border-stone-700 flex justify-between items-center">
-                                        <span className="text-stone-100 font-bold text-sm">現在推定戦力</span>
-                                        <span className="font-bold text-2xl text-amber-500 drop-shadow-md">${currentGuildPower}</span>
-                                    </div>
-                                </div>
+                    <main className="flex-1 flex overflow-hidden">
+                        <nav className="w-64 bg-stone-100 border-r overflow-y-auto p-2 space-y-1">
+                            <button onClick=${() => setCurrentView('home')} className="w-full p-2 text-left hover:bg-stone-200 rounded">本部</button>
+                            <button onClick=${() => setCurrentView('quests')} className="w-full p-2 text-left hover:bg-stone-200 rounded">依頼</button>
+                            <button onClick=${() => setCurrentView('roster')} className="w-full p-2 text-left hover:bg-stone-200 rounded">名簿</button>
+                            <button onClick=${() => setCurrentView('alignment')} className="w-full p-2 text-left hover:bg-stone-200 rounded">方針</button>
+                            <div className="pt-4 mt-4 border-t">
+                                <button onClick=${processTurn} className="w-full bg-indigo-900 text-white py-3 font-bold rounded-sm">季節を進める</button>
                             </div>
-
-                            <nav className="bg-[#FAF8F5] glass-panel rounded-sm shadow-md border border-[#D4C3A3] overflow-hidden flex flex-col">
-                                <${NavButton} id="home" label="ギルド本部" icon=${Home} alert=${!!gameState.specialRequest} />
-                                <${NavButton} id="quests" label="依頼掲示板" icon=${ScrollText} alert=${gameState.availableQuests.length > 0} />
-                                <${NavButton} id="roster" label="所属冒険者名簿" icon=${Users} />
-                                <${NavButton} id="alignment" label="運営方針" icon=${ActivityIcon} />
-                                <${NavButton} id="dungeons" label="未踏の迷宮" icon=${Compass} alert=${gameState.discoveredDungeons.length > 0 && !gameState.targetDungeon} />
-                                <${NavButton} id="facilities" label="施設拡張" icon=${Dumbbell} />
-                                <${NavButton} id="shops" label="外部提携" icon=${ShoppingBag} />
-                                <${NavButton} id="intrigue" label="諜報・裏工作" icon=${EyeOff} />
-                                <${NavButton} id="skills" label="マスターの才能" icon=${CrownIcon} />
-                                <${NavButton} id="achievements" label="実績一覧" icon=${Trophy} />
-                                <${NavButton} id="logs" label="活動日誌" icon=${BookOpen} />
-                                <div className="border-t border-[#D4C3A3]">
-                                    <${NavButton} id="decision" label="大いなる決断" icon=${CrownIcon} />
-                                </div>
-                            </nav>
-
-                            ${gameState.activeBoss ? html`
-                                <button onClick=${() => setCurrentView('boss')} className="w-full bg-rose-900 hover:bg-rose-800 text-rose-50 px-6 py-4 rounded-sm font-bold text-lg transition-colors shadow-lg border border-rose-950 flex justify-center items-center gap-2 animate-pulse active:scale-95">
-                                    <${Flame} className="w-5 h-5" /> 厄災迎撃戦へ
-                                </button>
-                            ` : html`
-                                <button onClick=${processTurn} className="w-full bg-indigo-900 hover:bg-indigo-800 text-indigo-50 px-6 py-4 rounded-sm font-bold text-lg transition-colors shadow-lg border border-indigo-950 flex justify-center items-center gap-2 active:scale-95">
-                                    季節を進める <${ArrowRightIcon} className="w-5 h-5" />
-                                </button>
-                            `}
-                        </div>
-
-                        <div className="flex-1 flex flex-col bg-[#FAF8F5] glass-panel rounded-sm shadow-md border border-[#D4C3A3] overflow-hidden min-h-[500px]">
-                            <div className="bg-[#E8E0D5] border-b border-[#D4C3A3] px-6 py-4 flex items-center gap-3 shrink-0">
-                                <h2 className="text-lg font-bold text-stone-800 tracking-widest">${currentView.toUpperCase()}</h2>
-                            </div>
-                            <div className="flex-1 overflow-x-hidden overflow-y-auto p-4 md:p-6">
-                                ${renderView()}
-                            </div>
+                        </nav>
+                        <div className="flex-1 overflow-y-auto p-6">
+                            ${renderView()}
                         </div>
                     </main>
-                </>
+                </div>
             `}
-
             <${ActionModal} actionModal=${actionModal} />
             <${QuarterResultModal} quarterResult=${quarterResult} getSummaryIcon=${getSummaryIcon} setQuarterResult=${setQuarterResult} setCurrentView=${setCurrentView} activeBoss=${gameState.activeBoss} />
-            <${AdventurerModal} selectedAdv=${selectedAdv} setSelectedAdv=${setSelectedAdv} gameState=${gameState} fireAdventurer=${fireAdventurer} toggleMainParty=${toggleMainParty} handleEquipArtifact=${handleEquipArtifact} />
+            <${AdventurerModal} selectedAdv=${selectedAdv} setSelectedAdv=${setSelectedAdv} gameState=${gameState} fireAdventurer=${fireAdventurer} toggleMainParty=${toggleMainParty} handleEquipArtifact=${()=>addLog("遺物装備")} />
             <${SpecialRequestModal} reqModalOpen=${reqModalOpen} setReqModalOpen=${setReqModalOpen} gameState=${gameState} reqParty=${reqParty} handleToggleReqParty=${handleToggleReqParty} executeSpecialRequest=${executeSpecialRequest} calculatePartyPower=${calculatePartyPower} />
             <${HowToPlayModal} showHowToPlay=${showHowToPlay} setShowHowToPlay=${setShowHowToPlay} />
             <${EndingView} gameState=${gameState} quarterResult=${quarterResult} resetGame=${resetGame} />

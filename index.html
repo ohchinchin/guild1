@@ -17,24 +17,8 @@
 </head>
 <body class="bg-stone-900 overflow-hidden">
     <div id="root"></div>
-    <div id="error-display" style="position:fixed; bottom:0; left:0; right:0; background:rgba(255,0,0,0.8); color:white; padding:10px; font-family:monospace; z-index:9999; display:none;"></div>
-
-    <script>
-        window.onerror = function(msg, url, line, col, error) {
-            var display = document.getElementById('error-display');
-            display.style.display = 'block';
-            var errorInfo = error ? '<pre>' + error.stack + '</pre>' : '';
-            display.innerHTML += '<div>Error: ' + msg + ' at ' + url + ':' + line + ':' + col + errorInfo + '</div>';
-            return false;
-        };
-        window.onunhandledrejection = function(event) {
-            var display = document.getElementById('error-display');
-            display.style.display = 'block';
-            var errorInfo = event.reason && event.reason.stack ? '<pre>' + event.reason.stack + '</pre>' : event.reason;
-            display.innerHTML += '<div>Unhandled Promise Rejection: ' + errorInfo + '</div>';
-        };
-    </script>
-
+    
+    <!-- Robustness: Native ESM for clean logic separation -->
     <script type="module">
         import App from './src/App.js';
         const root = ReactDOM.createRoot(document.getElementById('root'));
