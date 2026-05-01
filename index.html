@@ -8,10 +8,26 @@
     <link rel="stylesheet" href="src/styles/main.css">
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script>window.react = window.React;</script>
     <script src="https://unpkg.com/lucide-react@0.292.0/dist/umd/lucide-react.min.js"></script>
 </head>
 <body class="bg-stone-900 overflow-hidden">
     <div id="root"></div>
+    <div id="error-display" style="position:fixed; bottom:0; left:0; right:0; background:rgba(255,0,0,0.8); color:white; padding:10px; font-family:monospace; z-index:9999; display:none;"></div>
+
+    <script>
+        window.onerror = function(msg, url, line, col, error) {
+            var display = document.getElementById('error-display');
+            display.style.display = 'block';
+            display.innerHTML += '<div>Error: ' + msg + ' at ' + url + ':' + line + '</div>';
+            return false;
+        };
+        window.onunhandledrejection = function(event) {
+            var display = document.getElementById('error-display');
+            display.style.display = 'block';
+            display.innerHTML += '<div>Unhandled Promise Rejection: ' + event.reason + '</div>';
+        };
+    </script>
 
     <script type="module">
         import App from './src/App.js';
