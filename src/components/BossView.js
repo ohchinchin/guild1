@@ -1,7 +1,7 @@
 import htm from 'https://unpkg.com/htm?module';
 const React = window.React;
 const html = htm.bind(React.createElement);
-const { Skull, HeartHandshake, CheckCircle2, X as XIcon } = window.LucideReact;
+const { Skull, HeartHandshake, CheckCircle2, X: XIcon } = window.LucideReact;
 import TypewriterText from './TypewriterText.js';
 
 export default function BossView({ gameState, currentGuildPower, requestAlliance, fightBoss }) {
