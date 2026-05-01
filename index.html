@@ -2059,7 +2059,7 @@
             const currentSeason = SEASONS[gameState.turn % 4];
             const canUsurp = gameState.alignment.military >= 80 && gameState.notoriety >= 50 && currentGuildPower >= 1000;
 
-            const getFinancialReport = () => {
+            const getForecastReport = () => {
                 const salaries = gameState.adventurers.reduce((sum, a) => sum + a.salary, 0) + gameState.receptionist.salary;
                 const baseMaintenance = gameState.facilities.residence * 100 + gameState.facilities.tavern * 50 + gameState.facilities.training * 50;
                 
@@ -2152,7 +2152,7 @@
                                             <Coins className="w-5 h-5 text-amber-600" /> 次季の収支見込み
                                         </h3>
                                         {(() => {
-                                            const report = getFinancialReport();
+                                            const report = getForecastReport();
                                             return (
                                                 <div className="space-y-3 flex-1">
                                                     <div className="space-y-1">
