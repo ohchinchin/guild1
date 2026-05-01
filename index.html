@@ -209,6 +209,87 @@
             0%, 100% { opacity: 1; }
             50%      { opacity: 0; }
         }
+
+        /* ④ 重い扉が開く演出 */
+        .door-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 9999;
+            pointer-events: none;
+            display: flex;
+        }
+        .door-left, .door-right {
+            width: 50%;
+            height: 100%;
+            position: relative;
+            overflow: hidden;
+        }
+        .door-left {
+            background: linear-gradient(90deg, #1a1510 0%, #2c251c 60%, #3d3428 100%);
+            border-right: 3px solid #8b7355;
+        }
+        .door-right {
+            background: linear-gradient(270deg, #1a1510 0%, #2c251c 60%, #3d3428 100%);
+            border-left: 3px solid #8b7355;
+        }
+        .door-left::before, .door-right::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 40px;
+            height: 120px;
+            border-radius: 8px;
+            background: linear-gradient(180deg, #c9a84c 0%, #8b6914 50%, #c9a84c 100%);
+            box-shadow: 0 0 20px rgba(201, 168, 76, 0.5), inset 0 2px 4px rgba(255,255,255,0.3);
+        }
+        .door-left::before { right: 30px; }
+        .door-right::before { left: 30px; }
+        .door-left::after, .door-right::after {
+            content: '';
+            position: absolute;
+            top: 0; bottom: 0;
+            width: 100%;
+            background: repeating-linear-gradient(
+                0deg,
+                transparent 0px,
+                transparent 80px,
+                rgba(139,115,85,0.15) 80px,
+                rgba(139,115,85,0.15) 82px
+            );
+        }
+        .door-opening .door-left {
+            animation: doorOpenLeft 1.8s cubic-bezier(0.25, 0.1, 0.25, 1) forwards;
+        }
+        .door-opening .door-right {
+            animation: doorOpenRight 1.8s cubic-bezier(0.25, 0.1, 0.25, 1) forwards;
+        }
+        @keyframes doorOpenLeft {
+            0%   { transform: translateX(0); }
+            15%  { transform: translateX(2px); }
+            100% { transform: translateX(-105%); }
+        }
+        @keyframes doorOpenRight {
+            0%   { transform: translateX(0); }
+            15%  { transform: translateX(-2px); }
+            100% { transform: translateX(105%); }
+        }
+        .door-light {
+            position: fixed;
+            inset: 0;
+            z-index: 9998;
+            background: radial-gradient(ellipse at center, rgba(255,220,140,0.4) 0%, transparent 70%);
+            opacity: 0;
+            pointer-events: none;
+        }
+        .door-opening ~ .door-light {
+            animation: doorLightBurst 2s ease-out forwards;
+        }
+        @keyframes doorLightBurst {
+            0%   { opacity: 0; }
+            30%  { opacity: 0.8; }
+            100% { opacity: 0; }
+        }
     </style>
 </head>
 
@@ -556,21 +637,47 @@
             };
         };
 
-        const generateAdventurer = (fame, notoriety, usedNames, forcedRank = null, isRecruiter = false) => {
+        const generateAdventurer = (fame, notoriety, usedNames, forcedRank = null, isRecruiter = false, guildPower = 0) => {
             let availableNames = NAME_POOL.filter(n => !usedNames.includes(n));
             if (availableNames.length === 0) availableNames = NAME_POOL;
             const name = availableNames[Math.floor(Math.random() * availableNames.length)];
 
             let rankIdx = 0;
-            let roll = Math.random() * 100;
-            let qualityBonus = (fame + notoriety) / 10 + (isRecruiter ? 15 : 0);
+            if (forcedRank) {
+                rankIdx = RANKS.indexOf(forcedRank);
+            } else {
+                // ギルドの規模（名声+悪名+戦力）に応じてランクの期待値が上がる
+                const reputation = (fame || 0) + (notoriety || 0);
+                const powerTier = Math.min(5, Math.floor((guildPower || 0) / 500)); // 0-5
+                const reputationTier = Math.min(5, Math.floor(reputation / 40));     // 0-5
+                const guildTier = Math.max(powerTier, reputationTier);               // 総合ティア 0-5
+                const recruiterBonus = isRecruiter ? 1.5 : 0;
 
-            if (roll + qualityBonus > 95) rankIdx = 4; // A
-            else if (roll + qualityBonus > 80) rankIdx = 3; // B
-            else if (roll + qualityBonus > 60) rankIdx = 2; // C
-            else if (roll + qualityBonus > 30) rankIdx = 1; // D
-            if ((fame > 200 || isRecruiter) && Math.random() < (isRecruiter ? 0.1 : 0.05)) rankIdx = 5; // S
-            if (forcedRank) rankIdx = RANKS.indexOf(forcedRank);
+                // 重み付き抽選: guildTierが高いほど高ランクが出やすい
+                // 各ランクの重み [E, D, C, B, A, S]
+                const baseWeights = [50, 30, 15, 4, 1, 0];
+                const tierShifts = [
+                    [50, 30, 15, 4, 1, 0],     // tier 0: ほぼE-D
+                    [30, 35, 25, 8, 2, 0],     // tier 1: D中心
+                    [15, 25, 35, 18, 6, 1],    // tier 2: C中心
+                    [5, 15, 30, 30, 15, 5],    // tier 3: B-C中心
+                    [2, 8, 20, 30, 28, 12],    // tier 4: B-A中心
+                    [1, 3, 10, 25, 35, 26]     // tier 5: A-S中心
+                ];
+                const weights = tierShifts[Math.min(guildTier, 5)].map((w, i) => {
+                    // リクルーターボーナス: 高ランク側の重みを増加
+                    return w * (1 + recruiterBonus * (i / 5));
+                });
+                const totalWeight = weights.reduce((s, w) => s + w, 0);
+                let roll = Math.random() * totalWeight;
+                for (let i = 0; i < weights.length; i++) {
+                    roll -= weights[i];
+                    if (roll <= 0) { rankIdx = i; break; }
+                }
+                // たまに当たり: 低ティアでも低確率でA/Sが来る
+                if (rankIdx < 4 && Math.random() < 0.03) rankIdx = 4; // 3% でAランク
+                if (rankIdx < 5 && reputation > 100 && Math.random() < 0.02) rankIdx = 5; // 名声100超で2%でS
+            }
 
             const rank = RANKS[rankIdx];
             
@@ -743,6 +850,18 @@
             const [showHowToPlay, setShowHowToPlay] = useState(false);
             const [actionModal, setActionModal] = useState(null);
             const [isMuted, setIsMuted] = useState(true); // ブラウザポリシーのため初期はミュート推奨
+            const [doorOpening, setDoorOpening] = useState(false);
+
+            const transitionToGame = (callback) => {
+                setDoorOpening(true);
+                if (callback) callback();
+                setTimeout(() => {
+                    setCurrentView('home');
+                }, 800);
+                setTimeout(() => {
+                    setDoorOpening(false);
+                }, 2200);
+            };
 
 
             const toggleMute = () => {
@@ -1470,28 +1589,39 @@
             };
 
             const getFinancialReport = (state) => {
-                if (!state) return { expenditure: 0, income: 0, net: 0, details: {} };
-                const salaries = state.adventurers.reduce((sum, a) => sum + a.salary, 0) + state.receptionist.salary;
-                const baseMaintenance = state.facilities.residence * 100 + state.facilities.tavern * 50 + state.facilities.training * 50;
+                if (!state) return { expenditure: 0, income: 0, net: 0, reserveIncome: 0, commerceIncome: 0, details: {} };
+                const salaries = (state.adventurers || []).reduce((sum, a) => sum + (a.salary || 0), 0) + (state.receptionist?.salary || 0);
+                const fac = state.facilities || { residence: 1, tavern: 1, training: 1 };
+                const baseMaintenance = (fac.residence || 0) * 100 + (fac.tavern || 0) * 50 + (fac.training || 0) * 50;
 
-                let discount = Math.min(0.5, state.shops.itemShop * 0.1);
-                if (state.receptionist.type === 'merchant') discount = Math.min(0.5, discount + 0.1);
-                if (state.masterSkills.business > 0) discount = Math.min(0.8, discount + (state.masterSkills.business * 0.1));
+                const shops = state.shops || { itemShop: 0 };
+                let discount = Math.min(0.5, (shops.itemShop || 0) * 0.1);
+                if (state.receptionist?.type === 'merchant') discount = Math.min(0.5, discount + 0.1);
+                const skills = state.masterSkills || { business: 0 };
+                if ((skills.business || 0) > 0) discount = Math.min(0.8, discount + (skills.business * 0.1));
                 const maintenance = Math.floor(baseMaintenance * (1 - discount));
 
-                const reserveCount = state.adventurers.length - state.mainParty.length;
+                const advCount = (state.adventurers || []).length;
+                const partyCount = (state.mainParty || []).length;
+                const reserveCount = Math.max(0, advCount - partyCount);
                 let reserveBase = 20;
-                if (state.masterSkills.business > 0) reserveBase += (state.masterSkills.business * 10);
+                if ((skills.business || 0) > 0) reserveBase += (skills.business * 10);
                 const reserveIncome = reserveCount * reserveBase;
 
-                let commerceIncome = Math.floor(state.facilities.tavern * 300 * (state.alignment.commerce / 25));
-                if (state.masterSkills.business > 0) commerceIncome = Math.floor(commerceIncome * (1 + state.masterSkills.business * 0.2));
+                const alignment = state.alignment || { commerce: 25 };
+                let commerceIncome = Math.floor((fac.tavern || 0) * 300 * ((alignment.commerce || 25) / 25));
+                if ((skills.business || 0) > 0) commerceIncome = Math.floor(commerceIncome * (1 + skills.business * 0.2));
+
+                const expenditure = Math.floor(salaries + maintenance) || 0;
+                const income = Math.floor(commerceIncome + reserveIncome) || 0;
 
                 return {
-                    expenditure: salaries + maintenance,
-                    income: commerceIncome + reserveIncome,
-                    net: (commerceIncome + reserveIncome) - (salaries + maintenance),
-                    details: { salaries, maintenance, commerceIncome, reserveIncome }
+                    expenditure,
+                    income,
+                    net: income - expenditure,
+                    reserveIncome: reserveIncome || 0,
+                    commerceIncome: commerceIncome || 0,
+                    details: { salaries: salaries || 0, maintenance: maintenance || 0, commerceIncome: commerceIncome || 0, reserveIncome: reserveIncome || 0 }
                 };
             };
 
@@ -1633,7 +1763,8 @@
 
                         if (next.adventurers.length < next.facilities.residence * 5) {
                             if (Math.random() * 100 < (next.fame / 5 + 20)) {
-                                let newAdv = generateAdventurer(next.fame, next.notoriety, next.usedNames, null, false);
+                                const { total: currentPow } = calculatePartyPower(next.mainParty, next);
+                                let newAdv = generateAdventurer(next.fame, next.notoriety, next.usedNames, null, false, currentPow);
                                 next.adventurers.push(newAdv);
                                 next.usedNames.push(newAdv.name);
                                 summaryItems.push({ type: 'join', text: `新冒険者 ${newAdv.name} が加入。` });
@@ -3165,6 +3296,17 @@
         }
       `}</style>
 
+                    {/* 扉が開く演出オーバーレイ */}
+                    {doorOpening && (
+                        <>
+                            <div className="door-overlay door-opening">
+                                <div className="door-left"></div>
+                                <div className="door-right"></div>
+                            </div>
+                            <div className="door-light"></div>
+                        </>
+                    )}
+
                     {currentView !== 'title' && (
                         <>
                             <div className="game-bg-container">
@@ -3184,11 +3326,11 @@
                                 <p className="text-amber-100/80 font-medium mb-10 tracking-widest text-readable-dark">英雄の叙事詩は、ここから始まる</p>
                                 <div className="w-full space-y-4">
                                     {hasSaveData && (
-                                        <button onClick={() => setCurrentView('home')} className="w-full bg-indigo-700 hover:bg-indigo-600 text-white py-4 rounded-sm font-bold text-xl shadow-lg border border-indigo-900 transition-all hover:scale-[1.02] active:scale-95 flex justify-center items-center gap-2">
+                                        <button onClick={() => transitionToGame()} className="w-full bg-indigo-700 hover:bg-indigo-600 text-white py-4 rounded-sm font-bold text-xl shadow-lg border border-indigo-900 transition-all hover:scale-[1.02] active:scale-95 flex justify-center items-center gap-2">
                                             <RotateCcw className="w-5 h-5" /> 続きから始める
                                         </button>
                                     )}
-                                    <button onClick={() => { startNewGame(); setCurrentView('home'); }} className="w-full bg-amber-700 hover:bg-amber-600 text-white py-4 rounded-sm font-bold text-xl shadow-lg border border-amber-900 transition-all hover:scale-[1.02] active:scale-95 flex justify-center items-center gap-2">
+                                    <button onClick={() => transitionToGame(startNewGame)} className="w-full bg-amber-700 hover:bg-amber-600 text-white py-4 rounded-sm font-bold text-xl shadow-lg border border-amber-900 transition-all hover:scale-[1.02] active:scale-95 flex justify-center items-center gap-2">
                                         <Swords className="w-5 h-5" /> 新たな歴史を紡ぐ
                                     </button>
                                     <button onClick={() => setShowHowToPlay(true)} className="w-full bg-stone-700 hover:bg-stone-600 text-white py-4 rounded-sm font-bold text-xl shadow-lg border border-stone-900 transition-all hover:scale-[1.02] active:scale-95 flex justify-center items-center gap-2">
