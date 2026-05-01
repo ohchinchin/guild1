@@ -19,13 +19,15 @@
         window.onerror = function(msg, url, line, col, error) {
             var display = document.getElementById('error-display');
             display.style.display = 'block';
-            display.innerHTML += '<div>Error: ' + msg + ' at ' + url + ':' + line + '</div>';
+            var errorInfo = error ? '<pre>' + error.stack + '</pre>' : '';
+            display.innerHTML += '<div>Error: ' + msg + ' at ' + url + ':' + line + ':' + col + errorInfo + '</div>';
             return false;
         };
         window.onunhandledrejection = function(event) {
             var display = document.getElementById('error-display');
             display.style.display = 'block';
-            display.innerHTML += '<div>Unhandled Promise Rejection: ' + event.reason + '</div>';
+            var errorInfo = event.reason && event.reason.stack ? '<pre>' + event.reason.stack + '</pre>' : event.reason;
+            display.innerHTML += '<div>Unhandled Promise Rejection: ' + errorInfo + '</div>';
         };
     </script>
 
