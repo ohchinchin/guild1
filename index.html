@@ -8,21 +8,14 @@
     <link rel="stylesheet" href="src/styles/main.css">
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-    <script>window.react = window.React;</script>
+    <script src="https://unpkg.com/htm/dist/htm.umd.js"></script>
     <script src="https://unpkg.com/lucide-react@0.292.0/dist/umd/lucide-react.min.js"></script>
     <script>
         window.LucideReact = window.LucideReact || window.lucide;
-        window.lucide = window.lucide || window.LucideReact;
     </script>
 </head>
 <body class="bg-stone-900 overflow-hidden">
     <div id="root"></div>
-    
-    <!-- Robustness: Native ESM for clean logic separation -->
-    <script type="module">
-        import App from './src/App.js';
-        const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(React.createElement(App));
-    </script>
+    <script src="src/game.js"></script>
 </body>
 </html>
