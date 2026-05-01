@@ -1,9 +1,10 @@
 import htm from 'https://unpkg.com/htm?module';
 const React = window.React;
 const html = htm.bind(React.createElement);
-const { Target, MessageSquare, AlertTriangle, ScrollText, Coins, HeartHandshake } = window.LucideReact;
-
 export default function HomeView({ html: _, gameState, currentGuildPower, currentYear, currentSeason, getReputationText, getFinancialReport, hireReceptionist, setSelectedCandidate, selectedCandidate, openSpecialRequestModal, declineSpecialRequest }) {
+    const { Target, MessageSquare, AlertTriangle, ScrollText, Coins, HeartHandshake } = window.LucideReact || window.lucide || {};
+    if (!Target) return null;
+
     return html`
         <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">
             ${gameState.specialRequest && html`

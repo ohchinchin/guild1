@@ -1,10 +1,10 @@
 import htm from 'https://unpkg.com/htm?module';
 const React = window.React;
 const html = htm.bind(React.createElement);
-const { Crown } = window.LucideReact;
 import TypewriterText from './TypewriterText.js';
 
 export default function EndingView({ gameState, quarterResult, resetGame }) {
+    const { Crown } = window.LucideReact || window.lucide || {};
     if (!gameState.gameOver || quarterResult) return null;
 
     let title = "", desc = "", colorClass = "text-amber-500", bgClass = "bg-[#2A241F]", borderClass = "border-[#D4C3A3]";

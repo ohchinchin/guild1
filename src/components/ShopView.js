@@ -1,9 +1,8 @@
 import htm from 'https://unpkg.com/htm?module';
 const React = window.React;
 const html = htm.bind(React.createElement);
-const { Hammer, Wand2, ShoppingBag } = window.LucideReact;
-
 export default function ShopView({ gameState, investShop }) {
+    const { Hammer, Wand2, ShoppingBag } = window.LucideReact || window.lucide || {};
     const shops = [
         { id: 'blacksmith', label: '鍛冶屋への融資', desc: '武器防具の優先供給', icon: Hammer, details: '軍事と探索における作戦の【成功率】がレベル毎に5%底上げされます。' },
         { id: 'magicShop', label: '魔法屋への融資', desc: '回復薬や護符の提供', icon: Wand2, details: 'クエスト失敗時の致命傷を防ぎ、【死亡リスク】をレベル毎に5%低下させます。' },

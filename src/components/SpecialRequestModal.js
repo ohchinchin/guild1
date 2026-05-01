@@ -1,10 +1,9 @@
 import htm from 'https://unpkg.com/htm?module';
 const React = window.React;
 const html = htm.bind(React.createElement);
-const { Target, AlertTriangle, CheckCircle2 } = window.LucideReact;
-
 export default function SpecialRequestModal({ reqModalOpen, setReqModalOpen, gameState, reqParty, handleToggleReqParty, executeSpecialRequest, calculatePartyPower }) {
     if (!reqModalOpen) return null;
+    const { Target, AlertTriangle, CheckCircle2 } = window.LucideReact || window.lucide || {};
     const { total: reqPower, warnings } = calculatePartyPower(reqParty, gameState);
 
     return html`

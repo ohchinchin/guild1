@@ -1,9 +1,8 @@
 import htm from 'https://unpkg.com/htm?module';
 const React = window.React;
 const html = htm.bind(React.createElement);
-const { Swords, Shuffle, Search } = window.LucideReact;
-
 export default function RosterView({ gameState, autoAssembleParty, searchAdventurer, setSelectedAdv }) {
+    const { Swords, Shuffle, Search } = window.LucideReact || window.lucide || {};
     return html`
         <div className="flex flex-col h-full animate-in fade-in slide-in-from-right-4 duration-500">
             <div className="mb-6 shrink-0">

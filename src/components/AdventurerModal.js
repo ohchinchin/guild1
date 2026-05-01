@@ -1,15 +1,16 @@
 import htm from 'https://unpkg.com/htm?module';
 const React = window.React;
 const html = htm.bind(React.createElement);
-const { X: XIcon, Swords, Star } = window.LucideReact;
 import { ARTIFACT_POOL } from '../data/constants.js';
-
 export default function AdventurerModal({ selectedAdv, setSelectedAdv, gameState, fireAdventurer, toggleMainParty, handleEquipArtifact }) {
+    const { X: XIcon, Swords, Star } = window.LucideReact || window.lucide || {};
+    if (!XIcon) return null;
     if (!selectedAdv) return null;
 
     const isOurs = (gameState.adventurers || []).some(a => a.id === selectedAdv.id);
     const isMain = (gameState.mainParty || []).includes(selectedAdv.id);
-    const AdvIcon = window.LucideReact[selectedAdv.advClass.icon];
+    const icons = window.LucideReact || window.lucide || {};
+    const AdvIcon = icons[selectedAdv.advClass.icon];
 
     return html`
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[70] p-4 font-serif backdrop-blur-sm animate-in fade-in duration-200">

@@ -1,10 +1,10 @@
 import htm from 'https://unpkg.com/htm?module';
 const React = window.React;
 const html = htm.bind(React.createElement);
-const { Compass, Coins } = window.LucideReact;
 import { DUNGEON_POOL } from '../data/constants.js';
 
 export default function DungeonView({ gameState, setGameState }) {
+    const { Compass, Coins } = window.LucideReact || window.lucide || {};
     return html`
         <div className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-500">
             <p className="text-stone-600 mb-4">探索で発見した未踏の迷宮です。次季の目標に設定することで、自動編成された主力部隊が攻略に向かいます。</p>

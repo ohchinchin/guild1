@@ -1,10 +1,9 @@
 import htm from 'https://unpkg.com/htm?module';
 const React = window.React;
 const html = htm.bind(React.createElement);
-const { ScrollText, ArrowRight } = window.LucideReact;
-
 export default function QuarterResultModal({ quarterResult, getSummaryIcon, setQuarterResult, setCurrentView, activeBoss }) {
     if (!quarterResult) return null;
+    const { ScrollText, ArrowRight } = window.LucideReact || window.lucide || {};
     return html`
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[60] p-4 font-serif backdrop-blur-sm">
             <div className="bg-[#FAF8F5] border-2 border-[#D4C3A3] rounded-sm max-w-lg w-full shadow-2xl relative flex flex-col max-h-[90vh] animate-in fade-in zoom-in-95 duration-300">

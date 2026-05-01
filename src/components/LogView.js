@@ -1,9 +1,8 @@
 import htm from 'https://unpkg.com/htm?module';
 const React = window.React;
 const html = htm.bind(React.createElement);
-const { Skull, CheckCircle2, AlertTriangle, Activity, Star, ArrowRight } = window.LucideReact;
-
 export default function LogView({ logs, logsEndRef }) {
+    const { Skull, CheckCircle2, AlertTriangle, Activity, Star, ArrowRight } = window.LucideReact || window.lucide || {};
     const getLogColor = (type) => {
         switch (type) {
             case 'danger': return 'text-rose-800 bg-rose-50 border-rose-200';

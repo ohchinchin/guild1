@@ -1,10 +1,10 @@
 import htm from 'https://unpkg.com/htm?module';
 const React = window.React;
 const html = htm.bind(React.createElement);
-const { ScrollText, CheckCircle2 } = window.LucideReact;
 import { QUEST_TYPES } from '../data/constants.js';
 
 export default function QuestBoard({ gameState, acceptQuest }) {
+    const { ScrollText, CheckCircle2 } = window.LucideReact || window.lucide || {};
     return html`
         <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">
             <div>

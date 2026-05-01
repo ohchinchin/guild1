@@ -1,9 +1,8 @@
 import htm from 'https://unpkg.com/htm?module';
 const React = window.React;
 const html = htm.bind(React.createElement);
-const { Search, EyeOff } = window.LucideReact;
-
 export default function IntrigueView({ gameState, sabotageRival, headhuntRival, gatherIntelligence, getIntrigueChance, setSelectedAdv }) {
+    const { Search, EyeOff } = window.LucideReact || window.lucide || {};
     return html`
         <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">
             <p className="text-stone-600 mb-4">他ギルドへ工作を行い、競争を優位に進めます。ただし、失敗すると関係が悪化し、相手からの報復の確率が上がります。</p>

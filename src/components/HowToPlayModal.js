@@ -1,9 +1,9 @@
 import htm from 'https://unpkg.com/htm?module';
 const React = window.React;
 const html = htm.bind(React.createElement);
-const { BookOpen, X: XIcon } = window.LucideReact;
 
 export default function HowToPlayModal({ showHowToPlay, setShowHowToPlay }) {
+    const { BookOpen, X: XIcon } = window.LucideReact || window.lucide || {};
     if (!showHowToPlay) return null;
     return html`
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50 animate-in fade-in duration-200">

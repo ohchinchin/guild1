@@ -1,10 +1,10 @@
 import htm from 'https://unpkg.com/htm?module';
 const React = window.React;
 const html = htm.bind(React.createElement);
-const { Crown } = window.LucideReact;
 import { MASTER_SKILLS } from '../data/constants.js';
 
 export default function SkillView({ gameState, upgradeSkill }) {
+    const { Crown } = window.LucideReact || window.lucide || {};
     return html`
         <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">
             <p className="text-stone-600 mb-4">ギルドマスターであるあなた自身の能力を鍛え上げ、運営を有利に進めます。(最大Lv.3)</p>

@@ -1,9 +1,9 @@
 import htm from 'https://unpkg.com/htm?module';
 const React = window.React;
 const html = htm.bind(React.createElement);
-const { Landmark, Crown, AlertTriangle } = window.LucideReact;
 
 export default function DecisionView({ canUsurp, sellGuild, usurpThrone, resetGame, currentGuildPower }) {
+    const { Landmark, Crown, AlertTriangle } = window.LucideReact || window.lucide || {};
     return html`
         <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500 max-w-2xl">
             <p className="text-stone-600 mb-4">ギルドマスターとしての最終的な決断を下します。これらの操作はゲームの終了やリセットを伴います。</p>

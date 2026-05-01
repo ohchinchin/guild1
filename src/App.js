@@ -1077,7 +1077,8 @@ export default function App() {
     };
 
     const getSummaryIcon = (type) => {
-        const { AlertTriangle, Coins, Skull, Activity, CheckCircle2, Crown, LogOut, UserPlus, Star, ArrowRight } = window.LucideReact;
+        const { AlertTriangle, Coins, Skull, Activity, CheckCircle2, Crown, LogOut, UserPlus, Star, ArrowRight } = window.LucideReact || window.lucide || {};
+        if (!AlertTriangle) return null;
         switch (type) {
             case 'event': return html`<${AlertTriangle} className="w-5 h-5 text-amber-600" />`;
             case 'finance': return html`<${Coins} className="w-5 h-5 text-stone-500" />`;
@@ -1098,8 +1099,13 @@ export default function App() {
 
     if (!isLoaded) return html`<div className="min-h-screen bg-stone-900 flex items-center justify-center text-white">Loading...</div>`;
 
+    const currentYear = Math.floor(gameState.turn / 4) + 1;
+    const currentSeason = SEASONS[gameState.turn % 4];
     const { total: currentGuildPower } = calculatePartyPower(gameState.mainParty, gameState);
-    const { Home, ScrollText, Users, Activity: ActivityIcon, Compass, Dumbbell, ShoppingBag, EyeOff, Crown: CrownIcon, Trophy, BookOpen, Flame, Volume2, VolumeX, ArrowRight: ArrowRightIcon, Target: TargetIcon, RotateCcw, Coins: CoinsIcon, ChevronRight, Skull: SkullIcon, Swords } = window.LucideReact;
+    const canUsurp = currentGuildPower >= 1000;
+
+    const { Home, ScrollText, Users, Activity: ActivityIcon, Compass, Dumbbell, ShoppingBag, EyeOff, Crown: CrownIcon, Trophy, BookOpen, Flame, Volume2, VolumeX, ArrowRight: ArrowRightIcon, Target: TargetIcon, RotateCcw, Coins: CoinsIcon, ChevronRight, Skull: SkullIcon, Swords } = window.LucideReact || window.lucide || {};
+    if (!Home) return null;
 
     const NavButton = ({ id, label, icon: Icon, alert }) => {
         const isActive = currentView === id;

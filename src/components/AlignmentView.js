@@ -1,9 +1,10 @@
 import htm from 'https://unpkg.com/htm?module';
 const React = window.React;
 const html = htm.bind(React.createElement);
-const { Shield, Map: MapIcon, Swords, Beer } = window.LucideReact;
-
 export default function AlignmentView({ gameState, updateAlignment }) {
+    const { Shield, Map: MapIcon, Swords, Beer } = window.LucideReact || window.lucide || {};
+    if (!Shield) return null;
+
     return html`
         <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">
             <p className="text-stone-600 mb-4">ギルドの方向性を決定します。この比率に応じて、自動編成される部隊が向かう任務の確率が変化します。</p>

@@ -1,9 +1,9 @@
 import htm from 'https://unpkg.com/htm?module';
 const React = window.React;
 const html = htm.bind(React.createElement);
-const { Users, Coins, Dumbbell } = window.LucideReact;
 
 export default function FacilityView({ gameState, investFacility }) {
+    const { Users, Coins, Dumbbell } = window.LucideReact || window.lucide || {};
     const facilities = [
         { id: 'residence', label: '居住区', desc: '最大収容人数の増加', icon: Users, details: '所属できる冒険者の最大数が5名増加します。' },
         { id: 'tavern', label: '酒場と宿屋', desc: '毎季節の固定収入増加', icon: Coins, details: '商業方針と組み合わせることで莫大な利益を生み出します。' },
