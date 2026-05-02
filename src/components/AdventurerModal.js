@@ -69,10 +69,10 @@ window.G1.components.AdventurerModal = ({ adventurer, onClose, onFire }) => {
                                 <Star className="w-3 h-3 text-indigo-500" /> 装備中のアーティファクト
                             </div>
                             <div className="font-black text-indigo-900 mb-1">
-                                {window.G1.Constants.ARTIFACT_POOL.find(a => a.id === adventurer.equippedArtifactId)?.name}
+                                {(window.G1.Constants.ARTIFACT_POOL.find(a => a.id === adventurer.equippedArtifactId) || {}).name}
                             </div>
                             <p className="text-xs text-indigo-700 leading-relaxed">
-                                {window.G1.Constants.ARTIFACT_POOL.find(a => a.id === adventurer.equippedArtifactId)?.desc}
+                                {(window.G1.Constants.ARTIFACT_POOL.find(a => a.id === adventurer.equippedArtifactId) || {}).desc}
                             </p>
                         </div>
                     )}

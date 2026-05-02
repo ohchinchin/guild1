@@ -251,6 +251,7 @@
         const ArrowRightIcon = SafeIcon('ArrowRight');
         const RotateCcwIcon = SafeIcon('RotateCcw');
         const ChevronRightIcon = SafeIcon('ChevronRight');
+        const MapIcon = SafeIcon('Map');
 
         if (view === 'title') {
             const hasSave = !!localStorage.getItem(Constants.SAVE_KEY);
@@ -316,7 +317,7 @@
                                 {gameState.discoveredDungeons.map(d => (
                                     <div key={d.id} className="bg-white border-2 border-[#D4C3A3] p-5 rounded-sm shadow-sm hover:border-indigo-400 transition-colors group shrink-0">
                                         <div className="flex justify-between items-center mb-3">
-                                            <h3 className="font-bold text-stone-800 text-lg flex items-center gap-2"><SafeIcon('Map') className="w-5 h-5 text-stone-400 group-hover:text-indigo-500" /> {d.name}</h3>
+                                            <h3 className="font-bold text-stone-800 text-lg flex items-center gap-2"><MapIcon className="w-5 h-5 text-stone-400 group-hover:text-indigo-500" /> {d.name}</h3>
                                             <span className={`text-xs font-bold px-2 py-1 rounded-full ${d.progress >= 100 ? 'bg-rose-100 text-rose-700' : 'bg-indigo-50 text-indigo-700'}`}>{d.progress >= 100 ? '攻略済み' : `攻略度 ${d.progress}%`}</span>
                                         </div>
                                         <div className="w-full bg-stone-100 h-2.5 rounded-full overflow-hidden border border-stone-200 shadow-inner"><div className={`h-full transition-all duration-1000 ${d.progress >= 100 ? 'bg-rose-500' : 'bg-indigo-500'}`} style={{width: `${d.progress}%`}}></div></div>
