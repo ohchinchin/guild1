@@ -1,12 +1,21 @@
 window.G1 = window.G1 || {};
 window.G1.components = window.G1.components || {};
 
-const { Swords, UserPlus, Info } = window.LucideReact;
+const { Swords, UserPlus, Info, Zap } = window.LucideReact;
 
 window.G1.components.QuestView = ({ gameState, onDispatch }) => {
     return (
         <div key="quests" className="flex flex-col h-full animate-in fade-in slide-in-from-right-4 duration-500">
-            <p className="text-sm font-bold text-stone-600 mb-3 shrink-0">ギルド掲示板（受注可能な依頼）</p>
+            <div className="flex justify-between items-center mb-3 shrink-0">
+                <p className="text-sm font-bold text-stone-600">ギルド掲示板（受注可能な依頼）</p>
+                <button
+                    onClick={window.G1.appHandlers.onMassDispatch}
+                    className="text-xs font-bold bg-indigo-700 hover:bg-indigo-600 text-white px-4 py-2 rounded-sm flex items-center gap-2 transition-all shadow-sm active:scale-95"
+                >
+                    <Zap className="w-4 h-4" /> 最適な部隊を一括で派遣する
+                </button>
+            </div>
+            
             <div className="flex-1 overflow-y-auto space-y-4 pb-4 pr-1">
                 {gameState.availableQuests.map(quest => (
                     <div key={quest.id} className="bg-white border-2 border-[#D4C3A3] rounded-sm p-5 shadow-sm hover:shadow-md transition-all relative overflow-hidden group">

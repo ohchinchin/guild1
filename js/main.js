@@ -16,7 +16,8 @@
     const { 
         ActionModal, QuarterResultModal, QuestView, RosterView, DispatchModal,
         FacilityView, ShopView, PolicyView, AdventurerModal, HomeView,
-        IntrigueView, MasterSkillView, AchievementView, LogView, BossView
+        IntrigueView, MasterSkillView, AchievementView, LogView, BossView,
+        EndingView, HowToPlayModal
     } = window.G1.components;
 
     const App = () => {
@@ -28,6 +29,7 @@
         const [dispatchTarget, setDispatchTarget] = useState(null);
         const [dispatchCandidates, setDispatchCandidates] = useState([]);
         const [selectedAdv, setSelectedAdv] = useState(null);
+        const [showHowToPlay, setShowHowToPlay] = useState(false);
 
         const startGame = () => {
             const initialState = {
@@ -48,10 +50,12 @@
                 rivals: [],
                 history: [{ turn: 0, type: 'info', text: 'ギルド「当ギルド」を開設しました。' }],
                 achievements: [],
+                artifacts: [],
                 currentRumor: '「まずは冒険者を雇って、簡単な依頼から始めるといいぜ。」',
                 currentEvent: null,
                 activeBoss: null,
-                specialRequest: null
+                specialRequest: null,
+                ending: null
             };
 
             const rivalStyles = ['military', 'commerce', 'safety'];
@@ -126,36 +130,29 @@
             let selected = [];
             const reqs = quest.requirements || [];
             
-            // Priority 1: Pick adventurers who meet class requirements
             reqs.filter(r => r.type === 'class').forEach(r => {
                 const match = idles.find(a => a.advClass.id === r.value && !selected.includes(a.id));
                 if (match) selected.push(match.id);
             });
 
-            // Priority 2: Pick adventurers who meet rank requirements
             reqs.filter(r => r.type === 'rank').forEach(r => {
                 const minRankIdx = Constants.RANKS.indexOf(r.value);
                 const match = idles.find(a => Constants.RANKS.indexOf(a.rank) >= minRankIdx && !selected.includes(a.id));
                 if (match) selected.push(match.id);
             });
 
-            // Fill up with high power adventurers until powerReq is met or maxMembers reached
             const remainingIdles = idles
                 .filter(a => !selected.includes(a.id))
                 .sort((a, b) => b.power - a.power);
 
             for (const adv of remainingIdles) {
                 if (selected.length >= maxMembers) break;
-                
-                // Add and check if power is enough
                 const temp = [...selected, adv.id];
                 const info = Utils.calculatePartyPower(temp, gameState.adventurers, gameState.alignment, gameState.masterSkills);
-                
                 selected.push(adv.id);
                 if (info.total >= quest.powerReq && selected.length >= quest.minMembers) break;
             }
 
-            // Ensure minMembers is met if possible
             if (selected.length < quest.minMembers) {
                 for (const adv of remainingIdles) {
                     if (selected.includes(adv.id)) continue;
@@ -165,6 +162,72 @@
             }
 
             setDispatchCandidates(selected);
+        };
+
+        const handleMassDispatch = () => {
+            const next = { ...gameState };
+            let idleAdvs = next.adventurers.filter(a => a.status === 'idle').sort((a, b) => b.power - a.power);
+            let dispatchesCount = 0;
+            let totalDeposit = 0;
+
+            const sortedQuests = [...next.availableQuests].sort((a, b) => b.reward - a.reward);
+
+            for (const quest of sortedQuests) {
+                if (idleAdvs.length < quest.minMembers) break;
+                if (next.budget < totalDeposit + quest.deposit) continue;
+
+                let selected = [];
+                const reqs = quest.requirements || [];
+                
+                reqs.filter(r => r.type === 'class').forEach(r => {
+                    const match = idleAdvs.find(a => a.advClass.id === r.value && !selected.includes(a));
+                    if (match) selected.push(match);
+                });
+
+                reqs.filter(r => r.type === 'rank').forEach(r => {
+                    const minRankIdx = Constants.RANKS.indexOf(r.value);
+                    const match = idleAdvs.find(a => Constants.RANKS.indexOf(a.rank) >= minRankIdx && !selected.includes(a));
+                    if (match) selected.push(match);
+                });
+
+                const remainingIdles = idleAdvs.filter(a => !selected.includes(a));
+                for (const adv of remainingIdles) {
+                    if (selected.length >= 10) break;
+                    selected.push(adv);
+                    const info = Utils.calculatePartyPower(selected.map(a=>a.id), next.adventurers, next.alignment, next.masterSkills);
+                    if (info.total >= quest.powerReq && selected.length >= quest.minMembers) break;
+                }
+
+                if (selected.length < quest.minMembers) {
+                    for (const adv of remainingIdles) {
+                        if (selected.includes(adv)) continue;
+                        selected.push(adv);
+                        if (selected.length >= quest.minMembers) break;
+                    }
+                }
+
+                const finalInfo = Utils.calculatePartyPower(selected.map(a=>a.id), next.adventurers, next.alignment, next.masterSkills);
+                
+                // Only dispatch if we meet requirements reasonably well
+                if (finalInfo.total >= quest.powerReq * 0.7 && selected.length >= quest.minMembers) {
+                    const partyIds = selected.map(a => a.id);
+                    next.dispatches.push({ quest, partyIds });
+                    selected.forEach(a => a.status = 'dispatched');
+                    idleAdvs = idleAdvs.filter(a => !selected.includes(a));
+                    totalDeposit += quest.deposit;
+                    dispatchesCount++;
+                    next.availableQuests = next.availableQuests.filter(q => q.id !== quest.id);
+                }
+            }
+
+            if (dispatchesCount > 0) {
+                next.budget -= totalDeposit;
+                next.history.push({ turn: next.turn, type: 'info', text: `一括派遣により ${dispatchesCount} 部隊を任務へ向かわせました。` });
+                setGameState(next);
+                alert(`${dispatchesCount} つの依頼に部隊を自動派遣しました。`);
+            } else {
+                alert('派遣可能な部隊を編成できませんでした。');
+            }
         };
 
         const handleDispatchConfirm = () => {
@@ -180,9 +243,10 @@
             next.budget -= (dispatchTarget.quest.deposit || 0);
             next.history.push({ turn: next.turn, type: 'info', text: `部隊を任務「${dispatchTarget.quest.name}」へ派遣しました。` });
             
-            // If it was a special request, clear it
             if (dispatchTarget.isSpecial) {
                 next.specialRequest = null;
+            } else {
+                next.availableQuests = next.availableQuests.filter(q => q.id !== dispatchTarget.quest.id);
             }
 
             setGameState(next);
@@ -286,7 +350,8 @@
         };
 
         window.G1.appHandlers = {
-            onAutoAssign: handleAutoAssign
+            onAutoAssign: handleAutoAssign,
+            onMassDispatch: handleMassDispatch
         };
 
         if (view === 'title') {
@@ -298,10 +363,16 @@
                     <div className="relative z-10 text-center space-y-8 title-fade-in max-w-2xl">
                         <h1 className="text-6xl md:text-8xl font-black text-[#F2E8C6] tracking-tighter title-text-glow italic">GUILD MASTER</h1>
                         <p className="text-[#E8E0D5] text-lg md:text-xl font-serif tracking-widest opacity-80">~ 辺境ギルド運営日録 ~</p>
-                        <button onClick={startGame} className="w-64 bg-[#D9A94E] hover:bg-[#F2C94C] text-stone-900 py-4 px-8 rounded-sm font-black text-xl shadow-2xl transition-all hover:scale-105 active:scale-95 flex items-center justify-center gap-3">
-                            ギルドを開設する <ArrowRight className="w-6 h-6" />
-                        </button>
+                        <div className="flex flex-col gap-4 items-center mt-8">
+                            <button onClick={startGame} className="w-64 bg-[#D9A94E] hover:bg-[#F2C94C] text-stone-900 py-4 px-8 rounded-sm font-black text-xl shadow-2xl transition-all hover:scale-105 active:scale-95 flex items-center justify-center gap-3">
+                                ギルドを開設する <ArrowRight className="w-6 h-6" />
+                            </button>
+                            <button onClick={() => setShowHowToPlay(true)} className="text-[#E8E0D5] hover:text-[#F2E8C6] font-bold underline underline-offset-4 decoration-stone-600 transition-colors">
+                                遊び方を確認する
+                            </button>
+                        </div>
                     </div>
+                    <HowToPlayModal isOpen={showHowToPlay} onClose={() => setShowHowToPlay(false)} />
                 </div>
             );
         }
@@ -425,6 +496,7 @@
                     onClose={() => setSelectedAdv(null)} 
                     onFire={handleFireAdventurer} 
                 />
+                {gameState.ending && <EndingView gameState={gameState} />}
             </div>
         );
     };

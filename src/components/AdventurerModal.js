@@ -57,6 +57,20 @@ window.G1.components.AdventurerModal = ({ adventurer, onClose, onFire }) => {
                         </div>
                     </div>
 
+                    {adventurer.equippedArtifactId && (
+                        <div className="bg-indigo-50 border border-indigo-200 p-4 rounded-sm shadow-sm">
+                            <div className="text-[10px] font-bold text-indigo-400 mb-2 uppercase tracking-widest flex items-center gap-1">
+                                <Star className="w-3 h-3 text-indigo-500" /> 装備中のアーティファクト
+                            </div>
+                            <div className="font-black text-indigo-900 mb-1">
+                                {window.G1.Constants.ARTIFACT_POOL.find(a => a.id === adventurer.equippedArtifactId)?.name}
+                            </div>
+                            <p className="text-xs text-indigo-700 leading-relaxed">
+                                {window.G1.Constants.ARTIFACT_POOL.find(a => a.id === adventurer.equippedArtifactId)?.desc}
+                            </p>
+                        </div>
+                    )}
+
                     <div className="bg-white p-4 border border-stone-100 rounded-sm shadow-sm">
                         <div className="text-[10px] font-bold text-stone-400 mb-3 flex items-center gap-1">
                             <Star className="w-3 h-3 text-amber-500" /> 特徴: {adventurer.trait.name}

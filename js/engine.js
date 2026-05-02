@@ -38,10 +38,42 @@ window.G1.Engine = (() => {
                     next.fame += Math.floor(dispatch.quest.level / 2) + 1;
                     next.townFavor = Math.min(100, next.townFavor + 2);
                     summaryItems.push({ type: 'success', text: `【任務成功】${dispatch.quest.name} を完遂。` });
-                    party.forEach(a => { a.power += Math.floor(Math.random() * 5) + 2; a.status = 'idle'; });
+                    
+                    party.forEach(a => { 
+                        a.power += Math.floor(Math.random() * 5) + 2; 
+                        a.status = 'idle'; 
+                        
+                        // Dynamic Trait Event (Positive)
+                        if (Math.random() < 0.05 && a.trait.id === 'normal') {
+                            const newTrait = Constants.TRAITS.find(t => t.id === 'heroic');
+                            a.trait = newTrait;
+                            next.history.push({ turn: next.turn, type: 'hero', text: `${a.name} は任務を通じて「${newTrait.name}」の素質に目覚めた！` });
+                        }
+
+                        // Artifact Drop (High level quests)
+                        if (dispatch.quest.level >= 10 && Math.random() < 0.1 && !a.equippedArtifactId) {
+                            const unownedArts = Constants.ARTIFACT_POOL.filter(art => !next.artifacts.includes(art.id));
+                            if (unownedArts.length > 0) {
+                                const drop = unownedArts[Math.floor(Math.random() * unownedArts.length)];
+                                next.artifacts.push(drop.id);
+                                a.equippedArtifactId = drop.id;
+                                summaryItems.push({ type: 'hero', text: `【秘宝発見】${a.name} がアーティファクト「${drop.name}」を発見し、装備しました！` });
+                                next.history.push({ turn: next.turn, type: 'success', text: `${a.name} が「${drop.name}」を獲得。` });
+                            }
+                        }
+                    });
                 } else {
                     summaryItems.push({ type: 'fail', text: `【任務失敗】${dispatch.quest.name} は失敗。` });
-                    party.forEach(a => { a.status = 'idle'; });
+                    party.forEach(a => { 
+                        a.status = 'idle'; 
+                        
+                        // Dynamic Trait Event (Negative)
+                        if (Math.random() < 0.1 && a.trait.id === 'normal') {
+                            const newTrait = Constants.TRAITS.find(t => t.id === 'coward');
+                            a.trait = newTrait;
+                            next.history.push({ turn: next.turn, type: 'warning', text: `${a.name} は失敗のトラウマから「${newTrait.name}」になってしまった…` });
+                        }
+                    });
                 }
             });
 
@@ -102,7 +134,7 @@ window.G1.Engine = (() => {
             });
 
             // 7. Special Request Check
-            if (!next.specialRequest && Math.random() < 0.2) {
+            if (!next.specialRequest && Math.random() < 0.25) {
                 const reqs = [
                     { id: 'spec1', name: '王族の秘密護衛', powerReq: 1200, reward: 8000, desc: '王族が極秘に街を視察します。不測の事態に備え、精鋭の派遣を求められています。' },
                     { id: 'spec2', name: '古代遺跡の深層調査', powerReq: 3000, reward: 25000, desc: '突如発見された古代遺跡の最下層から、強力な魔力反応が検出されました。' },
@@ -117,6 +149,24 @@ window.G1.Engine = (() => {
             const questCount = 4 + Math.floor(next.townFavor / 25);
             for (let i = 0; i < questCount; i++) {
                 next.availableQuests.push(Utils.generateQuest(next.turn, next.townFavor, 0, next.fame));
+            }
+
+            // 9. Ending Check (Turn 50)
+            if (next.turn >= Constants.MAX_TURNS) {
+                next.quarterResult.isGameOver = true;
+                if (next.budget < 0) {
+                    next.ending = 'bankrupt';
+                } else if (next.fame >= 200 && next.budget >= 50000) {
+                    next.ending = 'legend';
+                } else if (next.notoriety >= 100) {
+                    next.ending = 'shadow';
+                } else if (next.budget >= 100000) {
+                    next.ending = 'merchant';
+                } else if (next.fame <= 20) {
+                    next.ending = 'ruin';
+                } else {
+                    next.ending = 'normal';
+                }
             }
 
             return next;
