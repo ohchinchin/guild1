@@ -1,20 +1,21 @@
 window.G1 = window.G1 || {};
 window.G1.components = window.G1.components || {};
 
-const { Trophy, Crown, Skull, Swords, Target, Heart } = window.LucideReact;
-
 window.G1.components.AchievementView = ({ gameState }) => {
+    const L = window.LucideReact;
+    const SafeIcon = (name) => L[name] || L[name.replace('2', '')] || L.Trophy;
+
+    const Trophy = SafeIcon('Trophy');
+
     const achievements = window.G1.Constants.ACHIEVEMENTS || [];
 
     return (
         <div key="achievements" className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">
             <p className="text-sm font-bold text-stone-600 mb-4">ギルドの偉大な足跡。特定の条件を満たすことで開放されます。</p>
-            
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {achievements.map(ach => {
                     const isUnlocked = (gameState.achievements || []).includes(ach.id);
-                    const Icon = window.LucideReact[ach.icon] || Trophy;
-
+                    const Icon = SafeIcon(ach.icon);
                     return (
                         <div key={ach.id} className={`p-5 border-2 rounded-sm shadow-sm flex flex-col transition-all ${isUnlocked ? 'bg-white border-amber-400' : 'bg-stone-50 border-stone-200 opacity-60'}`}>
                             <div className="flex items-center gap-3 mb-3">

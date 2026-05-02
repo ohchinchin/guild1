@@ -95,11 +95,27 @@ window.G1.Engine = (() => {
             });
 
             // 4. Boss Check
-            const boss = Constants.BOSS_DATA[next.turn];
-            if (boss) {
-                next.activeBoss = boss;
-                summaryItems.push({ type: 'warning', text: `【緊急事態】${boss.name} が出現！ギルドの全戦力を結集して迎え撃て！` });
-                next.history.push({ turn: next.turn, type: 'danger', text: `厄災「${boss.name}」が街に接近中。` });
+            if (next.activeBoss) {
+                const boss = next.activeBoss;
+                const totalPower = next.adventurers.reduce((sum, a) => sum + a.power, 0);
+                const isVictory = totalPower >= boss.power;
+                if (isVictory) {
+                    next.budget += boss.reward;
+                    next.fame += 50;
+                    summaryItems.push({ type: 'hero', text: `【大勝利】${boss.name} を討伐！街の英雄として称えられました。報酬 ${boss.reward}G 獲得。` });
+                } else {
+                    next.budget = Math.floor(next.budget * 0.5);
+                    next.fame = Math.max(0, next.fame - 100);
+                    summaryItems.push({ type: 'fail', text: `【大敗北】${boss.name} の侵攻を止められず、街は大損害を受けました…` });
+                }
+                next.activeBoss = null; 
+            }
+
+            const nextBoss = Constants.BOSS_DATA[next.turn];
+            if (nextBoss) {
+                next.activeBoss = nextBoss;
+                summaryItems.push({ type: 'warning', text: `【緊急事態】${nextBoss.name} が出現！ギルドの全戦力を結集して迎え撃て！` });
+                next.history.push({ turn: next.turn, type: 'danger', text: `厄災「${nextBoss.name}」が街に接近中。` });
             }
 
             // 5. Rumors & Events Update

@@ -1,13 +1,19 @@
 window.G1 = window.G1 || {};
 window.G1.components = window.G1.components || {};
 
-const { X, Swords, Shield, Wand2, EyeOff, Star, Heart, Skull } = window.LucideReact;
-
 window.G1.components.AdventurerModal = ({ adventurer, onClose, onFire }) => {
     if (!adventurer) return null;
 
+    const L = window.LucideReact;
+    const SafeIcon = (name) => L[name] || L.HelpCircle || L.Activity;
+
+    const X = SafeIcon('X');
+    const Heart = SafeIcon('Heart');
+    const Star = SafeIcon('Star');
+    const Skull = SafeIcon('Skull');
+
     const ClassData = window.G1.Constants.CLASSES.find(c => c.id === adventurer.advClass.id);
-    const AdvIcon = window.LucideReact[ClassData.icon];
+    const AdvIcon = SafeIcon(ClassData ? ClassData.icon : 'User');
 
     return (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[100] p-4 font-serif backdrop-blur-sm animate-in fade-in duration-200">

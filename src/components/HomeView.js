@@ -1,28 +1,34 @@
 window.G1 = window.G1 || {};
 window.G1.components = window.G1.components || {};
 
-const { 
-    Target, MessageSquare, AlertTriangle, ScrollText, 
-    Coins, HeartHandshake, Swords, ChevronRight, Search, EyeOff, Star, Activity
-} = window.LucideReact;
-
 window.G1.components.HomeView = ({ gameState, onOpenSpecial, onDeclineSpecial, onHireReceptionist, onSelectAdv }) => {
+    const L = window.LucideReact;
+    const SafeIcon = (name) => L[name] || L[name.replace('2', '')] || L.Activity;
+
+    const Target = SafeIcon('Target');
+    const MessageSquare = SafeIcon('MessageSquare');
+    const AlertTriangle = SafeIcon('AlertTriangle');
+    const ScrollText = SafeIcon('ScrollText');
+    const Coins = SafeIcon('Coins');
+    const HeartHandshake = SafeIcon('HeartHandshake');
+    const Swords = SafeIcon('Swords');
+    const ChevronRight = SafeIcon('ChevronRight');
+    const Search = SafeIcon('Search');
+    const EyeOff = SafeIcon('EyeOff');
+    const Star = SafeIcon('Star');
+    const Activity = SafeIcon('Activity');
+
     const currentYear = Math.floor((gameState.turn - 1) / 4) + 1;
     const currentSeason = window.G1.Constants.SEASONS[(gameState.turn - 1) % 4];
 
-    // Forecast Logic (Simplified from original)
+    // Forecast Logic
     const getForecast = () => {
         const salaries = gameState.adventurers.reduce((sum, a) => sum + a.salary, 0) + gameState.receptionist.salary;
         const baseMaintenance = (Math.pow(gameState.facilities.residence, 1.5) * 150) + (Math.pow(gameState.facilities.tavern, 1.5) * 100) + (Math.pow(gameState.facilities.training, 1.5) * 100);
-        const maintenance = Math.floor(baseMaintenance * 0.8); // simplified discount
+        const maintenance = Math.floor(baseMaintenance * 0.8);
         const choresIncome = gameState.adventurers.filter(a => a.status === 'idle').length * 40;
         const commerceIncome = Math.floor(gameState.facilities.tavern * 400 * (gameState.alignment.commerce / 25));
-        
-        return {
-            income: choresIncome + commerceIncome,
-            expense: salaries + maintenance,
-            net: (choresIncome + commerceIncome) - (salaries + maintenance)
-        };
+        return { income: choresIncome + commerceIncome, expense: salaries + maintenance, net: (choresIncome + commerceIncome) - (salaries + maintenance) };
     };
 
     const forecast = getForecast();
@@ -52,7 +58,7 @@ window.G1.components.HomeView = ({ gameState, onOpenSpecial, onDeclineSpecial, o
                 </div>
             )}
 
-            {/* Active Dispatches (NEW) */}
+            {/* Active Dispatches */}
             {gameState.dispatches && gameState.dispatches.length > 0 && (
                 <div className="bg-white border-2 border-indigo-200 p-5 rounded-sm shadow-sm shrink-0">
                     <h3 className="text-lg font-black text-indigo-800 mb-4 flex items-center gap-3 border-b border-indigo-50 pb-2">
@@ -77,7 +83,6 @@ window.G1.components.HomeView = ({ gameState, onOpenSpecial, onDeclineSpecial, o
                 </div>
             )}
 
-            {/* Rumor & Events */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="bg-[#F2E8C6] border-2 border-[#D4C3A3] p-5 rounded-sm shadow-sm relative overflow-hidden group">
                     <MessageSquare className="absolute -top-2 -left-2 w-16 h-16 text-amber-700/10 group-hover:scale-110 transition-transform" />
@@ -97,7 +102,6 @@ window.G1.components.HomeView = ({ gameState, onOpenSpecial, onDeclineSpecial, o
             </div>
 
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-                {/* Guild Summary */}
                 <div className="bg-white p-6 border-2 border-[#E8E0D5] rounded-sm shadow-sm flex flex-col">
                     <h3 className="text-xl font-black text-stone-800 mb-4 flex items-center gap-3 border-b-2 border-stone-100 pb-3">
                         <ScrollText className="w-6 h-6 text-indigo-700" /> ギルド概況報告
@@ -121,7 +125,6 @@ window.G1.components.HomeView = ({ gameState, onOpenSpecial, onDeclineSpecial, o
                     </div>
                 </div>
 
-                {/* Financial Forecast */}
                 <div className="bg-stone-800 p-6 border-2 border-stone-700 rounded-sm shadow-xl flex flex-col text-stone-200">
                     <h3 className="text-xl font-black text-[#D9A94E] mb-4 flex items-center gap-3 border-b border-stone-700 pb-3">
                         <Coins className="w-6 h-6" /> 次期収支予測
@@ -141,12 +144,10 @@ window.G1.components.HomeView = ({ gameState, onOpenSpecial, onDeclineSpecial, o
                                 {forecast.net >= 0 ? '+' : ''}{forecast.net.toLocaleString()} G
                             </span>
                         </div>
-                        <p className="text-[10px] text-stone-500 italic mt-2">※クエスト報酬や突発イベントによる変動は含まれません。</p>
                     </div>
                 </div>
             </div>
 
-            {/* Receptionist & Rivals */}
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
                 <div className="bg-white border-2 border-[#D4C3A3] p-6 rounded-sm shadow-sm">
                     <h3 className="text-xl font-black text-stone-800 mb-4 flex items-center gap-3 border-b-2 border-stone-100 pb-3">

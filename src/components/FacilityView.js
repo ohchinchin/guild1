@@ -1,29 +1,30 @@
 window.G1 = window.G1 || {};
 window.G1.components = window.G1.components || {};
 
-const { Users, Coins, Dumbbell } = window.LucideReact;
-
 window.G1.components.FacilityView = ({ gameState, onInvest }) => {
+    const L = window.LucideReact;
+    const SafeIcon = (name) => L[name] || L.HelpCircle || L.Activity;
+
     const facilities = [
         { 
             id: 'residence', 
             label: '宿舎', 
             desc: '冒険者の居住スペース。レベルを上げると雇用可能な人数が増えます。', 
-            icon: Users, 
+            icon: 'Users', 
             details: `収容人数: ${gameState.facilities.residence * 5}名` 
         },
         { 
             id: 'tavern', 
             label: '酒場', 
             desc: 'ギルド併設の酒場。レベルを上げると定期的な商業収入が増加します。', 
-            icon: Coins, 
+            icon: 'Coins', 
             details: '商業収入増加 / 情報収集効率UP' 
         },
         { 
             id: 'training', 
             label: '訓練場', 
             desc: '冒険者の鍛錬の場。レベルを上げると訓練によるステータス上昇効率が上がります。', 
-            icon: Dumbbell, 
+            icon: 'Dumbbell', 
             details: '訓練効率UP / 戦力底上げ' 
         }
     ];
@@ -33,7 +34,7 @@ window.G1.components.FacilityView = ({ gameState, onInvest }) => {
             <p className="text-sm font-bold text-stone-600 mb-3">ギルド施設の管理・拡張</p>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {facilities.map(fac => {
-                    const FacIcon = fac.icon;
+                    const FacIcon = SafeIcon(fac.icon);
                     const currentLevel = gameState.facilities[fac.id] || 1;
                     const cost = 1000 + (currentLevel * 500);
                     const isMax = currentLevel >= 5;

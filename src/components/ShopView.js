@@ -1,31 +1,18 @@
 window.G1 = window.G1 || {};
 window.G1.components = window.G1.components || {};
 
-const { Hammer, Wand2, ShoppingBag } = window.LucideReact;
-
 window.G1.components.ShopView = ({ gameState, onInvest }) => {
+    const L = window.LucideReact;
+    const SafeIcon = (name) => L[name] || L[name.replace('2', '')] || L.ShoppingBag;
+
+    const Hammer = SafeIcon('Hammer');
+    const Wand2 = SafeIcon('Wand2');
+    const ShoppingBag = SafeIcon('ShoppingBag');
+
     const shops = [
-        { 
-            id: 'weaponShop', 
-            label: '鍛冶屋', 
-            desc: '武器・防具の製造・販売。投資すると冒険者の装備レベルが上がり、全体の戦力が底上げされます。', 
-            icon: Hammer, 
-            details: '冒険者の装備強化 / 戦力ボーナス' 
-        },
-        { 
-            id: 'magicShop', 
-            label: '魔導具店', 
-            desc: '魔法アイテムの取り扱い。投資すると魔法職の能力向上や、特殊な探索アイテムの入手率が上がります。', 
-            icon: Wand2, 
-            details: '魔術師・僧侶の能力UP / 探索成功率向上' 
-        },
-        { 
-            id: 'itemShop', 
-            label: '道具屋', 
-            desc: '日用雑貨からポーションまで。投資するとギルド全体の維持費が削減され、探索時の生存率が上がります。', 
-            icon: ShoppingBag, 
-            details: '維持費削減 / 事故率低下' 
-        }
+        { id: 'weaponShop', label: '鍛冶屋', desc: '武器・防具の製造。投資すると冒険者の装備レベルが上がり、全体の戦力が底上げされます。', icon: Hammer, details: '装備強化 / 戦力ボーナス' },
+        { id: 'magicShop', label: '魔導具店', desc: '魔法アイテム。投資すると魔法職の能力向上や、探索成功率が上がります。', icon: Wand2, details: '魔法職UP / 探索成功率向上' },
+        { id: 'itemShop', label: '道具屋', desc: '日用雑貨。投資すると維持費が削減され、生存率が上がります。', icon: ShoppingBag, details: '維持費削減 / 事故率低下' }
     ];
 
     return (
@@ -35,7 +22,7 @@ window.G1.components.ShopView = ({ gameState, onInvest }) => {
                 {shops.map(shop => {
                     const ShopIcon = shop.icon;
                     const currentLevel = gameState.shops[shop.id] || 1;
-                    const cost = 1000 + (currentLevel * 1000); // More expensive than facilities
+                    const cost = 1000 + (currentLevel * 1000);
                     const isMax = currentLevel >= 5;
 
                     return (
@@ -51,7 +38,6 @@ window.G1.components.ShopView = ({ gameState, onInvest }) => {
                             </div>
                             <p className="text-xs text-stone-500 mb-2 leading-relaxed h-8 overflow-hidden">{shop.desc}</p>
                             <div className="text-[10px] font-bold text-stone-400 uppercase tracking-widest mb-4">{shop.details}</div>
-                            
                             <button
                                 onClick={() => onInvest(shop.id)}
                                 disabled={isMax || gameState.budget < cost}

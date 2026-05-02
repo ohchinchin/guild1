@@ -1,13 +1,21 @@
 window.G1 = window.G1 || {};
 window.G1.components = window.G1.components || {};
 
-const { BookOpen, ArrowRight, Activity, Skull, Coins, CheckCircle2 } = window.LucideReact;
-
 window.G1.components.LogView = ({ gameState }) => {
+    const L = window.LucideReact;
+    const SafeIcon = (name) => L[name] || L[name.replace('2', '')] || L.BookOpen;
+
+    const BookOpen = SafeIcon('BookOpen');
+    const ArrowRight = SafeIcon('ArrowRight');
+    const Activity = SafeIcon('Activity');
+    const Skull = SafeIcon('Skull');
+    const Coins = SafeIcon('Coins');
+    const CheckCircle = SafeIcon('CheckCircle');
+
     const getLogIcon = (type) => {
         switch (type) {
             case 'danger': return <Skull className="w-4 h-4 text-rose-600" />;
-            case 'success': return <CheckCircle2 className="w-4 h-4 text-emerald-600" />;
+            case 'success': return <CheckCircle className="w-4 h-4 text-emerald-600" />;
             case 'warning': return <Activity className="w-4 h-4 text-amber-500" />;
             case 'finance': return <Coins className="w-4 h-4 text-stone-500" />;
             default: return <ArrowRight className="w-4 h-4 text-stone-300" />;
@@ -27,11 +35,6 @@ window.G1.components.LogView = ({ gameState }) => {
                         </div>
                     </div>
                 ))}
-                {(gameState.history || []).length === 0 && (
-                    <div className="text-center p-12 text-stone-400 border-2 border-dashed border-stone-200">
-                        記録はありません。
-                    </div>
-                )}
             </div>
         </div>
     );

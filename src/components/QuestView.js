@@ -1,9 +1,16 @@
 window.G1 = window.G1 || {};
 window.G1.components = window.G1.components || {};
 
-const { Swords, UserPlus, Info, Zap, Activity } = window.LucideReact;
-
 window.G1.components.QuestView = ({ gameState, onDispatch }) => {
+    const L = window.LucideReact;
+    const SafeIcon = (name) => L[name] || L[name.replace('2', '')] || L.Swords;
+
+    const Swords = SafeIcon('Swords');
+    const UserPlus = SafeIcon('UserPlus');
+    const Info = SafeIcon('Info');
+    const Zap = SafeIcon('Zap');
+    const Activity = SafeIcon('Activity');
+
     return (
         <div key="quests" className="flex flex-col h-full animate-in fade-in slide-in-from-right-4 duration-500 overflow-hidden">
             <div className="flex justify-between items-center mb-3 shrink-0">

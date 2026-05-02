@@ -1,10 +1,19 @@
 window.G1 = window.G1 || {};
 window.G1.components = window.G1.components || {};
 
-const { Swords, Info, AlertTriangle, UserPlus, X, CheckCircle2, Shuffle, Target } = window.LucideReact;
-
 window.G1.components.DispatchModal = ({ dispatchTarget, gameState, dispatchCandidates, onToggleCandidate, onConfirm, onCancel }) => {
     if (!dispatchTarget) return null;
+
+    const L = window.LucideReact;
+    const SafeIcon = (name) => L[name] || L.HelpCircle || L.Activity;
+
+    const Target = SafeIcon('Target');
+    const UserPlus = SafeIcon('UserPlus');
+    const X = SafeIcon('X');
+    const AlertTriangle = SafeIcon('AlertTriangle');
+    const CheckCircle2 = SafeIcon('CheckCircle2');
+    const Shuffle = SafeIcon('Shuffle');
+    const Swords = SafeIcon('Swords');
 
     const Utils = window.G1.Utils;
     const powerInfo = Utils.calculatePartyPower(dispatchCandidates, gameState.adventurers, gameState.alignment, gameState.masterSkills);
@@ -38,7 +47,7 @@ window.G1.components.DispatchModal = ({ dispatchTarget, gameState, dispatchCandi
                             {gameState.adventurers.filter(a => a.status === 'idle').map(adv => {
                                 const isSelected = dispatchCandidates.includes(adv.id);
                                 const ClassData = window.G1.Constants.CLASSES.find(c => c.id === adv.advClass.id);
-                                const AdvIcon = window.LucideReact[ClassData.icon];
+                                const AdvIcon = SafeIcon(ClassData ? ClassData.icon : 'User');
                                 return (
                                     <button
                                         key={adv.id}

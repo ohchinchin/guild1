@@ -1,9 +1,15 @@
 window.G1 = window.G1 || {};
 window.G1.components = window.G1.components || {};
 
-const { EyeOff, UserMinus, Zap, ShieldAlert, Search } = window.LucideReact;
-
 window.G1.components.IntrigueView = ({ gameState, onSabotage, onHeadhunt, onIntelligence }) => {
+    const L = window.LucideReact;
+    const SafeIcon = (name) => L[name] || L[name.replace('2', '')] || L.Zap;
+
+    const EyeOff = SafeIcon('EyeOff');
+    const UserMinus = SafeIcon('UserMinus');
+    const Zap = SafeIcon('Zap');
+    const Search = SafeIcon('Search');
+
     return (
         <div key="intrigue" className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">
             <p className="text-sm font-bold text-stone-600 mb-4">ライバルギルドへの工作・諜報活動。リスクを伴いますが、優位に立つための手段です。</p>

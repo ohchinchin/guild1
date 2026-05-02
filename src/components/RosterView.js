@@ -1,9 +1,13 @@
 window.G1 = window.G1 || {};
 window.G1.components = window.G1.components || {};
 
-const { Search, Users } = window.LucideReact;
-
 window.G1.components.RosterView = ({ gameState, onSelectAdv, onSearchAdv }) => {
+    const L = window.LucideReact;
+    const SafeIcon = (name) => L[name] || L[name.replace('2', '')] || L.Users;
+
+    const Search = SafeIcon('Search');
+    const Users = SafeIcon('Users');
+
     return (
         <div key="roster" className="flex flex-col h-full animate-in fade-in slide-in-from-right-4 duration-500">
             <div className="flex-1 flex flex-col min-h-[300px]">
@@ -24,7 +28,7 @@ window.G1.components.RosterView = ({ gameState, onSelectAdv, onSearchAdv }) => {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 overflow-y-auto pb-4 pr-1">
                     {gameState.adventurers.map(adv => {
                         const ClassData = window.G1.Constants.CLASSES.find(c => c.id === adv.advClass.id);
-                        const AdvIcon = window.LucideReact[ClassData.icon];
+                        const AdvIcon = SafeIcon(ClassData ? ClassData.icon : 'User');
                         return (
                             <button
                                 key={adv.id}

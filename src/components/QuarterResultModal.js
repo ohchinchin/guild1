@@ -1,29 +1,39 @@
 window.G1 = window.G1 || {};
 window.G1.components = window.G1.components || {};
 
-const { 
-    ScrollText, AlertTriangle, Coins, Skull, Activity, CheckCircle2, Crown, LogOut, UserPlus, ArrowRight 
-} = window.LucideReact;
-
-const getSummaryIcon = (type) => {
-    switch (type) {
-        case 'event': return <AlertTriangle className="w-5 h-5 text-amber-600" />;
-        case 'finance': return <Coins className="w-5 h-5 text-stone-500" />;
-        case 'danger': return <Skull className="w-5 h-5 text-rose-700" />;
-        case 'warning': return <AlertTriangle className="w-5 h-5 text-amber-500" />;
-        case 'info': return <Activity className="w-5 h-5 text-indigo-500" />;
-        case 'success': return <CheckCircle2 className="w-5 h-5 text-emerald-600" />;
-        case 'hero': return <Crown className="w-5 h-5 text-amber-500" />;
-        case 'fail': return <Skull className="w-5 h-5 text-rose-800" />;
-        case 'death': return <Skull className="w-5 h-5 text-rose-900" />;
-        case 'injury': return <Activity className="w-5 h-5 text-rose-500" />;
-        case 'leave': return <LogOut className="w-5 h-5 text-rose-600" />;
-        case 'join': return <UserPlus className="w-5 h-5 text-indigo-600" />;
-        default: return <ArrowRight className="w-5 h-5 text-stone-400" />;
-    }
-};
-
 window.G1.components.QuarterResultModal = ({ quarterResult, onConfirm }) => {
+    const L = window.LucideReact;
+    const SafeIcon = (name) => L[name] || L[name.replace('2', '')] || L.ScrollText;
+
+    const ScrollText = SafeIcon('ScrollText');
+    const AlertTriangle = SafeIcon('AlertTriangle');
+    const Coins = SafeIcon('Coins');
+    const Skull = SafeIcon('Skull');
+    const Activity = SafeIcon('Activity');
+    const CheckCircle = SafeIcon('CheckCircle');
+    const Crown = SafeIcon('Crown');
+    const LogOut = SafeIcon('LogOut');
+    const UserPlus = SafeIcon('UserPlus');
+    const ArrowRight = SafeIcon('ArrowRight');
+
+    const getSummaryIcon = (type) => {
+        switch (type) {
+            case 'event': return <AlertTriangle className="w-5 h-5 text-amber-600" />;
+            case 'finance': return <Coins className="w-5 h-5 text-stone-500" />;
+            case 'danger': return <Skull className="w-5 h-5 text-rose-700" />;
+            case 'warning': return <AlertTriangle className="w-5 h-5 text-amber-500" />;
+            case 'info': return <Activity className="w-5 h-5 text-indigo-500" />;
+            case 'success': return <CheckCircle className="w-5 h-5 text-emerald-600" />;
+            case 'hero': return <Crown className="w-5 h-5 text-amber-500" />;
+            case 'fail': return <Skull className="w-5 h-5 text-rose-800" />;
+            case 'death': return <Skull className="w-5 h-5 text-rose-900" />;
+            case 'injury': return <Activity className="w-5 h-5 text-rose-500" />;
+            case 'leave': return <LogOut className="w-5 h-5 text-rose-600" />;
+            case 'join': return <UserPlus className="w-5 h-5 text-indigo-600" />;
+            default: return <ArrowRight className="w-5 h-5 text-stone-400" />;
+        }
+    };
+
     if (!quarterResult) return null;
     return (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[60] p-4 font-serif backdrop-blur-sm">
