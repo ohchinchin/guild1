@@ -1,19 +1,8 @@
 (() => {
     const { useState, useEffect, useRef } = React;
-    const { 
-        Shield, Map: MapIcon, Swords, Coins, Home, Beer, Dumbbell,
-        Users, Crown, Skull, AlertTriangle, ArrowRight,
-        Target, Activity, LogOut, CheckCircle2, RotateCcw,
-        BookOpen, ChevronRight, Landmark, ScrollText,
-        Wand2, Hammer, ShoppingBag, EyeOff, UserPlus, Search, X: XIcon,
-        Trophy, Flame, HeartHandshake, Compass, MessageSquare,
-        UserMinus, Zap, Star, Shuffle, Volume2, VolumeX, PieChart
-    } = window.LucideReact;
 
-    const Constants = window.G1.Constants;
-    const Utils = window.G1.Utils;
-    const Engine = window.G1.Engine;
     const App = () => {
+        const [isReady, setIsReady] = useState(false);
         const [view, setView] = useState('title');
         const [tab, setTab] = useState('home');
         const [gameState, setGameState] = useState(null);
@@ -24,13 +13,56 @@
         const [selectedAdv, setSelectedAdv] = useState(null);
         const [showHowToPlay, setShowHowToPlay] = useState(false);
 
-        // Get components from window object safely
+        // Check if all components are loaded to window.G1.components
+        useEffect(() => {
+            const checkInterval = setInterval(() => {
+                const required = ['HomeView', 'QuestView', 'RosterView', 'DispatchModal', 'EndingView'];
+                const loaded = window.G1 && window.G1.components;
+                if (loaded && required.every(key => !!window.G1.components[key])) {
+                    setIsReady(true);
+                    clearInterval(checkInterval);
+                    console.log("All systems ready.");
+                }
+            }, 100);
+            return () => clearInterval(checkInterval);
+        }, []);
+
+        // Auto-Save Logic
+        useEffect(() => {
+            if (gameState) {
+                const saveState = { ...gameState, view, tab };
+                localStorage.setItem(window.G1.Constants.SAVE_KEY, JSON.stringify(saveState));
+            }
+        }, [gameState, view, tab]);
+
+        if (!isReady) {
+            return (
+                <div className="min-h-screen bg-stone-900 flex items-center justify-center">
+                    <div className="text-[#D9A94E] font-black text-2xl animate-pulse italic">LOADING GUILD DATA...</div>
+                </div>
+            );
+        }
+
         const { 
             ActionModal, QuarterResultModal, QuestView, RosterView, DispatchModal,
             FacilityView, ShopView, PolicyView, AdventurerModal, HomeView,
             IntrigueView, MasterSkillView, AchievementView, LogView, BossView,
             EndingView, HowToPlayModal
         } = window.G1.components;
+
+        const { 
+            Shield, Map: MapIcon, Swords, Coins, Home, Beer, Dumbbell,
+            Users, Crown, Skull, AlertTriangle, ArrowRight,
+            Target, Activity, LogOut, CheckCircle2, RotateCcw,
+            BookOpen, ChevronRight, Landmark, ScrollText,
+            Wand2, Hammer, ShoppingBag, EyeOff, UserPlus, Search, X: XIcon,
+            Trophy, Flame, HeartHandshake, Compass, MessageSquare,
+            UserMinus, Zap, Star, Shuffle, Volume2, VolumeX, PieChart
+        } = window.LucideReact;
+
+        const Constants = window.G1.Constants;
+        const Utils = window.G1.Utils;
+        const Engine = window.G1.Engine;
 
         const startGame = () => {
             const initialState = {
@@ -89,6 +121,21 @@
             setView('game');
         };
 
+        const loadGame = () => {
+            const saved = localStorage.getItem(window.G1.Constants.SAVE_KEY);
+            if (saved) {
+                try {
+                    const parsed = JSON.parse(saved);
+                    setGameState(parsed);
+                    setView(parsed.view || 'game');
+                    setTab(parsed.tab || 'home');
+                    console.log("Save data loaded.");
+                } catch (e) {
+                    console.error("Failed to load save data.");
+                }
+            }
+        };
+
         const nextTurn = () => {
             if (!gameState) return;
             const nextState = Engine.processTurn(gameState);
@@ -128,7 +175,6 @@
             const maxMembers = isSpecial ? 5 : 10;
             const idles = gameState.adventurers.filter(a => a.status === 'idle');
             
-            // Start with requirements
             let selected = [];
             const reqs = quest.requirements || [];
             
@@ -162,7 +208,6 @@
                     if (selected.length >= quest.minMembers) break;
                 }
             }
-
             setDispatchCandidates(selected);
         };
 
@@ -210,7 +255,6 @@
 
                 const finalInfo = Utils.calculatePartyPower(selected.map(a=>a.id), next.adventurers, next.alignment, next.masterSkills);
                 
-                // Only dispatch if we meet requirements reasonably well
                 if (finalInfo.total >= quest.powerReq * 0.7 && selected.length >= quest.minMembers) {
                     const partyIds = selected.map(a => a.id);
                     next.dispatches.push({ quest, partyIds });
@@ -234,23 +278,13 @@
 
         const handleDispatchConfirm = () => {
             const next = { ...gameState };
-            const newDispatch = {
-                quest: dispatchTarget.quest,
-                partyIds: [...dispatchCandidates]
-            };
+            const newDispatch = { quest: dispatchTarget.quest, partyIds: [...dispatchCandidates] };
             next.dispatches.push(newDispatch);
-            next.adventurers.forEach(a => {
-                if (dispatchCandidates.includes(a.id)) a.status = 'dispatched';
-            });
+            next.adventurers.forEach(a => { if (dispatchCandidates.includes(a.id)) a.status = 'dispatched'; });
             next.budget -= (dispatchTarget.quest.deposit || 0);
             next.history.push({ turn: next.turn, type: 'info', text: `部隊を任務「${dispatchTarget.quest.name}」へ派遣しました。` });
-            
-            if (dispatchTarget.isSpecial) {
-                next.specialRequest = null;
-            } else {
-                next.availableQuests = next.availableQuests.filter(q => q.id !== dispatchTarget.quest.id);
-            }
-
+            if (dispatchTarget.isSpecial) next.specialRequest = null;
+            else next.availableQuests = next.availableQuests.filter(q => q.id !== dispatchTarget.quest.id);
             setGameState(next);
             setDispatchTarget(null);
             setDispatchCandidates([]);
@@ -316,12 +350,7 @@
                 next.adventurers.push(newAdv);
                 next.history.push({ turn: next.turn, type: 'info', text: `新たな冒険者 ${newAdv.name} が加入しました。` });
                 setGameState(next);
-                setActionModal({ 
-                    type: 'recruit_found', 
-                    phase: 'result', 
-                    foundRank: newAdv.rank,
-                    message: `${newAdv.name} (${newAdv.rank}級 ${newAdv.advClass.name}) がギルドに加入しました！` 
-                });
+                setActionModal({ type: 'recruit_found', phase: 'result', foundRank: newAdv.rank, message: `${newAdv.name} (${newAdv.rank}級 ${newAdv.advClass.name}) がギルドに加入しました！` });
                 setTimeout(() => setActionModal(null), 3000);
             }, 1500);
         };
@@ -357,19 +386,25 @@
         };
 
         if (view === 'title') {
+            const hasSave = !!localStorage.getItem(window.G1.Constants.SAVE_KEY);
             return (
                 <div className="min-h-screen bg-stone-900 flex items-center justify-center p-4 relative overflow-hidden">
                     <div className="absolute inset-0 opacity-40">
                         <img src="assets/images/title_bg.png" className="w-full h-full object-cover" alt="" />
                     </div>
                     <div className="relative z-10 text-center space-y-8 title-fade-in max-w-2xl">
-                        <h1 className="text-6xl md:text-8xl font-black text-[#F2E8C6] tracking-tighter title-text-glow italic">GUILD MASTER</h1>
-                        <p className="text-[#E8E0D5] text-lg md:text-xl font-serif tracking-widest opacity-80">~ 辺境ギルド運営日録 ~</p>
+                        <h1 className="text-6xl md:text-8xl font-black text-[#F2E8C6] tracking-tighter title-text-glow italic uppercase">GUILD MASTER</h1>
+                        <p className="text-[#E8E0D5] text-lg md:text-xl font-serif tracking-[0.3em] opacity-80">~ 辺境ギルド運営日録 ~</p>
                         <div className="flex flex-col gap-4 items-center mt-8">
                             <button onClick={startGame} className="w-64 bg-[#D9A94E] hover:bg-[#F2C94C] text-stone-900 py-4 px-8 rounded-sm font-black text-xl shadow-2xl transition-all hover:scale-105 active:scale-95 flex items-center justify-center gap-3">
-                                ギルドを開設する <ArrowRight className="w-6 h-6" />
+                                ギルドを新規開設 <ArrowRight className="w-6 h-6" />
                             </button>
-                            <button onClick={() => setShowHowToPlay(true)} className="text-[#E8E0D5] hover:text-[#F2E8C6] font-bold underline underline-offset-4 decoration-stone-600 transition-colors">
+                            {hasSave && (
+                                <button onClick={loadGame} className="w-64 bg-stone-700 hover:bg-stone-600 text-[#F2E8C6] py-4 px-8 rounded-sm font-black text-xl shadow-2xl transition-all hover:scale-105 active:scale-95 flex items-center justify-center gap-3 border border-stone-500">
+                                    前回の記録から再開 <RotateCcw className="w-6 h-6" />
+                                </button>
+                            )}
+                            <button onClick={() => setShowHowToPlay(true)} className="text-[#E8E0D5] hover:text-[#F2E8C6] font-bold underline underline-offset-8 decoration-stone-600 transition-colors mt-4">
                                 遊び方を確認する
                             </button>
                         </div>
@@ -379,17 +414,12 @@
             );
         }
 
+        if (!gameState) return null;
+
         return (
             <div className="min-h-screen bg-[#EBE7E0] flex flex-col font-serif relative overflow-hidden">
                 <div className="game-bg-container">
-                    <img src={`assets/images/bg_${
-                        tab === 'home' ? 'throne' : 
-                        tab === 'quest' ? 'market' : 
-                        tab === 'roster' ? 'barracks' : 
-                        tab === 'dungeon' ? 'dungeon' : 
-                        tab === 'facility' ? 'throne' : 
-                        tab === 'intrigue' ? 'shadow' : 'shadow'
-                    }.png`} className="game-bg-img" style={{opacity: 0.15}} alt="" />
+                    <img src={`assets/images/bg_${tab === 'home' || tab === 'facility' ? 'throne' : tab === 'quest' ? 'market' : tab === 'roster' ? 'barracks' : tab === 'dungeon' ? 'dungeon' : 'shadow'}.png`} className="game-bg-img" style={{opacity: 0.15}} alt="" />
                     <div className="game-bg-overlay"></div>
                 </div>
 
@@ -441,14 +471,7 @@
                     </aside>
 
                     <section className="flex-1 glass-panel border border-[#D4C3A3] shadow-inner overflow-hidden flex flex-col p-4 md:p-6 rounded-sm relative">
-                        {tab === 'home' && (
-                            <HomeView 
-                                gameState={gameState} 
-                                onOpenSpecial={handleOpenSpecial} 
-                                onDeclineSpecial={handleDeclineSpecial}
-                                onHireReceptionist={hireReceptionist}
-                            />
-                        )}
+                        {tab === 'home' && <HomeView gameState={gameState} onOpenSpecial={handleOpenSpecial} onDeclineSpecial={handleDeclineSpecial} onHireReceptionist={hireReceptionist} />}
                         {tab === 'quest' && <QuestView gameState={gameState} onDispatch={(q) => { setDispatchTarget({quest: q}); setDispatchCandidates([]); }} />}
                         {tab === 'roster' && <RosterView gameState={gameState} onSelectAdv={setSelectedAdv} onSearchAdv={handleSearchAdv} />}
                         {tab === 'dungeon' && (
@@ -479,7 +502,7 @@
                         {tab === 'skill' && <MasterSkillView gameState={gameState} onUpgrade={handleUpgradeSkill} />}
                         {tab === 'achievement' && <AchievementView gameState={gameState} />}
                         {tab === 'log' && <LogView gameState={gameState} />}
-                        {tab === 'boss' && <BossView gameState={gameState} onFightBoss={handleFightBoss} />}
+                        {tab === 'boss' && <BossView gameState={gameState} onFightBoss={nextTurn} />}
                     </section>
                 </main>
 
@@ -493,11 +516,7 @@
                     onConfirm={handleDispatchConfirm}
                     onCancel={() => setDispatchTarget(null)}
                 />
-                <AdventurerModal 
-                    adventurer={selectedAdv} 
-                    onClose={() => setSelectedAdv(null)} 
-                    onFire={handleFireAdventurer} 
-                />
+                <AdventurerModal adventurer={selectedAdv} onClose={() => setSelectedAdv(null)} onFire={handleFireAdventurer} />
                 {gameState.ending && <EndingView gameState={gameState} />}
             </div>
         );
