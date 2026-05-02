@@ -1,6 +1,9 @@
 (() => {
     const { useState, useEffect, useRef } = React;
 
+    /**
+     * App Main Component
+     */
     const App = () => {
         const [isReady, setIsReady] = useState(false);
         const [view, setView] = useState('title');
@@ -13,36 +16,51 @@
         const [selectedAdv, setSelectedAdv] = useState(null);
         const [showHowToPlay, setShowHowToPlay] = useState(false);
 
-        // Check if all components are loaded to window.G1.components
+        // --- 1. Robust Component Loading Check ---
         useEffect(() => {
+            const required = [
+                'ActionModal', 'QuarterResultModal', 'QuestView', 'RosterView', 'DispatchModal',
+                'FacilityView', 'ShopView', 'PolicyView', 'AdventurerModal', 'HomeView',
+                'IntrigueView', 'MasterSkillView', 'AchievementView', 'LogView', 'BossView',
+                'EndingView', 'HowToPlayModal'
+            ];
+            
             const checkInterval = setInterval(() => {
-                const required = ['HomeView', 'QuestView', 'RosterView', 'DispatchModal', 'EndingView'];
                 const loaded = window.G1 && window.G1.components;
                 if (loaded && required.every(key => !!window.G1.components[key])) {
                     setIsReady(true);
                     clearInterval(checkInterval);
-                    console.log("All systems ready.");
+                    console.log("Guild Master: All components loaded.");
                 }
-            }, 100);
+            }, 50);
             return () => clearInterval(checkInterval);
         }, []);
 
-        // Auto-Save Logic
+        // --- 2. Auto-Save Logic ---
         useEffect(() => {
-            if (gameState) {
-                const saveState = { ...gameState, view, tab };
-                localStorage.setItem(window.G1.Constants.SAVE_KEY, JSON.stringify(saveState));
+            if (gameState && view !== 'title') {
+                try {
+                    const saveState = { ...gameState, view, tab };
+                    localStorage.setItem(window.G1.Constants.SAVE_KEY, JSON.stringify(saveState));
+                } catch (e) {
+                    console.error("Save failed", e);
+                }
             }
         }, [gameState, view, tab]);
 
+        // Loading Screen
         if (!isReady) {
             return (
-                <div className="min-h-screen bg-stone-900 flex items-center justify-center">
-                    <div className="text-[#D9A94E] font-black text-2xl animate-pulse italic">LOADING GUILD DATA...</div>
+                <div className="min-h-screen bg-stone-950 flex flex-col items-center justify-center gap-4">
+                    <div className="w-16 h-16 border-4 border-amber-600 border-t-transparent rounded-full animate-spin"></div>
+                    <div className="text-[#D9A94E] font-black text-xl animate-pulse italic tracking-widest uppercase">
+                        Loading Guild Archives...
+                    </div>
                 </div>
             );
         }
 
+        // --- 3. Component & Dependency Setup ---
         const { 
             ActionModal, QuarterResultModal, QuestView, RosterView, DispatchModal,
             FacilityView, ShopView, PolicyView, AdventurerModal, HomeView,
@@ -50,79 +68,98 @@
             EndingView, HowToPlayModal
         } = window.G1.components;
 
+        const L = window.LucideReact;
+        const getIcon = (name) => {
+            // Safe icon lookup for old Lucide versions
+            return L[name] || L[name.replace('2', '')] || L.HelpCircle || L.Activity;
+        };
+
         const { 
             Shield, Map: MapIcon, Swords, Coins, Home, Beer, Dumbbell,
             Users, Crown, Skull, AlertTriangle, ArrowRight,
-            Target, Activity, LogOut, CheckCircle2, RotateCcw,
+            Target, Activity, LogOut, RotateCcw,
             BookOpen, ChevronRight, Landmark, ScrollText,
-            Wand2, Hammer, ShoppingBag, EyeOff, UserPlus, Search, X: XIcon,
+            Wand2, Hammer, ShoppingBag, EyeOff, UserPlus, Search,
             Trophy, Flame, HeartHandshake, Compass, MessageSquare,
             UserMinus, Zap, Star, Shuffle, Volume2, VolumeX, PieChart
-        } = window.LucideReact;
+        } = L;
 
         const Constants = window.G1.Constants;
         const Utils = window.G1.Utils;
         const Engine = window.G1.Engine;
 
+        // --- 4. Game Handlers ---
         const startGame = () => {
-            const initialState = {
-                turn: 1,
-                budget: 5000,
-                fame: 10,
-                notoriety: 0,
-                townFavor: 10,
-                alignment: { safety: 25, adventure: 25, military: 25, commerce: 25 },
-                facilities: { residence: 1, tavern: 1, training: 1 },
-                shops: { itemShop: 1, weaponShop: 1, magicShop: 1 },
-                masterSkills: { charisma: 0, underworld: 0, business: 0, leadership: 0, recruitment: 0 },
-                adventurers: [],
-                receptionist: Utils.generateReceptionist(10, 0, []),
-                discoveredDungeons: [],
-                dispatches: [],
-                availableQuests: [],
-                rivals: [],
-                history: [{ turn: 0, type: 'info', text: 'ギルド「当ギルド」を開設しました。' }],
-                achievements: [],
-                artifacts: [],
-                currentRumor: '「まずは冒険者を雇って、簡単な依頼から始めるといいぜ。」',
-                currentEvent: null,
-                activeBoss: null,
-                specialRequest: null,
-                ending: null
-            };
+            console.log("Starting new game...");
+            try {
+                const initialState = {
+                    turn: 1,
+                    budget: 5000,
+                    fame: 10,
+                    notoriety: 0,
+                    townFavor: 10,
+                    alignment: { safety: 25, adventure: 25, military: 25, commerce: 25 },
+                    facilities: { residence: 1, tavern: 1, training: 1 },
+                    shops: { itemShop: 1, weaponShop: 1, magicShop: 1 },
+                    masterSkills: { charisma: 0, underworld: 0, business: 0, leadership: 0, recruitment: 0 },
+                    adventurers: [],
+                    receptionist: Utils.generateReceptionist(10, 0, []),
+                    discoveredDungeons: [],
+                    dispatches: [],
+                    availableQuests: [],
+                    rivals: [],
+                    history: [{ turn: 0, type: 'info', text: 'ギルド「当ギルド」を開設しました。' }],
+                    achievements: [],
+                    artifacts: [],
+                    currentRumor: '「まずは冒険者を雇って、簡単な依頼から始めるといいぜ。」',
+                    currentEvent: null,
+                    activeBoss: null,
+                    specialRequest: null,
+                    ending: null
+                };
 
-            const rivalStyles = ['military', 'commerce', 'safety'];
-            for (let i = 0; i < 3; i++) {
-                const adj = Constants.RIVAL_ADJS[Math.floor(Math.random() * Constants.RIVAL_ADJS.length)];
-                const noun = Constants.RIVAL_NOUNS[Math.floor(Math.random() * Constants.RIVAL_NOUNS.length)];
-                initialState.rivals.push({
-                    id: `rival_${i}`,
-                    name: `${adj}${noun}`,
-                    style: rivalStyles[i],
-                    power: 300 + (i * 200),
-                    relation: 50
-                });
+                // Init Rivals
+                const rivalStyles = ['military', 'commerce', 'safety'];
+                for (let i = 0; i < 3; i++) {
+                    const adj = Constants.RIVAL_ADJS[Math.floor(Math.random() * Constants.RIVAL_ADJS.length)];
+                    const noun = Constants.RIVAL_NOUNS[Math.floor(Math.random() * Constants.RIVAL_NOUNS.length)];
+                    initialState.rivals.push({
+                        id: `rival_${i}`,
+                        name: `${adj}${noun}`,
+                        style: rivalStyles[i],
+                        power: 300 + (i * 200),
+                        relation: 50
+                    });
+                }
+
+                // Init Dungeons
+                for (let i = 0; i < 2; i++) {
+                    const dungeon = Constants.DUNGEON_POOL[i];
+                    initialState.discoveredDungeons.push({ ...dungeon, progress: 0, rivals: [] });
+                }
+
+                // Init Adventurers
+                for (let i = 0; i < 4; i++) {
+                    initialState.adventurers.push(Utils.generateAdventurer(10, 0, initialState.adventurers.map(a => a.name)));
+                }
+
+                // Init Quests
+                for (let i = 0; i < 5; i++) {
+                    initialState.availableQuests.push(Utils.generateQuest(1, 10, 0, 10));
+                }
+
+                setGameState(initialState);
+                setView('game');
+                setTab('home');
+                console.log("Game state initialized.");
+            } catch (err) {
+                console.error("Critical error during startGame:", err);
+                alert("ゲームの初期化に失敗しました。ページをリロードしてください。");
             }
-
-            for (let i = 0; i < 2; i++) {
-                const dungeon = Constants.DUNGEON_POOL[i];
-                initialState.discoveredDungeons.push({ ...dungeon, progress: 0, rivals: [] });
-            }
-
-            for (let i = 0; i < 4; i++) {
-                initialState.adventurers.push(Utils.generateAdventurer(10, 0, initialState.adventurers.map(a => a.name)));
-            }
-
-            for (let i = 0; i < 5; i++) {
-                initialState.availableQuests.push(Utils.generateQuest(1, 10, 0, 10));
-            }
-
-            setGameState(initialState);
-            setView('game');
         };
 
         const loadGame = () => {
-            const saved = localStorage.getItem(window.G1.Constants.SAVE_KEY);
+            const saved = localStorage.getItem(Constants.SAVE_KEY);
             if (saved) {
                 try {
                     const parsed = JSON.parse(saved);
@@ -131,7 +168,8 @@
                     setTab(parsed.tab || 'home');
                     console.log("Save data loaded.");
                 } catch (e) {
-                    console.error("Failed to load save data.");
+                    console.error("Load failed", e);
+                    alert("セーブデータの読み込みに失敗しました。");
                 }
             }
         };
@@ -189,10 +227,7 @@
                 if (match) selected.push(match.id);
             });
 
-            const remainingIdles = idles
-                .filter(a => !selected.includes(a.id))
-                .sort((a, b) => b.power - a.power);
-
+            const remainingIdles = idles.filter(a => !selected.includes(a.id)).sort((a, b) => b.power - a.power);
             for (const adv of remainingIdles) {
                 if (selected.length >= maxMembers) break;
                 const temp = [...selected, adv.id];
@@ -221,7 +256,7 @@
 
             for (const quest of sortedQuests) {
                 if (idleAdvs.length < quest.minMembers) break;
-                if (next.budget < totalDeposit + quest.deposit) continue;
+                if (next.budget < totalDeposit + (quest.deposit || 0)) continue;
 
                 let selected = [];
                 const reqs = quest.requirements || [];
@@ -245,22 +280,12 @@
                     if (info.total >= quest.powerReq && selected.length >= quest.minMembers) break;
                 }
 
-                if (selected.length < quest.minMembers) {
-                    for (const adv of remainingIdles) {
-                        if (selected.includes(adv)) continue;
-                        selected.push(adv);
-                        if (selected.length >= quest.minMembers) break;
-                    }
-                }
-
-                const finalInfo = Utils.calculatePartyPower(selected.map(a=>a.id), next.adventurers, next.alignment, next.masterSkills);
-                
-                if (finalInfo.total >= quest.powerReq * 0.7 && selected.length >= quest.minMembers) {
+                if (selected.length >= quest.minMembers) {
                     const partyIds = selected.map(a => a.id);
                     next.dispatches.push({ quest, partyIds });
                     selected.forEach(a => a.status = 'dispatched');
                     idleAdvs = idleAdvs.filter(a => !selected.includes(a));
-                    totalDeposit += quest.deposit;
+                    totalDeposit += (quest.deposit || 0);
                     dispatchesCount++;
                     next.availableQuests = next.availableQuests.filter(q => q.id !== quest.id);
                 }
@@ -268,9 +293,9 @@
 
             if (dispatchesCount > 0) {
                 next.budget -= totalDeposit;
-                next.history.push({ turn: next.turn, type: 'info', text: `一括派遣により ${dispatchesCount} 部隊を任務へ向かわせました。` });
+                next.history.push({ turn: next.turn, type: 'info', text: `一括派遣により ${dispatchesCount} 部隊を派遣しました。` });
                 setGameState(next);
-                alert(`${dispatchesCount} つの依頼に部隊を自動派遣しました。`);
+                alert(`${dispatchesCount} つの依頼に一括派遣しました。`);
             } else {
                 alert('派遣可能な部隊を編成できませんでした。');
             }
@@ -282,7 +307,7 @@
             next.dispatches.push(newDispatch);
             next.adventurers.forEach(a => { if (dispatchCandidates.includes(a.id)) a.status = 'dispatched'; });
             next.budget -= (dispatchTarget.quest.deposit || 0);
-            next.history.push({ turn: next.turn, type: 'info', text: `部隊を任務「${dispatchTarget.quest.name}」へ派遣しました。` });
+            next.history.push({ turn: next.turn, type: 'info', text: `任務「${dispatchTarget.quest.name}」へ部隊を派遣。` });
             if (dispatchTarget.isSpecial) next.specialRequest = null;
             else next.availableQuests = next.availableQuests.filter(q => q.id !== dispatchTarget.quest.id);
             setGameState(next);
@@ -297,8 +322,6 @@
                 const next = { ...gameState };
                 next.budget -= cost;
                 next.facilities[facId] = currentLevel + 1;
-                const names = { residence: '宿舎', tavern: '酒場', training: '訓練場' };
-                next.history.push({ turn: next.turn, type: 'info', text: `施設「${names[facId]}」をLv.${currentLevel + 1}に拡張しました。` });
                 setGameState(next);
                 setActionModal({ type: 'invest_facility', phase: 'result', message: '施設の拡張が完了しました！' });
                 setTimeout(() => setActionModal(null), 2000);
@@ -312,8 +335,6 @@
                 const next = { ...gameState };
                 next.budget -= cost;
                 next.shops[shopId] = currentLevel + 1;
-                const names = { itemShop: '道具屋', weaponShop: '鍛冶屋', magicShop: '魔導具店' };
-                next.history.push({ turn: next.turn, type: 'info', text: `提携店舗「${names[shopId]}」に投資しました。` });
                 setGameState(next);
                 setActionModal({ type: 'invest_shop', phase: 'result', message: '提携店舗への投資が完了しました！' });
                 setTimeout(() => setActionModal(null), 2000);
@@ -327,8 +348,6 @@
                 const next = { ...gameState };
                 next.budget -= cost;
                 next.masterSkills[skillId] = currentLevel + 1;
-                const names = { charisma: 'カリスマ', business: '商才', leadership: '統率力', recruitment: 'スカウト術', underworld: '裏社会の顔' };
-                next.history.push({ turn: next.turn, type: 'info', text: `マスタースキル「${names[skillId]}」を修得しました。` });
                 setGameState(next);
                 setActionModal({ type: 'skill_upgrade', phase: 'result', message: 'スキルの修得が完了しました！' });
                 setTimeout(() => setActionModal(null), 2000);
@@ -339,8 +358,7 @@
             const cost = 500;
             if (gameState.budget < cost) return;
             if (gameState.adventurers.length >= gameState.facilities.residence * 5) {
-                alert('宿舎が満員です。宿舎を拡張してください。');
-                return;
+                alert('宿舎が満員です。'); return;
             }
             setActionModal({ type: 'recruit_search', phase: 'searching', message: '優秀な人材を捜索中...' });
             setTimeout(() => {
@@ -348,36 +366,15 @@
                 next.budget -= cost;
                 const newAdv = Utils.generateAdventurer(next.fame, next.notoriety, next.adventurers.map(a => a.name));
                 next.adventurers.push(newAdv);
-                next.history.push({ turn: next.turn, type: 'info', text: `新たな冒険者 ${newAdv.name} が加入しました。` });
                 setGameState(next);
-                setActionModal({ type: 'recruit_found', phase: 'result', foundRank: newAdv.rank, message: `${newAdv.name} (${newAdv.rank}級 ${newAdv.advClass.name}) がギルドに加入しました！` });
+                setActionModal({ type: 'recruit_found', phase: 'result', foundRank: newAdv.rank, message: `${newAdv.name} が加入しました！` });
                 setTimeout(() => setActionModal(null), 3000);
             }, 1500);
         };
 
-        const handleSabotage = (rivalId) => {
-            const cost = 500;
-            if (gameState.budget < cost) return;
-            setActionModal({ type: 'action_sabotage', phase: 'searching', message: '工作員を派遣中...' });
-            setTimeout(() => {
-                const next = { ...gameState };
-                next.budget -= cost;
-                const rival = next.rivals.find(r => r.id === rivalId);
-                const success = Math.random() < 0.7;
-                if (success) {
-                    rival.power = Math.max(0, rival.power - 100);
-                    rival.relation = Math.max(0, rival.relation - 20);
-                    next.history.push({ turn: next.turn, type: 'warning', text: `${rival.name}への妨害工作に成功。` });
-                    setActionModal({ type: 'action_quest', phase: 'result', message: '工作は成功しました！敵ギルドの戦力を削ぎ落としました。' });
-                } else {
-                    rival.relation = Math.max(0, rival.relation - 30);
-                    next.notoriety += 10;
-                    next.history.push({ turn: next.turn, type: 'danger', text: `${rival.name}への工作が露見。` });
-                    setActionModal({ type: 'recruit_failed', phase: 'result', message: '工作は失敗し、ギルドの悪名が高まりました…' });
-                }
-                setGameState(next);
-                setTimeout(() => setActionModal(null), 2500);
-            }, 1500);
+        const handleFireAdventurer = (advId) => {
+            setGameState(prev => ({ ...prev, adventurers: prev.adventurers.filter(a => a.id !== advId) }));
+            setSelectedAdv(null);
         };
 
         window.G1.appHandlers = {
@@ -385,8 +382,9 @@
             onMassDispatch: handleMassDispatch
         };
 
+        // --- 5. Title View ---
         if (view === 'title') {
-            const hasSave = !!localStorage.getItem(window.G1.Constants.SAVE_KEY);
+            const hasSave = !!localStorage.getItem(Constants.SAVE_KEY);
             return (
                 <div className="min-h-screen bg-stone-900 flex items-center justify-center p-4 relative overflow-hidden">
                     <div className="absolute inset-0 opacity-40">
@@ -414,6 +412,7 @@
             );
         }
 
+        // --- 6. Main Game View ---
         if (!gameState) return null;
 
         return (
