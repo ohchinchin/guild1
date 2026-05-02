@@ -1,17 +1,25 @@
-# Work Log - Lucide Icon Refactoring
+# Work Log - Guild Master Improvements
 
-## 2025-05-24
-- [ ] Refactor `src/components/ActionModal.js`
-- [ ] Refactor `src/components/DecisionView.js`
-- [ ] Refactor `src/components/DungeonView.js`
-- [ ] Refactor `src/components/EndingView.js`
-- [ ] Refactor `src/components/FacilityView.js`
-- [ ] Refactor `src/components/HowToPlayModal.js`
-- [ ] Refactor `src/components/IntrigueView.js`
-- [ ] Refactor `src/components/LogView.js`
-- [ ] Refactor `src/components/QuarterResultModal.js`
-- [ ] Refactor `src/components/QuestBoard.js`
-- [ ] Refactor `src/components/RosterView.js`
-- [ ] Refactor `src/components/ShopView.js`
-- [ ] Refactor `src/components/SkillView.js`
-- [ ] Refactor `src/components/SpecialRequestModal.js`
+## 2026-05-03 (Antigravity)
+- [x] index.html の肥大化解消（CSS、コアロジック、コンポーネントの分離）
+- [x] クエスト生成ロジックの改善（Lvスケーリングの強化、必要戦力の調整）
+- [x] クエスト要件システムの追加（最低人数、特定クラス、特定ランクの要求）
+- [x] 冒険者の待機メリットの追加（警備活動による収入、基本待機収入の調整）
+- [x] ダンジョンシステムの刷新（複数ダンジョンの同時存在、他ギルドとの競争、進捗表示）
+- [x] 経済バランスの調整（施設維持費の累進増加、収入源の多様化）
+- [x] 町の貢献度（Favor）上限の論理的な拡張（Town Rankシステムへの布石）
+- [x] 死亡・負傷イベントの発生率と影響の調整
+
+### ファイル構造
+- `css/style.css`: スタイルシート
+- `js/constants.js`: ゲーム定数（名前プール、データ定義等）
+- `js/utils.js`: ユーティリティ（生成器、戦力計算等）
+- `js/engine.js`: ターン進行ロジック
+- `js/main.js`: メインAppコンポーネント・エントリポイント
+- `src/components/`: 各種Reactコンポーネント
+
+### 今後の課題
+- 施設アップグレード、ショップ、内政方針の詳細なコンポーネント化
+- ボス戦ロジックの再統合
+- 特殊依頼（Special Requests）の再実装
+- 称号・実績システムのUI反映
