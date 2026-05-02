@@ -1,6 +1,6 @@
 window.G1 = window.G1 || {};
 window.G1.Constants = {
-    MAX_TURNS: 120,
+    MAX_TURNS: 50, // 全50ターン（約12年相当）で完結
     ALIGNMENTS: ['safety', 'adventure', 'military', 'commerce'],
     SEASONS: ['春季', '夏季', '秋季', '冬季'],
     RANKS: ['E', 'D', 'C', 'B', 'A', 'S'],
@@ -61,23 +61,24 @@ window.G1.Constants = {
         '元盗賊団の首領。部下に裏切られ全てを失ったが、復讐のために再起を誓う。',
         '古代遺跡で数百年眠っていたという謎の人物。現代の常識に疎く、トラブルが絶えない。'
     ],
+
     RIVAL_ADJS: ["赤き", "白銀の", "黄金の", "漆黒の", "蒼き", "暁の", "幻影の", "不屈の", "血塗られた", "静寂の", "鋼の", "無名の"],
     RIVAL_NOUNS: ["獅子団", "盾", "天秤商会", "狼", "鷹の爪", "竜騎士団", "剣", "梟", "鉄床", "黒百合", "牙", "鴉"],
     QUEST_TYPES: [
-        { id: 'subjugation', name: '魔物討伐', icon: 'Swords', baseReward: 300, risk: 'low', favorReq: 0 },
-        { id: 'escort', name: '商隊護衛', icon: 'Shield', baseReward: 500, risk: 'medium', favorReq: 10 },
-        { id: 'investigation', name: '遺跡調査', icon: 'Search', baseReward: 800, risk: 'medium', favorReq: 30 },
-        { id: 'harvest', name: '素材採取', icon: 'ShoppingBag', baseReward: 200, risk: 'low', favorReq: 0 },
-        { id: 'emergency', name: '緊急要請', icon: 'AlertTriangle', baseReward: 1200, risk: 'high', favorReq: 50 }
+        { id: 'subjugation', name: '魔物討伐', icon: 'Swords', baseReward: 400, risk: 'low', favorReq: 0 },
+        { id: 'escort', name: '商隊護衛', icon: 'Shield', baseReward: 600, risk: 'medium', favorReq: 10 },
+        { id: 'investigation', name: '遺跡調査', icon: 'Search', baseReward: 900, risk: 'medium', favorReq: 30 },
+        { id: 'harvest', name: '素材採取', icon: 'ShoppingBag', baseReward: 300, risk: 'low', favorReq: 0 },
+        { id: 'emergency', name: '緊急要請', icon: 'AlertTriangle', baseReward: 1500, risk: 'high', favorReq: 50 }
     ],
     DUNGEON_POOL: [
-        { id: 'd1', name: '薄暗い小鬼の洞穴', powerReq: 200, reward: 2000, desc: '近隣の森にある小さな洞穴。小鬼の住処になっている。' },
-        { id: 'd2', name: '盗賊団の隠れ家', powerReq: 500, reward: 5000, desc: '街道を荒らす盗賊たちの拠点。奪われた品々が眠る。' },
-        { id: 'd3', name: '狂信者の地下墓地', powerReq: 1200, reward: 12000, desc: '邪教徒がアンデッドを生み出している不気味な墓所。' },
-        { id: 'd4', name: '水竜の棲む地底湖', powerReq: 3000, reward: 30000, desc: '美しいが極めて危険な地底湖。水竜の宝が眠る。' },
-        { id: 'd5', name: '忘却の魔導塔', powerReq: 6000, reward: 60000, desc: '古代の魔術師が残した危険な罠が張り巡らされた塔。' },
-        { id: 'd6', name: '幻影の蜃気楼', powerReq: 12000, reward: 120000, desc: '砂漠に現れる幻の塔。最強クラスの魔物が巣食う。' },
-        { id: 'd7', name: '古の神殿跡', powerReq: 25000, reward: 250000, desc: '忘れ去られた神々の神殿。人知を超えた存在が守護している。' }
+        { id: 'd1', name: '薄暗い小鬼の洞穴', powerReq: 150, reward: 2000, desc: '近隣の森にある小さな洞穴。小鬼の住処になっている。' },
+        { id: 'd2', name: '盗賊団の隠れ家', powerReq: 400, reward: 5000, desc: '街道を荒らす盗賊たちの拠点。奪われた品々が眠る。' },
+        { id: 'd3', name: '狂信者の地下墓地', powerReq: 1000, reward: 12000, desc: '邪教徒がアンデッドを生み出している不気味な墓所。' },
+        { id: 'd4', name: '水竜の棲む地底湖', powerReq: 2500, reward: 30000, desc: '美しいが極めて危険な地底湖。水竜の宝が眠る。' },
+        { id: 'd5', name: '忘却の魔導塔', powerReq: 5000, reward: 60000, desc: '古代の魔術師が残した危険な罠が張り巡らされた塔。' },
+        { id: 'd6', name: '幻影の蜃気楼', powerReq: 10000, reward: 120000, desc: '砂漠に現れる幻の塔。最強クラスの魔物が巣食う。' },
+        { id: 'd7', name: '古の神殿跡', powerReq: 20000, reward: 250000, desc: '忘れ去られた神々の神殿。人知を超えた存在が守護している。' }
     ],
     ARTIFACT_POOL: [
         { id: 'art1', name: '覇王の剛剣', powerBonus: 300, desc: 'かつて大陸を統一した覇王が振るった大剣。' },
@@ -88,9 +89,9 @@ window.G1.Constants = {
         { id: 'art6', name: '冥王の指輪', powerBonus: 500, desc: '莫大な力と引き換えに魂を削る禁断の指輪。' }
     ],
     BOSS_DATA: {
-        39: { id: 'boss_1', name: '目覚めし岩竜', power: 2500, reward: 15000, desc: '近隣の山脈で冬眠していた岩竜が目覚め、街へ向かってきている！' },
-        79: { id: 'boss_2', name: '深淵の魔将', power: 6000, reward: 40000, desc: '次元の裂け目から、いにしえの魔将が軍勢を引き連れて侵攻してきた！' },
-        115: { id: 'boss_3', name: '終焉を呼ぶ巨神', power: 15000, reward: 100000, desc: '世界を滅ぼすと言われる伝説の巨神が顕現した。世界の危機だ！' }
+        15: { id: 'boss_1', name: '目覚めし岩竜', power: 1500, reward: 10000, desc: '近隣の山脈で冬眠していた岩竜が目覚め、街へ向かってきている！' },
+        30: { id: 'boss_2', name: '深淵の魔将', power: 4000, reward: 30000, desc: '次元の裂け目から、いにしえの魔将が軍勢を引き連れて侵攻してきた！' },
+        48: { id: 'boss_3', name: '終焉を呼ぶ巨神', power: 10000, reward: 80000, desc: '世界を滅ぼすと言われる伝説の巨神が顕現した。世界の危機だ！' }
     },
-    SAVE_KEY: 'guildMasterSaveData_final_v3'
+    SAVE_KEY: 'guildMasterSaveData_50turns_v2'
 };

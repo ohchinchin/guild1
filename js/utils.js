@@ -5,16 +5,16 @@ window.G1.Utils = (() => {
     return {
         generateQuest: (turn, favor, guildPower = 0, guildFame = 0) => {
             const type = Constants.QUEST_TYPES[Math.floor(Math.random() * Constants.QUEST_TYPES.length)];
-            const powerLevel = Math.floor(guildPower / 300); 
-            const fameLevel = Math.floor(guildFame / 30);
-            const baseLevel = Math.floor(turn / 6) + 1; 
+            const powerLevel = Math.floor(guildPower / 200); // More sensitive to power
+            const fameLevel = Math.floor(guildFame / 20); // More sensitive to fame
+            const baseLevel = Math.floor(turn / 3) + 1; // Double the progression speed
             
             let level = Math.max(1, Math.floor((baseLevel + powerLevel + fameLevel) / 2) + Math.floor(Math.random() * 6) - 2);
-            const favorBonus = 1 + (favor / 70);
+            const favorBonus = 1 + (favor / 50); // Stronger favor bonus
             const reward = Math.floor(type.baseReward * level * favorBonus * (1 + Math.random() * 1.0));
-            const deposit = Math.random() < 0.5 ? Math.floor(reward * 0.3) : 0; 
-            const powerReq = Math.floor(type.baseReward * level / 2.5 * Math.pow(1.05, Math.floor(level/5))) + Math.floor(Math.random() * 300);
-            const minMembers = Math.min(10, Math.max(2, Math.floor(level / 1.2) + Math.floor(Math.random() * 3)));
+            const deposit = Math.random() < 0.5 ? Math.floor(reward * 0.2) : 0; 
+            const powerReq = Math.floor(type.baseReward * level / 3 * Math.pow(1.08, Math.floor(level/4))) + Math.floor(Math.random() * 200);
+            const minMembers = Math.min(10, Math.max(2, Math.floor(level / 1.5) + Math.floor(Math.random() * 3)));
 
             const requirements = [];
             if (level > 15 && Math.random() < 0.4) {
