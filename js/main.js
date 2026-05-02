@@ -115,6 +115,58 @@
             setGameState(next);
         };
 
+        const handleAutoAssign = () => {
+            if (!dispatchTarget) return;
+            const quest = dispatchTarget.quest;
+            const isSpecial = dispatchTarget.isSpecial;
+            const maxMembers = isSpecial ? 5 : 10;
+            const idles = gameState.adventurers.filter(a => a.status === 'idle');
+            
+            // Start with requirements
+            let selected = [];
+            const reqs = quest.requirements || [];
+            
+            // Priority 1: Pick adventurers who meet class requirements
+            reqs.filter(r => r.type === 'class').forEach(r => {
+                const match = idles.find(a => a.advClass.id === r.value && !selected.includes(a.id));
+                if (match) selected.push(match.id);
+            });
+
+            // Priority 2: Pick adventurers who meet rank requirements
+            reqs.filter(r => r.type === 'rank').forEach(r => {
+                const minRankIdx = Constants.RANKS.indexOf(r.value);
+                const match = idles.find(a => Constants.RANKS.indexOf(a.rank) >= minRankIdx && !selected.includes(a.id));
+                if (match) selected.push(match.id);
+            });
+
+            // Fill up with high power adventurers until powerReq is met or maxMembers reached
+            const remainingIdles = idles
+                .filter(a => !selected.includes(a.id))
+                .sort((a, b) => b.power - a.power);
+
+            for (const adv of remainingIdles) {
+                if (selected.length >= maxMembers) break;
+                
+                // Add and check if power is enough
+                const temp = [...selected, adv.id];
+                const info = Utils.calculatePartyPower(temp, gameState.adventurers, gameState.alignment, gameState.masterSkills);
+                
+                selected.push(adv.id);
+                if (info.total >= quest.powerReq && selected.length >= quest.minMembers) break;
+            }
+
+            // Ensure minMembers is met if possible
+            if (selected.length < quest.minMembers) {
+                for (const adv of remainingIdles) {
+                    if (selected.includes(adv.id)) continue;
+                    selected.push(adv.id);
+                    if (selected.length >= quest.minMembers) break;
+                }
+            }
+
+            setDispatchCandidates(selected);
+        };
+
         const handleDispatchConfirm = () => {
             const next = { ...gameState };
             const newDispatch = {
@@ -231,6 +283,10 @@
                 setGameState(next);
                 setTimeout(() => setActionModal(null), 2500);
             }, 1500);
+        };
+
+        window.G1.appHandlers = {
+            onAutoAssign: handleAutoAssign
         };
 
         if (view === 'title') {

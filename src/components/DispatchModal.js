@@ -98,6 +98,13 @@ window.G1.components.DispatchModal = ({ dispatchTarget, gameState, dispatchCandi
                         </div>
 
                         <button
+                            onClick={window.G1.appHandlers.onAutoAssign}
+                            className="w-full py-2.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-sm font-bold text-xs transition-all mb-4 flex items-center justify-center gap-2 shadow-sm"
+                        >
+                            <Shuffle className="w-4 h-4" /> 最適メンバーを自動選出
+                        </button>
+
+                        <button
                             disabled={!isReady}
                             onClick={onConfirm}
                             className={`mt-4 w-full py-4 rounded-sm font-bold transition-all shadow-md flex items-center justify-center gap-2 ${isReady ? 'bg-stone-800 hover:bg-stone-700 text-[#F2E8C6] active:scale-95' : 'bg-stone-200 text-stone-400 cursor-not-allowed'}`}
