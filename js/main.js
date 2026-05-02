@@ -19,14 +19,12 @@
                 'ActionModal', 'QuarterResultModal', 'QuestView', 'RosterView', 'DispatchModal',
                 'FacilityView', 'ShopView', 'PolicyView', 'AdventurerModal', 'HomeView',
                 'IntrigueView', 'MasterSkillView', 'AchievementView', 'LogView', 'BossView',
-                'EndingView', 'HowToPlayModal'
+                'EndingView', 'HowToPlayModal', 'ConfettiEffect'
             ];
             const check = () => {
                 const loaded = window.G1 && window.G1.components;
                 if (loaded && required.every(k => !!window.G1.components[k])) {
-                    setIsReady(true);
-                    console.log("Guild Master: Ready.");
-                    return true;
+                    setIsReady(true); return true;
                 }
                 return false;
             };
@@ -43,7 +41,7 @@
             }
         }, [gameState, view, tab]);
 
-        if (!isReady) return <div className="min-h-screen bg-stone-900 flex items-center justify-center text-amber-500 font-bold animate-pulse">LOADING...</div>;
+        if (!isReady) return <div className="min-h-screen bg-stone-900 flex items-center justify-center text-amber-500 font-bold animate-pulse">LOADING GUILD DATA...</div>;
 
         const { 
             ActionModal, QuarterResultModal, QuestView, RosterView, DispatchModal,
@@ -53,7 +51,7 @@
         } = window.G1.components;
 
         const L = window.LucideReact;
-        const { Shield, Map: MapIcon, Swords, Coins, Home, Beer, Dumbbell, Users, Crown, Skull, AlertTriangle, ArrowRight, Target, Activity, LogOut, RotateCcw, BookOpen, ChevronRight, Landmark, ScrollText, Wand2, Hammer, ShoppingBag, EyeOff, UserPlus, Search, Trophy, Flame, HeartHandshake, Compass, MessageSquare, UserMinus, Zap, Star, Shuffle, PieChart } = L;
+        const SafeIcon = (name) => L[name] || L[name.replace('2', '')] || L.Activity;
 
         const Constants = window.G1.Constants;
         const Utils = window.G1.Utils;
@@ -61,47 +59,57 @@
 
         // --- Handlers with Deep Clone ---
         const startGame = () => {
-            const initialState = {
-                turn: 1, budget: 5000, fame: 10, notoriety: 0, townFavor: 10,
-                alignment: { safety: 25, adventure: 25, military: 25, commerce: 25 },
-                facilities: { residence: 1, tavern: 1, training: 1 },
-                shops: { itemShop: 1, weaponShop: 1, magicShop: 1 },
-                masterSkills: { charisma: 0, underworld: 0, business: 0, leadership: 0, recruitment: 0 },
-                adventurers: [], receptionist: Utils.generateReceptionist(10, 0, []),
-                discoveredDungeons: [], dispatches: [], availableQuests: [], rivals: [],
-                history: [{ turn: 0, type: 'info', text: 'ギルドを開設しました。' }],
-                achievements: [], artifacts: [], currentRumor: '「まずは冒険者を雇おうぜ。」', currentEvent: null, activeBoss: null, specialRequest: null, ending: null
-            };
-            const rivalStyles = ['military', 'commerce', 'safety'];
-            for (let i = 0; i < 3; i++) {
-                const adj = Constants.RIVAL_ADJS[Math.floor(Math.random() * Constants.RIVAL_ADJS.length)];
-                const noun = Constants.RIVAL_NOUNS[Math.floor(Math.random() * Constants.RIVAL_NOUNS.length)];
-                initialState.rivals.push({ id: `rival_${i}`, name: `${adj}${noun}`, style: rivalStyles[i], power: 300 + (i * 200), relation: 50 });
+            console.log("startGame called");
+            try {
+                const initialState = {
+                    turn: 1, budget: 5000, fame: 10, notoriety: 0, townFavor: 10,
+                    alignment: { safety: 25, adventure: 25, military: 25, commerce: 25 },
+                    facilities: { residence: 1, tavern: 1, training: 1 },
+                    shops: { itemShop: 1, weaponShop: 1, magicShop: 1 },
+                    masterSkills: { charisma: 0, underworld: 0, business: 0, leadership: 0, recruitment: 0 },
+                    adventurers: [], receptionist: Utils.generateReceptionist(10, 0, []),
+                    discoveredDungeons: [], dispatches: [], availableQuests: [], rivals: [],
+                    history: [{ turn: 0, type: 'info', text: 'ギルドを開設しました。' }],
+                    achievements: [], artifacts: [], currentRumor: '「まずは冒険者を雇おうぜ。」', currentEvent: null, activeBoss: null, specialRequest: null, ending: null
+                };
+                const rivalStyles = ['military', 'commerce', 'safety'];
+                for (let i = 0; i < 3; i++) {
+                    const adj = Constants.RIVAL_ADJS[Math.floor(Math.random() * Constants.RIVAL_ADJS.length)];
+                    const noun = Constants.RIVAL_NOUNS[Math.floor(Math.random() * Constants.RIVAL_NOUNS.length)];
+                    initialState.rivals.push({ id: `rival_${i}`, name: `${adj}${noun}`, style: rivalStyles[i], power: 300 + (i * 200), relation: 50 });
+                }
+                for (let i = 0; i < 2; i++) initialState.discoveredDungeons.push({ ...Constants.DUNGEON_POOL[i], progress: 0, rivals: [] });
+                for (let i = 0; i < 4; i++) initialState.adventurers.push(Utils.generateAdventurer(10, 0, initialState.adventurers.map(a => a.name)));
+                for (let i = 0; i < 5; i++) initialState.availableQuests.push(Utils.generateQuest(1, 10, 0, 10));
+                
+                setGameState(initialState);
+                setView('game');
+                setTab('home');
+            } catch (e) {
+                console.error("Critical error in startGame:", e);
             }
-            for (let i = 0; i < 2; i++) initialState.discoveredDungeons.push({ ...Constants.DUNGEON_POOL[i], progress: 0, rivals: [] });
-            for (let i = 0; i < 4; i++) initialState.adventurers.push(Utils.generateAdventurer(10, 0, initialState.adventurers.map(a => a.name)));
-            for (let i = 0; i < 5; i++) initialState.availableQuests.push(Utils.generateQuest(1, 10, 0, 10));
-            setGameState(initialState);
-            setView('game');
-            setTab('home');
         };
 
         const loadGame = () => {
             const saved = localStorage.getItem(Constants.SAVE_KEY);
             if (saved) {
-                const parsed = JSON.parse(saved);
-                setGameState(parsed);
-                setView(parsed.view || 'game');
-                setTab(parsed.tab || 'home');
+                try {
+                    const parsed = JSON.parse(saved);
+                    setGameState(parsed);
+                    setView(parsed.view || 'game');
+                    setTab(parsed.tab || 'home');
+                } catch(e) { console.error("Load failed"); }
             }
         };
 
         const nextTurn = () => {
             if (!gameState) return;
-            const nextState = Engine.processTurn(gameState);
-            setGameState(nextState);
-            setQuarterResult(nextState.quarterResult);
-            if (nextState.activeBoss) setTab('boss');
+            setGameState(prev => {
+                const nextState = Engine.processTurn(prev);
+                setQuarterResult(nextState.quarterResult);
+                if (nextState.activeBoss) setTab('boss');
+                return nextState;
+            });
         };
 
         const handleDispatchConfirm = () => {
@@ -122,8 +130,7 @@
         };
 
         const handleSabotage = (rivalId) => {
-            const cost = 500;
-            if (gameState.budget < cost) return;
+            const cost = 500; if (gameState.budget < cost) return;
             setActionModal({ type: 'action_sabotage', phase: 'searching', message: '工作員を派遣中...' });
             setTimeout(() => {
                 setGameState(prev => {
@@ -133,59 +140,11 @@
                     if (Math.random() < 0.7) {
                         rival.power = Math.max(0, rival.power - 100); rival.relation = Math.max(0, rival.relation - 20);
                         next.history.push({ turn: next.turn, type: 'warning', text: `${rival.name}への工作に成功。` });
-                        setActionModal({ type: 'action_quest', phase: 'result', message: '工作は成功しました！敵の戦力を削ぎ落としました。' });
+                        setActionModal({ type: 'action_quest', phase: 'result', message: '工作成功！敵の戦力を削ぎ落としました。' });
                     } else {
                         rival.relation = Math.max(0, rival.relation - 30); next.notoriety += 10;
                         next.history.push({ turn: next.turn, type: 'danger', text: `${rival.name}への工作が露見。` });
-                        setActionModal({ type: 'recruit_failed', phase: 'result', message: '工作は失敗し、悪名が高まりました…' });
-                    }
-                    return next;
-                });
-                setTimeout(() => setActionModal(null), 2000);
-            }, 1000);
-        };
-
-        const handleHeadhunt = (rivalId) => {
-            const cost = 1500;
-            if (gameState.budget < cost) return;
-            setActionModal({ type: 'action_headhunt', phase: 'searching', message: '優秀な人材に接触中...' });
-            setTimeout(() => {
-                setGameState(prev => {
-                    const next = JSON.parse(JSON.stringify(prev));
-                    next.budget -= cost;
-                    const rival = next.rivals.find(r => r.id === rivalId);
-                    if (Math.random() < 0.5) {
-                        const newAdv = Utils.generateAdventurer(next.fame, next.notoriety, next.adventurers.map(a => a.name));
-                        newAdv.rank = 'A'; newAdv.power += 200;
-                        next.adventurers.push(newAdv);
-                        rival.power = Math.max(0, rival.power - 150);
-                        next.history.push({ turn: next.turn, type: 'info', text: `${rival.name}から有力な人材を引き抜きました。` });
-                        setActionModal({ type: 'recruit_found', phase: 'result', message: `${newAdv.name} の引き抜きに成功しました！` });
-                    } else {
-                        rival.relation = Math.max(0, rival.relation - 40);
-                        next.history.push({ turn: next.turn, type: 'danger', text: `${rival.name}への引き抜き工作に失敗。` });
-                        setActionModal({ type: 'recruit_failed', phase: 'result', message: '引き抜き工作は失敗しました…' });
-                    }
-                    return next;
-                });
-                setTimeout(() => setActionModal(null), 2000);
-            }, 1000);
-        };
-
-        const handleIntelligence = (rivalId) => {
-            const cost = 300;
-            if (gameState.budget < cost) return;
-            setActionModal({ type: 'action_intelligence', phase: 'searching', message: '情報を収集中...' });
-            setTimeout(() => {
-                setGameState(prev => {
-                    const next = JSON.parse(JSON.stringify(prev));
-                    next.budget -= cost;
-                    const rival = next.rivals.find(r => r.id === rivalId);
-                    if (Math.random() < 0.8) {
-                        next.history.push({ turn: next.turn, type: 'info', text: `${rival.name}の内情を探り、弱点を特定しました。` });
-                        setActionModal({ type: 'action_quest', phase: 'result', message: '有力な情報を入手しました！' });
-                    } else {
-                        setActionModal({ type: 'recruit_failed', phase: 'result', message: '有益な情報は得られませんでした。' });
+                        setActionModal({ type: 'recruit_failed', phase: 'result', message: '工作失敗…悪名が高まりました。' });
                     }
                     return next;
                 });
@@ -262,6 +221,7 @@
 
         if (view === 'title') {
             const hasSave = !!localStorage.getItem(Constants.SAVE_KEY);
+            const HomeIcon = SafeIcon('Home'); const ArrowRightIcon = SafeIcon('ArrowRight'); const RotateCcwIcon = SafeIcon('RotateCcw');
             return (
                 <div className="min-h-screen bg-stone-900 flex items-center justify-center p-4 relative overflow-hidden">
                     <div className="absolute inset-0 opacity-40"><img src="assets/images/title_bg.png" className="w-full h-full object-cover" /></div>
@@ -269,9 +229,9 @@
                         <h1 className="text-6xl md:text-8xl font-black text-[#F2E8C6] tracking-tighter title-text-glow italic uppercase leading-none">GUILD MASTER</h1>
                         <p className="text-[#E8E0D5] text-lg md:text-xl font-serif tracking-[0.3em] opacity-80 mt-4">~ 辺境ギルド運営日録 ~</p>
                         <div className="flex flex-col gap-4 items-center mt-12">
-                            <button onClick={startGame} className="w-72 bg-[#D9A94E] hover:bg-[#F2C94C] text-stone-900 py-5 px-8 rounded-sm font-black text-xl shadow-2xl transition-all hover:scale-105 active:scale-95 flex items-center justify-center gap-3">ギルドを新規開設 <ArrowRight className="w-6 h-6" /></button>
-                            {hasSave && <button onClick={loadGame} className="w-72 bg-stone-700 hover:bg-stone-600 text-[#F2E8C6] py-5 px-8 rounded-sm font-black text-xl shadow-2xl transition-all hover:scale-105 active:scale-95 flex items-center justify-center gap-3 border border-stone-500 text-shadow-sm">記録から再開 <RotateCcw className="w-6 h-6" /></button>}
-                            <button onClick={() => setShowHowToPlay(true)} className="text-[#E8E0D5] hover:text-[#F2E8C6] font-bold underline underline-offset-8 decoration-stone-600 transition-colors mt-6 text-sm tracking-widest">遊び方を確認</button>
+                            <button onClick={startGame} className="w-72 bg-[#D9A94E] hover:bg-[#F2C94C] text-stone-900 py-5 px-8 rounded-sm font-black text-xl shadow-2xl transition-all hover:scale-105 active:scale-95 flex items-center justify-center gap-3">ギルドを新規開設 <ArrowRightIcon className="w-6 h-6" /></button>
+                            {hasSave && <button onClick={loadGame} className="w-72 bg-stone-700 hover:bg-stone-600 text-[#F2E8C6] py-5 px-8 rounded-sm font-black text-xl shadow-2xl transition-all hover:scale-105 active:scale-95 flex items-center justify-center gap-3 border border-stone-500">記録から再開 <RotateCcwIcon className="w-6 h-6" /></button>}
+                            <button onClick={() => setShowHowToPlay(true)} className="text-[#E8E0D5] hover:text-[#F2E8C6] font-bold underline underline-offset-8 decoration-stone-600 transition-colors mt-6 text-sm tracking-widest uppercase">Check Guide</button>
                         </div>
                     </div>
                     <HowToPlayModal isOpen={showHowToPlay} onClose={() => setShowHowToPlay(false)} />
@@ -301,20 +261,21 @@
                                 <span className="text-[10px] font-bold text-stone-500 uppercase tracking-widest">金庫預金</span>
                                 <span className={`text-xl font-black tracking-tight ${gameState.budget < 1000 ? 'text-rose-500' : 'text-[#D9A94E]'}`}>{gameState.budget.toLocaleString()} G</span>
                             </div>
-                            <button onClick={nextTurn} className="bg-[#D9A94E] hover:bg-[#F2C94C] text-stone-900 px-6 py-2 rounded-sm font-black shadow-lg active:scale-95 flex items-center gap-2 group">季節を進める <ChevronRight className="w-5 h-5 group-hover:translate-x-1" /></button>
+                            <button onClick={nextTurn} className="bg-[#D9A94E] hover:bg-[#F2C94C] text-stone-900 px-6 py-2 rounded-sm font-black shadow-lg active:scale-95 flex items-center gap-2 group">季節を進める <SafeIcon('ChevronRight') className="w-5 h-5 group-hover:translate-x-1" /></button>
                         </div>
                     </div>
                 </header>
                 <main className="flex-1 max-w-7xl mx-auto w-full flex flex-col md:flex-row gap-4 p-4 relative z-10 overflow-hidden">
                     <aside className="w-full md:w-64 space-y-1 shrink-0 overflow-y-auto pr-1">
                         {[
-                            { id: 'home', label: 'ダッシュボード', icon: Home }, { id: 'quest', label: '掲示板', icon: ScrollText }, { id: 'roster', label: '冒険者名簿', icon: Users }, { id: 'dungeon', label: '未踏迷宮', icon: MapIcon }, { id: 'facility', label: 'ギルド本部', icon: Landmark }, { id: 'shop', label: '提携店舗', icon: ShoppingBag }, { id: 'intrigue', label: '工作・諜報', icon: EyeOff }, { id: 'policy', label: '運営方針', icon: Compass }, { id: 'skill', label: 'マスタースキル', icon: Zap }, { id: 'achievement', label: '称号・実績', icon: Trophy }, { id: 'log', label: '活動記録', icon: BookOpen },
-                        ].map(item => (
-                            <button key={item.id} onClick={() => setTab(item.id)} className={`w-full flex items-center gap-3 p-3 rounded-sm font-bold transition-all text-xs ${tab === item.id ? 'bg-stone-800 text-[#F2E8C6] shadow-md translate-x-1' : 'bg-white/60 text-stone-600 hover:bg-white border border-stone-200 shadow-sm'}`}><item.icon className={`w-4 h-4 ${tab === item.id ? 'text-[#D9A94E]' : 'text-stone-400'}`} /> {item.label}</button>
-                        ))}
+                            { id: 'home', label: 'ダッシュボード', icon: 'Home' }, { id: 'quest', label: '掲示板', icon: 'ScrollText' }, { id: 'roster', label: '冒険者名簿', icon: 'Users' }, { id: 'dungeon', label: '未踏迷宮', icon: 'Map' }, { id: 'facility', label: 'ギルド本部', icon: 'Landmark' }, { id: 'shop', label: '提携店舗', icon: 'ShoppingBag' }, { id: 'intrigue', label: '工作・諜報', icon: 'EyeOff' }, { id: 'policy', label: '運営方針', icon: 'Compass' }, { id: 'skill', label: 'マスタースキル', icon: 'Zap' }, { id: 'achievement', label: '称号・実績', icon: 'Trophy' }, { id: 'log', label: '活動記録', icon: 'BookOpen' },
+                        ].map(item => {
+                            const Icon = SafeIcon(item.icon);
+                            return <button key={item.id} onClick={() => setTab(item.id)} className={`w-full flex items-center gap-3 p-3 rounded-sm font-bold transition-all text-xs ${tab === item.id ? 'bg-stone-800 text-[#F2E8C6] shadow-md translate-x-1' : 'bg-white/60 text-stone-600 hover:bg-white border border-stone-200 shadow-sm'}`}><Icon className={`w-4 h-4 ${tab === item.id ? 'text-[#D9A94E]' : 'text-stone-400'}`} /> {item.label}</button>
+                        })}
                     </aside>
                     <section className="flex-1 glass-panel border border-[#D4C3A3] shadow-inner overflow-hidden flex flex-col p-4 md:p-6 rounded-sm relative">
-                        {tab === 'home' && <HomeView gameState={gameState} onOpenSpecial={()=>{setDispatchTarget({quest:gameState.specialRequest,isSpecial:true});setDispatchCandidates([]);}} onDeclineSpecial={()=>{setGameState(p=>{const n=JSON.parse(JSON.stringify(p));n.specialRequest=null;return n;});}} onHireReceptionist={(c)=>{setGameState(p=>{const n=JSON.parse(JSON.stringify(p));n.budget-=c.hireCost;n.receptionist=c;return n;});}} />}
+                        {tab === 'home' && <HomeView gameState={gameState} onOpenSpecial={()=>{setDispatchTarget({quest:gameState.specialRequest,isSpecial:true});setDispatchCandidates([]);}} onDeclineSpecial={()=>{setGameState(p=>{const n=JSON.parse(JSON.stringify(p));n.specialRequest=null;return n;});}} onHireReceptionist={(c)=>{setGameState(p=>{const n=JSON.parse(JSON.stringify(p));n.budget-=c.hireCost;n.receptionist=c;return n;});}} onSelectAdv={setSelectedAdv} />}
                         {tab === 'quest' && <QuestView gameState={gameState} onDispatch={(q) => { setDispatchTarget({quest: q}); setDispatchCandidates([]); }} />}
                         {tab === 'roster' && <RosterView gameState={gameState} onSelectAdv={setSelectedAdv} onSearchAdv={handleSearchAdv} />}
                         {tab === 'dungeon' && (
@@ -323,7 +284,7 @@
                                 {gameState.discoveredDungeons.map(d => (
                                     <div key={d.id} className="bg-white border-2 border-[#D4C3A3] p-5 rounded-sm shadow-sm hover:border-indigo-400 transition-colors group shrink-0">
                                         <div className="flex justify-between items-center mb-3">
-                                            <h3 className="font-bold text-stone-800 text-lg flex items-center gap-2"><MapIcon className="w-5 h-5 text-stone-400 group-hover:text-indigo-500" /> {d.name}</h3>
+                                            <h3 className="font-bold text-stone-800 text-lg flex items-center gap-2"><SafeIcon('Map') className="w-5 h-5 text-stone-400 group-hover:text-indigo-500" /> {d.name}</h3>
                                             <span className={`text-xs font-bold px-2 py-1 rounded-full ${d.progress >= 100 ? 'bg-rose-100 text-rose-700' : 'bg-indigo-50 text-indigo-700'}`}>{d.progress >= 100 ? '攻略済み' : `攻略度 ${d.progress}%`}</span>
                                         </div>
                                         <div className="w-full bg-stone-100 h-2.5 rounded-full overflow-hidden border border-stone-200 shadow-inner"><div className={`h-full transition-all duration-1000 ${d.progress >= 100 ? 'bg-rose-500' : 'bg-indigo-500'}`} style={{width: `${d.progress}%`}}></div></div>
@@ -332,11 +293,11 @@
                                 ))}
                             </div>
                         )}
-                        {tab === 'facility' && <FacilityView gameState={gameState} onInvest={(id)=>handleInvestFacility(id)} />}
-                        {tab === 'shop' && <ShopView gameState={gameState} onInvest={(id)=>handleInvestShop(id)} />}
+                        {tab === 'facility' && <FacilityView gameState={gameState} onInvest={(id)=>{const c=1000+(gameState.facilities[id]*500); if(gameState.budget>=c){setGameState(p=>{const n=JSON.parse(JSON.stringify(p));n.budget-=c;n.facilities[id]++;return n;});setActionModal({type:'invest_facility',phase:'result',message:'施設拡張完了'});setTimeout(()=>setActionModal(null),1500);}}} />}
+                        {tab === 'shop' && <ShopView gameState={gameState} onInvest={(id)=>{const c=1000+(gameState.shops[id]*1000); if(gameState.budget>=c){setGameState(p=>{const n=JSON.parse(JSON.stringify(p));n.budget-=c;n.shops[id]++;return n;});setActionModal({type:'invest_shop',phase:'result',message:'店舗投資完了'});setTimeout(()=>setActionModal(null),1500);}}} />}
                         {tab === 'intrigue' && <IntrigueView gameState={gameState} onSabotage={handleSabotage} onHeadhunt={handleHeadhunt} onIntelligence={handleIntelligence} />}
                         {tab === 'policy' && <PolicyView gameState={gameState} onUpdateAlignment={(a)=>setGameState(p=>({...p,alignment:a}))} />}
-                        {tab === 'skill' && <MasterSkillView gameState={gameState} onUpgrade={handleUpgradeSkill} />}
+                        {tab === 'skill' && <MasterSkillView gameState={gameState} onUpgrade={(id)=>{const c=2000*(gameState.masterSkills[id]+1); if(gameState.budget>=c){setGameState(p=>{const n=JSON.parse(JSON.stringify(p));n.budget-=c;n.masterSkills[id]++;return n;});setActionModal({type:'skill_upgrade',phase:'result',message:'スキル修得完了'});setTimeout(()=>setActionModal(null),1500);}}} />}
                         {tab === 'achievement' && <AchievementView gameState={gameState} />}
                         {tab === 'log' && <LogView gameState={gameState} />}
                         {tab === 'boss' && <BossView gameState={gameState} onFightBoss={nextTurn} />}
