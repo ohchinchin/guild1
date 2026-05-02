@@ -9,14 +9,21 @@ window.G1.components.DispatchModal = ({ dispatchTarget, gameState, dispatchCandi
     const Utils = window.G1.Utils;
     const powerInfo = Utils.calculatePartyPower(dispatchCandidates, gameState.adventurers, gameState.alignment, gameState.masterSkills);
     const errors = Utils.checkQuestRequirements(dispatchCandidates, gameState.adventurers, dispatchTarget.quest);
+    
+    // Add special limit error
+    if (dispatchTarget.isSpecial && dispatchCandidates.length > 5) {
+        errors.push('特殊指名依頼は最大5名までしか派遣できません');
+    }
+
     const isReady = errors.length === 0;
 
     return (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[70] p-4 font-serif backdrop-blur-sm animate-in fade-in duration-300">
             <div className="bg-[#FAF8F5] border-2 border-[#D4C3A3] rounded-sm max-w-4xl w-full shadow-2xl relative flex flex-col max-h-[90vh]">
-                <div className="p-4 border-b border-[#D4C3A3] bg-[#E8E0D5] flex justify-between items-center shrink-0">
-                    <h2 className="text-lg font-bold text-stone-800 flex items-center gap-2">
-                        <UserPlus className="w-5 h-5" /> 任務部隊編成: {dispatchTarget.quest.name}
+                <div className={`p-4 border-b border-[#D4C3A3] flex justify-between items-center shrink-0 ${dispatchTarget.isSpecial ? 'bg-indigo-900 text-white' : 'bg-[#E8E0D5] text-stone-800'}`}>
+                    <h2 className="text-lg font-bold flex items-center gap-2">
+                        {dispatchTarget.isSpecial ? <Target className="w-5 h-5 text-indigo-300" /> : <UserPlus className="w-5 h-5" />} 
+                        {dispatchTarget.isSpecial ? '特殊指名依頼・編成' : '任務部隊編成'}: {dispatchTarget.quest.name}
                     </h2>
                     <button onClick={onCancel} className="text-stone-500 hover:text-stone-800 transition-colors">
                         <X className="w-6 h-6" />

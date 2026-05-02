@@ -1,6 +1,6 @@
 window.G1 = window.G1 || {};
 window.G1.Constants = {
-    MAX_TURNS: 50, // 全50ターン（約12年相当）で完結
+    MAX_TURNS: 50,
     ALIGNMENTS: ['safety', 'adventure', 'military', 'commerce'],
     SEASONS: ['春季', '夏季', '秋季', '冬季'],
     RANKS: ['E', 'D', 'C', 'B', 'A', 'S'],
@@ -26,7 +26,7 @@ window.G1.Constants = {
     ],
     PERSONALITIES: [
         { id: 'hot', name: '熱血', desc: '直情的。冷静な者と同じ部隊だと反発し戦力が下がる。' },
-        { id: 'cool', name: '冷静', desc: '合理的。熱血な者と同じ部隊だと反発し戦力が下がる。' },
+        { id: 'cool', name: '冷静', desc: '合理的. 熱血な者と同じ部隊だと反発し戦力が下がる。' },
         { id: 'ambitious', name: '野心家', desc: '自己主張が強い。同類が複数いると主導権争いで全体の足を引っ張る。' },
         { id: 'gentle', name: '温和', desc: '協調性が高く、誰とでも問題なく組める。' }
     ],
@@ -61,9 +61,28 @@ window.G1.Constants = {
         '元盗賊団の首領。部下に裏切られ全てを失ったが、復讐のために再起を誓う。',
         '古代遺跡で数百年眠っていたという謎の人物。現代の常識に疎く、トラブルが絶えない。'
     ],
-
     RIVAL_ADJS: ["赤き", "白銀の", "黄金の", "漆黒の", "蒼き", "暁の", "幻影の", "不屈の", "血塗られた", "静寂の", "鋼の", "無名の"],
     RIVAL_NOUNS: ["獅子団", "盾", "天秤商会", "狼", "鷹の爪", "竜騎士団", "剣", "梟", "鉄床", "黒百合", "牙", "鴉"],
+    RUMORS: [
+        "「マスター、あの新人の装備、ちょっと頼りないんじゃないですか？」",
+        "「隣街のギルド、またでかい依頼を片付けたらしいぜ。」",
+        "「美味いエールと温かいベッド。任務の後はこれが一番だ。」",
+        "「最近、北の森で怪しい影を見たって奴がいてな…迷宮があるかもしれない。」",
+        "「ギルドの金庫、最近潤ってるらしいじゃないか。おこぼれに預かりたいね。」",
+        "「誰が作戦部隊に選ばれるのか、いつも発表前は胃が痛くなるよ。」",
+        "「あいつとあいつ、この前酒場で大喧嘩してたぜ。同じ部隊になったら最悪だな。」",
+        "「次の季節はどこに遠征するんだろうな。命あっての物種だぜ。」",
+        "「西の国境付近で不穏な動きがあるらしい。きな臭くなってきたな。」"
+    ],
+    ACHIEVEMENTS: [
+        { id: 'rich', name: '黄金の亡者', desc: '金庫の資金が 10,000 G を突破した。', icon: 'Coins' },
+        { id: 'famous', name: '生ける伝説', desc: 'ギルドの名声が 100 を超えた。', icon: 'Crown' },
+        { id: 'notorious', name: '暗黒街の支配者', desc: 'ギルドの悪名が 100 を超えた。', icon: 'Skull' },
+        { id: 'army', name: '無敵の軍団', desc: '主力部隊の戦力が 1,000 を超えた。', icon: 'Shield' },
+        { id: 'boss_1', name: '岩竜殺し', desc: '第一の厄災「目覚めし岩竜」を討伐した。', icon: 'Target' },
+        { id: 'boss_2', name: '魔将討ち', desc: '第二の厄災「深淵の魔将」を討伐した。', icon: 'Target' },
+        { id: 'boss_3', name: '神話の終焉', desc: '最終の厄災「終焉を呼ぶ巨神」を討伐した。', icon: 'Crown' }
+    ],
     QUEST_TYPES: [
         { id: 'subjugation', name: '魔物討伐', icon: 'Swords', baseReward: 400, risk: 'low', favorReq: 0 },
         { id: 'escort', name: '商隊護衛', icon: 'Shield', baseReward: 600, risk: 'medium', favorReq: 10 },
@@ -93,5 +112,5 @@ window.G1.Constants = {
         30: { id: 'boss_2', name: '深淵の魔将', power: 4000, reward: 30000, desc: '次元の裂け目から、いにしえの魔将が軍勢を引き連れて侵攻してきた！' },
         48: { id: 'boss_3', name: '終焉を呼ぶ巨神', power: 10000, reward: 80000, desc: '世界を滅ぼすと言われる伝説の巨神が顕現した。世界の危機だ！' }
     },
-    SAVE_KEY: 'guildMasterSaveData_50turns_v2'
+    SAVE_KEY: 'guildMasterSaveData_50turns_v3'
 };
