@@ -14,7 +14,8 @@
     const Utils = window.G1.Utils;
     const Engine = window.G1.Engine;
     const { 
-        ActionModal, QuarterResultModal, QuestView, RosterView, DispatchModal 
+        ActionModal, QuarterResultModal, QuestView, RosterView, DispatchModal,
+        FacilityView, ShopView, PolicyView, AdventurerModal
     } = window.G1.components;
 
     const App = () => {
@@ -35,7 +36,8 @@
                 notoriety: 0,
                 townFavor: 10,
                 alignment: { safety: 25, adventure: 25, military: 25, commerce: 25 },
-                facilities: { residence: 1, tavern: 1 },
+                facilities: { residence: 1, tavern: 1, training: 1 },
+                shops: { itemShop: 1, weaponShop: 1, magicShop: 1 },
                 masterSkills: { charisma: 0, business: 0, leadership: 0 },
                 adventurers: [],
                 receptionist: Utils.generateReceptionist(10, 0, []),
@@ -43,6 +45,12 @@
                 dispatches: [],
                 availableQuests: []
             };
+
+            // Initialize with 2 dungeons
+            for (let i = 0; i < 2; i++) {
+                const dungeon = Constants.DUNGEON_POOL[i];
+                initialState.discoveredDungeons.push({ ...dungeon, progress: 0, rivals: [] });
+            }
 
             for (let i = 0; i < 4; i++) {
                 initialState.adventurers.push(Utils.generateAdventurer(10, 0, initialState.adventurers.map(a => a.name)));
@@ -78,6 +86,70 @@
             setDispatchCandidates([]);
         };
 
+        const handleInvestFacility = (facId) => {
+            const currentLevel = gameState.facilities[facId] || 1;
+            const cost = 1000 + (currentLevel * 500);
+            if (gameState.budget >= cost) {
+                const next = { ...gameState };
+                next.budget -= cost;
+                next.facilities[facId] = currentLevel + 1;
+                setGameState(next);
+                setActionModal({ type: 'invest_facility', phase: 'result', message: '施設の拡張が完了しました！' });
+                setTimeout(() => setActionModal(null), 2000);
+            }
+        };
+
+        const handleInvestShop = (shopId) => {
+            const currentLevel = gameState.shops[shopId] || 1;
+            const cost = 1000 + (currentLevel * 1000);
+            if (gameState.budget >= cost) {
+                const next = { ...gameState };
+                next.budget -= cost;
+                next.shops[shopId] = currentLevel + 1;
+                setGameState(next);
+                setActionModal({ type: 'invest_shop', phase: 'result', message: '提携店舗への投資が完了しました！' });
+                setTimeout(() => setActionModal(null), 2000);
+            }
+        };
+
+        const handleUpdateAlignment = (newAlignment) => {
+            setGameState(prev => ({ ...prev, alignment: newAlignment }));
+        };
+
+        const handleFireAdventurer = (advId) => {
+            setGameState(prev => ({
+                ...prev,
+                adventurers: prev.adventurers.filter(a => a.id !== advId)
+            }));
+            setSelectedAdv(null);
+        };
+
+        const handleSearchAdv = () => {
+            const cost = 500;
+            if (gameState.budget < cost) return;
+            if (gameState.adventurers.length >= gameState.facilities.residence * 5) {
+                alert('宿舎が満員です。宿舎を拡張してください。');
+                return;
+            }
+
+            setActionModal({ type: 'recruit_search', phase: 'searching', message: '優秀な人材を捜索中...' });
+            
+            setTimeout(() => {
+                const next = { ...gameState };
+                next.budget -= cost;
+                const newAdv = Utils.generateAdventurer(next.fame, next.notoriety, next.adventurers.map(a => a.name));
+                next.adventurers.push(newAdv);
+                setGameState(next);
+                setActionModal({ 
+                    type: 'recruit_found', 
+                    phase: 'result', 
+                    foundRank: newAdv.rank,
+                    message: `${newAdv.name} (${newAdv.rank}級 ${newAdv.advClass.name}) がギルドに加入しました！` 
+                });
+                setTimeout(() => setActionModal(null), 3000);
+            }, 1500);
+        };
+
         if (view === 'title') {
             return (
                 <div className="min-h-screen bg-stone-900 flex items-center justify-center p-4 relative overflow-hidden">
@@ -98,7 +170,7 @@
         return (
             <div className="min-h-screen bg-[#EBE7E0] flex flex-col font-serif relative overflow-hidden">
                 <div className="game-bg-container">
-                    <img src={`assets/images/bg_${tab === 'quest' ? 'market' : tab === 'roster' ? 'barracks' : 'shadow'}.png`} className="game-bg-img" style={{opacity: 0.15}} alt="" />
+                    <img src={`assets/images/bg_${tab === 'quest' ? 'market' : tab === 'roster' ? 'barracks' : tab === 'dungeon' ? 'dungeon' : tab === 'facility' ? 'throne' : 'shadow'}.png`} className="game-bg-img" style={{opacity: 0.15}} alt="" />
                     <div className="game-bg-overlay"></div>
                 </div>
 
@@ -108,13 +180,13 @@
                             <h1 className="text-xl font-black tracking-tighter italic text-[#D9A94E]">GUILD MASTER</h1>
                             <div className="flex flex-col ml-4">
                                 <span className="text-[10px] font-bold text-stone-500 uppercase tracking-widest">現在の季節</span>
-                                <span className="text-sm font-bold">第 {Math.floor((gameState.turn - 1) / 4) + 1} 暦 【{Constants.SEASONS[(gameState.turn - 1) % 4]}】</span>
+                                <span className="text-sm font-bold tracking-widest">第 {Math.floor((gameState.turn - 1) / 4) + 1} 暦 【{Constants.SEASONS[(gameState.turn - 1) % 4]}】</span>
                             </div>
                         </div>
                         <div className="flex items-center gap-6">
                             <div className="flex flex-col items-end">
                                 <span className="text-[10px] font-bold text-stone-500 uppercase tracking-widest">金庫預金</span>
-                                <span className={`text-xl font-black ${gameState.budget < 1000 ? 'text-rose-500' : 'text-[#D9A94E]'}`}>{gameState.budget.toLocaleString()} G</span>
+                                <span className={`text-xl font-black tracking-tight ${gameState.budget < 1000 ? 'text-rose-500' : 'text-[#D9A94E]'}`}>{gameState.budget.toLocaleString()} G</span>
                             </div>
                             <button onClick={nextTurn} className="bg-[#D9A94E] hover:bg-[#F2C94C] text-stone-900 px-6 py-2 rounded-sm font-black transition-all shadow-lg active:scale-95 flex items-center gap-2 group">
                                 季節を進める <ChevronRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
@@ -124,18 +196,21 @@
                 </header>
 
                 <main className="flex-1 max-w-7xl mx-auto w-full flex flex-col md:flex-row gap-4 p-4 relative z-10 overflow-hidden">
-                    <aside className="w-full md:w-64 space-y-2 shrink-0">
+                    <aside className="w-full md:w-64 space-y-2 shrink-0 overflow-y-auto pr-1">
                         {[
                             { id: 'quest', label: '掲示板', icon: ScrollText },
                             { id: 'roster', label: '冒険者名簿', icon: Users },
                             { id: 'dungeon', label: '未踏迷宮', icon: MapIcon },
+                            { id: 'facility', label: 'ギルド本部', icon: Landmark },
+                            { id: 'shop', label: '提携店舗', icon: ShoppingBag },
+                            { id: 'policy', label: '運営方針', icon: Compass },
                         ].map(item => (
                             <button
                                 key={item.id}
                                 onClick={() => setTab(item.id)}
-                                className={`w-full flex items-center gap-3 p-3 rounded-sm font-bold transition-all text-sm ${tab === item.id ? 'bg-stone-800 text-[#F2E8C6] shadow-md' : 'bg-white/60 text-stone-600 hover:bg-white border border-stone-200 shadow-sm'}`}
+                                className={`w-full flex items-center gap-3 p-3 rounded-sm font-bold transition-all text-sm ${tab === item.id ? 'bg-stone-800 text-[#F2E8C6] shadow-md translate-x-1' : 'bg-white/60 text-stone-600 hover:bg-white border border-stone-200 shadow-sm'}`}
                             >
-                                <item.icon className="w-5 h-5" />
+                                <item.icon className={`w-5 h-5 ${tab === item.id ? 'text-[#D9A94E]' : 'text-stone-400'}`} />
                                 {item.label}
                             </button>
                         ))}
@@ -143,24 +218,39 @@
 
                     <section className="flex-1 glass-panel border border-[#D4C3A3] shadow-inner overflow-hidden flex flex-col p-4 md:p-6 rounded-sm relative">
                         {tab === 'quest' && <QuestView gameState={gameState} onDispatch={(q) => { setDispatchTarget({quest: q}); setDispatchCandidates([]); }} />}
-                        {tab === 'roster' && <RosterView gameState={gameState} onSelectAdv={setSelectedAdv} onSearchAdv={() => {}} />}
+                        {tab === 'roster' && <RosterView gameState={gameState} onSelectAdv={setSelectedAdv} onSearchAdv={handleSearchAdv} />}
                         {tab === 'dungeon' && (
-                            <div className="space-y-4 overflow-y-auto">
+                            <div className="space-y-4 overflow-y-auto animate-in fade-in slide-in-from-right-4 duration-500">
                                 <p className="text-sm font-bold text-stone-600 mb-3">発見された迷宮</p>
-                                {gameState.discoveredDungeons.map(d => (
-                                    <div key={d.id} className="bg-white border-2 border-[#D4C3A3] p-4 rounded-sm shadow-sm">
-                                        <div className="flex justify-between items-center mb-2">
-                                            <h3 className="font-bold text-stone-800">{d.name}</h3>
-                                            <span className="text-xs font-bold text-stone-500">攻略度 {d.progress}%</span>
+                                {gameState.discoveredDungeons.length > 0 ? gameState.discoveredDungeons.map(d => (
+                                    <div key={d.id} className="bg-white border-2 border-[#D4C3A3] p-5 rounded-sm shadow-sm hover:border-indigo-400 transition-colors group">
+                                        <div className="flex justify-between items-center mb-3">
+                                            <h3 className="font-bold text-stone-800 text-lg flex items-center gap-2">
+                                                <MapIcon className="w-5 h-5 text-stone-400 group-hover:text-indigo-500" /> {d.name}
+                                            </h3>
+                                            <span className={`text-xs font-bold px-2 py-1 rounded-full ${d.progress >= 100 ? 'bg-rose-100 text-rose-700' : 'bg-indigo-50 text-indigo-700'}`}>
+                                                {d.progress >= 100 ? '攻略済み' : `攻略度 ${d.progress}%`}
+                                            </span>
                                         </div>
-                                        <div className="w-full bg-stone-100 h-2 rounded-full overflow-hidden border border-stone-200">
-                                            <div className="bg-indigo-500 h-full transition-all duration-1000" style={{width: `${d.progress}%`}}></div>
+                                        <div className="w-full bg-stone-100 h-2.5 rounded-full overflow-hidden border border-stone-200 shadow-inner">
+                                            <div className={`h-full transition-all duration-1000 ${d.progress >= 100 ? 'bg-rose-500' : 'bg-indigo-500'}`} style={{width: `${d.progress}%`}}></div>
                                         </div>
-                                        <p className="text-xs text-stone-500 mt-2">{d.desc}</p>
+                                        <p className="text-xs text-stone-500 mt-3 leading-relaxed">{d.desc}</p>
+                                        <div className="mt-4 flex justify-between items-center text-[10px] font-bold text-stone-400 uppercase tracking-widest">
+                                            <span>推奨戦力: {d.powerReq}</span>
+                                            <span>初回報酬: {d.reward.toLocaleString()} G</span>
+                                        </div>
                                     </div>
-                                ))}
+                                )) : (
+                                    <div className="text-center p-10 text-stone-400 font-medium border-2 border-dashed border-[#D4C3A3] rounded-sm bg-white/50">
+                                        現在、発見されている迷宮はありません。
+                                    </div>
+                                )}
                             </div>
                         )}
+                        {tab === 'facility' && <FacilityView gameState={gameState} onInvest={handleInvestFacility} />}
+                        {tab === 'shop' && <ShopView gameState={gameState} onInvest={handleInvestShop} />}
+                        {tab === 'policy' && <PolicyView gameState={gameState} onUpdateAlignment={handleUpdateAlignment} />}
                     </section>
                 </main>
 
@@ -173,6 +263,11 @@
                     onToggleCandidate={(id) => setDispatchCandidates(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])}
                     onConfirm={handleDispatchConfirm}
                     onCancel={() => setDispatchTarget(null)}
+                />
+                <AdventurerModal 
+                    adventurer={selectedAdv} 
+                    onClose={() => setSelectedAdv(null)} 
+                    onFire={handleFireAdventurer} 
                 />
             </div>
         );

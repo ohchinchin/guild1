@@ -87,5 +87,10 @@ window.G1.Constants = {
         { id: 'art5', name: '竜騎士の槍', powerBonus: 400, desc: '天を貫く一撃を放つと言われる名槍。' },
         { id: 'art6', name: '冥王の指輪', powerBonus: 500, desc: '莫大な力と引き換えに魂を削る禁断の指輪。' }
     ],
+    BOSS_DATA: {
+        39: { id: 'boss_1', name: '目覚めし岩竜', power: 2500, reward: 15000, desc: '近隣の山脈で冬眠していた岩竜が目覚め、街へ向かってきている！' },
+        79: { id: 'boss_2', name: '深淵の魔将', power: 6000, reward: 40000, desc: '次元の裂け目から、いにしえの魔将が軍勢を引き連れて侵攻してきた！' },
+        115: { id: 'boss_3', name: '終焉を呼ぶ巨神', power: 15000, reward: 100000, desc: '世界を滅ぼすと言われる伝説の巨神が顕現した。世界の危機だ！' }
+    },
     SAVE_KEY: 'guildMasterSaveData_final_v3'
 };
