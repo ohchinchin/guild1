@@ -302,15 +302,24 @@
         };
 
         const handleDispatchConfirm = () => {
-            const next = { ...gameState };
-            const newDispatch = { quest: dispatchTarget.quest, partyIds: [...dispatchCandidates] };
-            next.dispatches.push(newDispatch);
-            next.adventurers.forEach(a => { if (dispatchCandidates.includes(a.id)) a.status = 'dispatched'; });
-            next.budget -= (dispatchTarget.quest.deposit || 0);
-            next.history.push({ turn: next.turn, type: 'info', text: `任務「${dispatchTarget.quest.name}」へ部隊を派遣。` });
-            if (dispatchTarget.isSpecial) next.specialRequest = null;
-            else next.availableQuests = next.availableQuests.filter(q => q.id !== dispatchTarget.quest.id);
-            setGameState(next);
+            if (!dispatchTarget) return;
+            setGameState(prev => {
+                const next = JSON.parse(JSON.stringify(prev));
+                const newDispatch = { 
+                    quest: dispatchTarget.quest, 
+                    partyIds: [...dispatchCandidates],
+                    isSpecial: !!dispatchTarget.isSpecial 
+                };
+                next.dispatches.push(newDispatch);
+                next.adventurers.forEach(a => {
+                    if (dispatchCandidates.includes(a.id)) a.status = 'dispatched';
+                });
+                next.budget -= (dispatchTarget.quest.deposit || 0);
+                next.history.push({ turn: next.turn, type: 'info', text: `任務「${dispatchTarget.quest.name}」へ部隊を派遣しました。` });
+                if (dispatchTarget.isSpecial) next.specialRequest = null;
+                else next.availableQuests = next.availableQuests.filter(q => q.id !== dispatchTarget.quest.id);
+                return next;
+            });
             setDispatchTarget(null);
             setDispatchCandidates([]);
         };
@@ -319,10 +328,12 @@
             const currentLevel = gameState.facilities[facId] || 1;
             const cost = 1000 + (currentLevel * 500);
             if (gameState.budget >= cost) {
-                const next = { ...gameState };
-                next.budget -= cost;
-                next.facilities[facId] = currentLevel + 1;
-                setGameState(next);
+                setGameState(prev => {
+                    const next = JSON.parse(JSON.stringify(prev));
+                    next.budget -= cost;
+                    next.facilities[facId] = currentLevel + 1;
+                    return next;
+                });
                 setActionModal({ type: 'invest_facility', phase: 'result', message: '施設の拡張が完了しました！' });
                 setTimeout(() => setActionModal(null), 2000);
             }
@@ -332,10 +343,12 @@
             const currentLevel = gameState.shops[shopId] || 1;
             const cost = 1000 + (currentLevel * 1000);
             if (gameState.budget >= cost) {
-                const next = { ...gameState };
-                next.budget -= cost;
-                next.shops[shopId] = currentLevel + 1;
-                setGameState(next);
+                setGameState(prev => {
+                    const next = JSON.parse(JSON.stringify(prev));
+                    next.budget -= cost;
+                    next.shops[shopId] = currentLevel + 1;
+                    return next;
+                });
                 setActionModal({ type: 'invest_shop', phase: 'result', message: '提携店舗への投資が完了しました！' });
                 setTimeout(() => setActionModal(null), 2000);
             }
@@ -345,10 +358,12 @@
             const currentLevel = gameState.masterSkills[skillId] || 0;
             const cost = 2000 * (currentLevel + 1);
             if (gameState.budget >= cost) {
-                const next = { ...gameState };
-                next.budget -= cost;
-                next.masterSkills[skillId] = currentLevel + 1;
-                setGameState(next);
+                setGameState(prev => {
+                    const next = JSON.parse(JSON.stringify(prev));
+                    next.budget -= cost;
+                    next.masterSkills[skillId] = currentLevel + 1;
+                    return next;
+                });
                 setActionModal({ type: 'skill_upgrade', phase: 'result', message: 'スキルの修得が完了しました！' });
                 setTimeout(() => setActionModal(null), 2000);
             }
@@ -362,14 +377,17 @@
             }
             setActionModal({ type: 'recruit_search', phase: 'searching', message: '優秀な人材を捜索中...' });
             setTimeout(() => {
-                const next = { ...gameState };
-                next.budget -= cost;
-                const newAdv = Utils.generateAdventurer(next.fame, next.notoriety, next.adventurers.map(a => a.name));
-                next.adventurers.push(newAdv);
-                setGameState(next);
-                setActionModal({ type: 'recruit_found', phase: 'result', foundRank: newAdv.rank, message: `${newAdv.name} が加入しました！` });
-                setTimeout(() => setActionModal(null), 3000);
-            }, 1500);
+                setGameState(prev => {
+                    const next = JSON.parse(JSON.stringify(prev));
+                    next.budget -= cost;
+                    const newAdv = Utils.generateAdventurer(next.fame, next.notoriety, next.adventurers.map(a => a.name));
+                    next.adventurers.push(newAdv);
+                    return next;
+                });
+                setActionModal({ type: 'recruit_found', phase: 'result', foundRank: 'C', // fallback
+                    message: `新たな冒険者が加入しました！` });
+                setTimeout(() => setActionModal(null), 2000);
+            }, 1000);
         };
 
         const handleFireAdventurer = (advId) => {

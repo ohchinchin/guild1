@@ -1,11 +1,11 @@
 window.G1 = window.G1 || {};
 window.G1.components = window.G1.components || {};
 
-const { Swords, UserPlus, Info, Zap } = window.LucideReact;
+const { Swords, UserPlus, Info, Zap, Activity } = window.LucideReact;
 
 window.G1.components.QuestView = ({ gameState, onDispatch }) => {
     return (
-        <div key="quests" className="flex flex-col h-full animate-in fade-in slide-in-from-right-4 duration-500">
+        <div key="quests" className="flex flex-col h-full animate-in fade-in slide-in-from-right-4 duration-500 overflow-hidden">
             <div className="flex justify-between items-center mb-3 shrink-0">
                 <p className="text-sm font-bold text-stone-600">ギルド掲示板（受注可能な依頼）</p>
                 <button
@@ -17,6 +17,21 @@ window.G1.components.QuestView = ({ gameState, onDispatch }) => {
             </div>
             
             <div className="flex-1 overflow-y-auto space-y-4 pb-4 pr-1">
+                {/* Active Dispatches Summary */}
+                {gameState.dispatches && gameState.dispatches.length > 0 && (
+                    <div className="bg-indigo-900 border-2 border-indigo-700 p-4 rounded-sm shadow-md mb-6">
+                        <h4 className="text-xs font-black text-indigo-300 uppercase tracking-widest mb-3 flex items-center gap-2">
+                            <Activity className="w-4 h-4" /> 現在進行中の任務 ({gameState.dispatches.length})
+                        </h4>
+                        <div className="flex flex-wrap gap-2">
+                            {gameState.dispatches.map((d, i) => (
+                                <div key={i} className="bg-indigo-950/50 border border-indigo-600 px-3 py-1.5 rounded-sm text-[10px] text-indigo-100 font-bold">
+                                    {d.quest.name} <span className="text-indigo-400 ml-1">({d.partyIds.length}名)</span>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
                 {gameState.availableQuests.map(quest => (
                     <div key={quest.id} className="bg-white border-2 border-[#D4C3A3] rounded-sm p-5 shadow-sm hover:shadow-md transition-all relative overflow-hidden group">
                         <div className="absolute top-0 right-0 p-1 bg-[#E8E0D5] border-l border-b border-[#D4C3A3] text-[10px] font-bold text-stone-600">

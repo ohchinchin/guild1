@@ -3,7 +3,7 @@ window.G1.components = window.G1.components || {};
 
 const { 
     Target, MessageSquare, AlertTriangle, ScrollText, 
-    Coins, HeartHandshake, Swords, ChevronRight, Search, EyeOff, Star
+    Coins, HeartHandshake, Swords, ChevronRight, Search, EyeOff, Star, Activity
 } = window.LucideReact;
 
 window.G1.components.HomeView = ({ gameState, onOpenSpecial, onDeclineSpecial, onHireReceptionist, onSelectAdv }) => {
@@ -28,10 +28,10 @@ window.G1.components.HomeView = ({ gameState, onOpenSpecial, onDeclineSpecial, o
     const forecast = getForecast();
 
     return (
-        <div key="home" className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">
+        <div key="home" className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500 overflow-y-auto pr-1">
             {/* Special Request */}
             {gameState.specialRequest && (
-                <div className="bg-indigo-900 border-2 border-indigo-500 p-5 rounded-sm shadow-xl text-indigo-50 relative overflow-hidden">
+                <div className="bg-indigo-900 border-2 border-indigo-500 p-5 rounded-sm shadow-xl text-indigo-50 relative overflow-hidden shrink-0">
                     <div className="absolute top-0 right-0 opacity-10 pointer-events-none transform translate-x-1/4 -translate-y-1/4">
                         <Target className="w-48 h-48 text-indigo-400" />
                     </div>
@@ -48,6 +48,31 @@ window.G1.components.HomeView = ({ gameState, onOpenSpecial, onDeclineSpecial, o
                             <button onClick={onOpenSpecial} className="bg-rose-600 hover:bg-rose-500 text-white px-6 py-2.5 rounded-sm font-black shadow-lg transition-all active:scale-95">派遣部隊を編成する</button>
                             <button onClick={onDeclineSpecial} className="bg-indigo-800 hover:bg-indigo-700 text-indigo-200 px-6 py-2.5 rounded-sm font-bold transition-all active:scale-95">辞退する</button>
                         </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Active Dispatches (NEW) */}
+            {gameState.dispatches && gameState.dispatches.length > 0 && (
+                <div className="bg-white border-2 border-indigo-200 p-5 rounded-sm shadow-sm shrink-0">
+                    <h3 className="text-lg font-black text-indigo-800 mb-4 flex items-center gap-3 border-b border-indigo-50 pb-2">
+                        <Activity className="w-5 h-5 text-indigo-500" /> 現在遂行中の任務 ({gameState.dispatches.length})
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        {gameState.dispatches.map((d, idx) => (
+                            <div key={idx} className="flex justify-between items-center p-3 bg-indigo-50/30 border border-indigo-100 rounded-sm hover:bg-indigo-50 transition-colors">
+                                <div>
+                                    <div className="font-bold text-indigo-900 text-sm">{d.quest.name}</div>
+                                    <div className="text-[10px] text-indigo-400 font-bold flex gap-2">
+                                        <span>派遣人数: {d.partyIds.length}名</span>
+                                        {d.isSpecial && <span className="text-rose-500">★ 特殊</span>}
+                                    </div>
+                                </div>
+                                <div className="text-right">
+                                    <span className="text-[10px] font-black text-indigo-600 animate-pulse bg-indigo-100 px-2 py-0.5 rounded-full">任務遂行中</span>
+                                </div>
+                            </div>
+                        ))}
                     </div>
                 </div>
             )}

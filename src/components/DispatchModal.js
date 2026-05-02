@@ -1,7 +1,7 @@
 window.G1 = window.G1 || {};
 window.G1.components = window.G1.components || {};
 
-const { Swords, Info, AlertTriangle, UserPlus, X, CheckCircle2 } = window.LucideReact;
+const { Swords, Info, AlertTriangle, UserPlus, X, CheckCircle2, Shuffle, Target } = window.LucideReact;
 
 window.G1.components.DispatchModal = ({ dispatchTarget, gameState, dispatchCandidates, onToggleCandidate, onConfirm, onCancel }) => {
     if (!dispatchTarget) return null;
