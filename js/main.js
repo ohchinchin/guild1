@@ -13,13 +13,6 @@
     const Constants = window.G1.Constants;
     const Utils = window.G1.Utils;
     const Engine = window.G1.Engine;
-    const { 
-        ActionModal, QuarterResultModal, QuestView, RosterView, DispatchModal,
-        FacilityView, ShopView, PolicyView, AdventurerModal, HomeView,
-        IntrigueView, MasterSkillView, AchievementView, LogView, BossView,
-        EndingView, HowToPlayModal
-    } = window.G1.components;
-
     const App = () => {
         const [view, setView] = useState('title');
         const [tab, setTab] = useState('home');
@@ -30,6 +23,14 @@
         const [dispatchCandidates, setDispatchCandidates] = useState([]);
         const [selectedAdv, setSelectedAdv] = useState(null);
         const [showHowToPlay, setShowHowToPlay] = useState(false);
+
+        // Get components from window object safely
+        const { 
+            ActionModal, QuarterResultModal, QuestView, RosterView, DispatchModal,
+            FacilityView, ShopView, PolicyView, AdventurerModal, HomeView,
+            IntrigueView, MasterSkillView, AchievementView, LogView, BossView,
+            EndingView, HowToPlayModal
+        } = window.G1.components;
 
         const startGame = () => {
             const initialState = {
@@ -89,6 +90,7 @@
         };
 
         const nextTurn = () => {
+            if (!gameState) return;
             const nextState = Engine.processTurn(gameState);
             setGameState(nextState);
             setQuarterResult(nextState.quarterResult);
