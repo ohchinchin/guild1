@@ -13,7 +13,7 @@
         const [selectedAdv, setSelectedAdv] = useState(null);
         const [showHowToPlay, setShowHowToPlay] = useState(false);
 
-        // --- Robust Component Loading Check ---
+        // --- Component Registry Sync Check ---
         useEffect(() => {
             const required = [
                 'ActionModal', 'QuarterResultModal', 'QuestView', 'RosterView', 'DispatchModal',
@@ -23,13 +23,18 @@
             ];
             const check = () => {
                 const loaded = window.G1 && window.G1.components;
-                if (loaded && required.every(k => !!window.G1.components[k])) {
-                    setIsReady(true); return true;
+                if (!loaded) return false;
+                const missing = required.filter(k => !window.G1.components[k]);
+                if (missing.length === 0) {
+                    setIsReady(true);
+                    console.log("Guild Master System: [OK] All components registered.");
+                    return true;
                 }
+                console.log("Guild Master System: [WAIT] Missing components:", missing.join(', '));
                 return false;
             };
             if (!check()) {
-                const itv = setInterval(() => { if (check()) clearInterval(itv); }, 100);
+                const itv = setInterval(() => { if (check()) clearInterval(itv); }, 200);
                 return () => clearInterval(itv);
             }
         }, []);
@@ -37,11 +42,27 @@
         // --- Auto-Save ---
         useEffect(() => {
             if (gameState && view !== 'title') {
-                localStorage.setItem(window.G1.Constants.SAVE_KEY, JSON.stringify({ ...gameState, view, tab }));
+                try {
+                    localStorage.setItem(window.G1.Constants.SAVE_KEY, JSON.stringify({ ...gameState, view, tab }));
+                } catch(e) { console.error("Save failed", e); }
             }
         }, [gameState, view, tab]);
 
-        if (!isReady) return <div className="min-h-screen bg-stone-900 flex items-center justify-center text-amber-500 font-bold animate-pulse">LOADING GUILD DATA...</div>;
+        if (!isReady) {
+            return (
+                <div className="min-h-screen bg-stone-950 flex flex-col items-center justify-center">
+                    <div className="text-amber-500 font-black text-2xl animate-pulse italic">INITIALIZING GUILD ENGINE...</div>
+                </div>
+            );
+        }
+
+        // Safe Icon Helper
+        const L = window.LucideReact;
+        const SafeIcon = (name) => {
+            if (!L) return () => <div className="w-4 h-4 bg-stone-500" />;
+            const Icon = L[name] || L[name.replace('2', '')] || L.Activity || L.HelpCircle;
+            return Icon;
+        };
 
         const { 
             ActionModal, QuarterResultModal, QuestView, RosterView, DispatchModal,
@@ -50,16 +71,13 @@
             EndingView, HowToPlayModal
         } = window.G1.components;
 
-        const L = window.LucideReact;
-        const SafeIcon = (name) => L[name] || L[name.replace('2', '')] || L.Activity;
-
         const Constants = window.G1.Constants;
         const Utils = window.G1.Utils;
         const Engine = window.G1.Engine;
 
-        // --- Handlers with Deep Clone ---
+        // --- Game Logic Handlers ---
         const startGame = () => {
-            console.log("startGame called");
+            console.log("Executing startGame...");
             try {
                 const initialState = {
                     turn: 1, budget: 5000, fame: 10, notoriety: 0, townFavor: 10,
@@ -70,86 +88,73 @@
                     adventurers: [], receptionist: Utils.generateReceptionist(10, 0, []),
                     discoveredDungeons: [], dispatches: [], availableQuests: [], rivals: [],
                     history: [{ turn: 0, type: 'info', text: 'ギルドを開設しました。' }],
-                    achievements: [], artifacts: [], currentRumor: '「まずは冒険者を雇おうぜ。」', currentEvent: null, activeBoss: null, specialRequest: null, ending: null
+                    achievements: [], artifacts: [], currentRumor: '「まずは冒険者を雇おうぜ。」',
+                    currentEvent: null, activeBoss: null, specialRequest: null, ending: null
                 };
+                
                 const rivalStyles = ['military', 'commerce', 'safety'];
                 for (let i = 0; i < 3; i++) {
                     const adj = Constants.RIVAL_ADJS[Math.floor(Math.random() * Constants.RIVAL_ADJS.length)];
                     const noun = Constants.RIVAL_NOUNS[Math.floor(Math.random() * Constants.RIVAL_NOUNS.length)];
                     initialState.rivals.push({ id: `rival_${i}`, name: `${adj}${noun}`, style: rivalStyles[i], power: 300 + (i * 200), relation: 50 });
                 }
-                for (let i = 0; i < 2; i++) initialState.discoveredDungeons.push({ ...Constants.DUNGEON_POOL[i], progress: 0, rivals: [] });
+                for (let i = 0; i < 2; i++) {
+                    const d = Constants.DUNGEON_POOL[i];
+                    if (d) initialState.discoveredDungeons.push({ ...d, progress: 0, rivals: [] });
+                }
                 for (let i = 0; i < 4; i++) initialState.adventurers.push(Utils.generateAdventurer(10, 0, initialState.adventurers.map(a => a.name)));
                 for (let i = 0; i < 5; i++) initialState.availableQuests.push(Utils.generateQuest(1, 10, 0, 10));
                 
                 setGameState(initialState);
                 setView('game');
                 setTab('home');
-            } catch (e) {
-                console.error("Critical error in startGame:", e);
+                console.log("Game started successfully.");
+            } catch (err) {
+                console.error("CRITICAL ERROR in startGame:", err);
             }
         };
 
         const loadGame = () => {
-            const saved = localStorage.getItem(Constants.SAVE_KEY);
-            if (saved) {
-                try {
+            try {
+                const saved = localStorage.getItem(Constants.SAVE_KEY);
+                if (saved) {
                     const parsed = JSON.parse(saved);
                     setGameState(parsed);
                     setView(parsed.view || 'game');
                     setTab(parsed.tab || 'home');
-                } catch(e) { console.error("Load failed"); }
-            }
+                    console.log("Save data loaded.");
+                }
+            } catch (err) { console.error("Load failed", err); }
         };
 
         const nextTurn = () => {
             if (!gameState) return;
-            setGameState(prev => {
-                const nextState = Engine.processTurn(prev);
-                setQuarterResult(nextState.quarterResult);
-                if (nextState.activeBoss) setTab('boss');
-                return nextState;
-            });
+            try {
+                setGameState(prev => {
+                    const nextState = Engine.processTurn(prev);
+                    setQuarterResult(nextState.quarterResult);
+                    if (nextState.activeBoss) setTab('boss');
+                    return nextState;
+                });
+            } catch (err) { console.error("Turn process failed", err); }
         };
 
         const handleDispatchConfirm = () => {
             if (!dispatchTarget) return;
             setGameState(prev => {
-                const next = JSON.parse(JSON.stringify(prev));
-                const newDispatch = { quest: dispatchTarget.quest, partyIds: [...dispatchCandidates], isSpecial: !!dispatchTarget.isSpecial };
-                next.dispatches.push(newDispatch);
-                next.adventurers.forEach(a => { if (dispatchCandidates.includes(a.id)) a.status = 'dispatched'; });
-                next.budget -= (dispatchTarget.quest.deposit || 0);
-                next.history.push({ turn: next.turn, type: 'info', text: `任務「${dispatchTarget.quest.name}」へ部隊を派遣。` });
-                if (dispatchTarget.isSpecial) next.specialRequest = null;
-                else next.availableQuests = next.availableQuests.filter(q => q.id !== dispatchTarget.quest.id);
-                return next;
-            });
-            setDispatchTarget(null);
-            setDispatchCandidates([]);
-        };
-
-        const handleSabotage = (rivalId) => {
-            const cost = 500; if (gameState.budget < cost) return;
-            setActionModal({ type: 'action_sabotage', phase: 'searching', message: '工作員を派遣中...' });
-            setTimeout(() => {
-                setGameState(prev => {
+                try {
                     const next = JSON.parse(JSON.stringify(prev));
-                    next.budget -= cost;
-                    const rival = next.rivals.find(r => r.id === rivalId);
-                    if (Math.random() < 0.7) {
-                        rival.power = Math.max(0, rival.power - 100); rival.relation = Math.max(0, rival.relation - 20);
-                        next.history.push({ turn: next.turn, type: 'warning', text: `${rival.name}への工作に成功。` });
-                        setActionModal({ type: 'action_quest', phase: 'result', message: '工作成功！敵の戦力を削ぎ落としました。' });
-                    } else {
-                        rival.relation = Math.max(0, rival.relation - 30); next.notoriety += 10;
-                        next.history.push({ turn: next.turn, type: 'danger', text: `${rival.name}への工作が露見。` });
-                        setActionModal({ type: 'recruit_failed', phase: 'result', message: '工作失敗…悪名が高まりました。' });
-                    }
+                    const newDispatch = { quest: dispatchTarget.quest, partyIds: [...dispatchCandidates], isSpecial: !!dispatchTarget.isSpecial };
+                    next.dispatches.push(newDispatch);
+                    next.adventurers.forEach(a => { if (dispatchCandidates.includes(a.id)) a.status = 'dispatched'; });
+                    next.budget -= (dispatchTarget.quest.deposit || 0);
+                    next.history.push({ turn: next.turn, type: 'info', text: `任務「${dispatchTarget.quest.name}」へ部隊を派遣。` });
+                    if (dispatchTarget.isSpecial) next.specialRequest = null;
+                    else next.availableQuests = next.availableQuests.filter(q => q.id !== dispatchTarget.quest.id);
                     return next;
-                });
-                setTimeout(() => setActionModal(null), 2000);
-            }, 1000);
+                } catch(e) { console.error(e); return prev; }
+            });
+            setDispatchTarget(null); setDispatchCandidates([]);
         };
 
         const handleAutoAssign = () => {
@@ -203,8 +208,7 @@
                         next.dispatches.push({ quest: q, partyIds: selected.map(x=>x.id) });
                         selected.forEach(a => a.status = 'dispatched');
                         idleAdvs = idleAdvs.filter(a => !selected.includes(a));
-                        deposit += (q.deposit || 0);
-                        count++;
+                        deposit += (q.deposit || 0); count++;
                         next.availableQuests = next.availableQuests.filter(x => x.id !== q.id);
                     }
                 }
@@ -217,13 +221,41 @@
             });
         };
 
+        const handleSabotage = (rivalId) => {
+            const cost = 500; if (gameState.budget < cost) return;
+            setActionModal({ type: 'action_sabotage', phase: 'searching', message: '工作員を派遣中...' });
+            setTimeout(() => {
+                setGameState(prev => {
+                    const next = JSON.parse(JSON.stringify(prev));
+                    next.budget -= cost;
+                    const rival = next.rivals.find(r => r.id === rivalId);
+                    if (Math.random() < 0.7) {
+                        rival.power = Math.max(0, rival.power - 100); rival.relation = Math.max(0, rival.relation - 20);
+                        next.history.push({ turn: next.turn, type: 'warning', text: `${rival.name}への工作に成功。` });
+                        setActionModal({ type: 'action_quest', phase: 'result', message: '工作成功！敵の戦力を削ぎ落としました。' });
+                    } else {
+                        rival.relation = Math.max(0, rival.relation - 30); next.notoriety += 10;
+                        next.history.push({ turn: next.turn, type: 'danger', text: `${rival.name}への工作が露見。` });
+                        setActionModal({ type: 'recruit_failed', phase: 'result', message: '工作失敗…悪名が高まりました。' });
+                    }
+                    return next;
+                });
+                setTimeout(() => setActionModal(null), 2000);
+            }, 1000);
+        };
+
         window.G1.appHandlers = { onAutoAssign: handleAutoAssign, onMassDispatch: handleMassDispatch };
+
+        // --- Render Helpers ---
+        const HomeIcon = SafeIcon('Home');
+        const ArrowRightIcon = SafeIcon('ArrowRight');
+        const RotateCcwIcon = SafeIcon('RotateCcw');
+        const ChevronRightIcon = SafeIcon('ChevronRight');
 
         if (view === 'title') {
             const hasSave = !!localStorage.getItem(Constants.SAVE_KEY);
-            const HomeIcon = SafeIcon('Home'); const ArrowRightIcon = SafeIcon('ArrowRight'); const RotateCcwIcon = SafeIcon('RotateCcw');
             return (
-                <div className="min-h-screen bg-stone-900 flex items-center justify-center p-4 relative overflow-hidden">
+                <div className="min-h-screen bg-stone-900 flex items-center justify-center p-4 relative overflow-hidden text-stone-200">
                     <div className="absolute inset-0 opacity-40"><img src="assets/images/title_bg.png" className="w-full h-full object-cover" /></div>
                     <div className="relative z-10 text-center space-y-8 title-fade-in max-w-2xl">
                         <h1 className="text-6xl md:text-8xl font-black text-[#F2E8C6] tracking-tighter title-text-glow italic uppercase leading-none">GUILD MASTER</h1>
@@ -247,13 +279,13 @@
                     <img src={`assets/images/bg_${tab === 'home' || tab === 'facility' ? 'throne' : tab === 'quest' ? 'market' : tab === 'roster' ? 'barracks' : tab === 'dungeon' ? 'dungeon' : 'shadow'}.png`} className="game-bg-img" style={{opacity: 0.15}} />
                     <div className="game-bg-overlay"></div>
                 </div>
-                <header className="bg-stone-900 text-[#E8E0D5] p-3 shadow-xl relative z-30 border-b border-stone-800">
+                <header className="bg-stone-900 text-[#E8E0D5] p-3 shadow-xl relative z-30 border-b border-stone-800 shrink-0">
                     <div className="max-w-7xl mx-auto flex justify-between items-center">
                         <div className="flex items-center gap-4">
                             <h1 className="text-xl font-black tracking-tighter italic text-[#D9A94E]">GUILD MASTER</h1>
                             <div className="flex flex-col ml-4">
                                 <span className="text-[10px] font-bold text-stone-500 uppercase tracking-widest">現在の季節</span>
-                                <span className="text-sm font-bold tracking-widest">第 {Math.floor((gameState.turn - 1) / 4) + 1} 暦 【{Constants.SEASONS[(gameState.turn - 1) % 4]}】</span>
+                                <span className="text-sm font-bold">第 {Math.floor((gameState.turn - 1) / 4) + 1} 暦 【{Constants.SEASONS[(gameState.turn - 1) % 4]}】</span>
                             </div>
                         </div>
                         <div className="flex items-center gap-6">
@@ -261,7 +293,7 @@
                                 <span className="text-[10px] font-bold text-stone-500 uppercase tracking-widest">金庫預金</span>
                                 <span className={`text-xl font-black tracking-tight ${gameState.budget < 1000 ? 'text-rose-500' : 'text-[#D9A94E]'}`}>{gameState.budget.toLocaleString()} G</span>
                             </div>
-                            <button onClick={nextTurn} className="bg-[#D9A94E] hover:bg-[#F2C94C] text-stone-900 px-6 py-2 rounded-sm font-black shadow-lg active:scale-95 flex items-center gap-2 group">季節を進める <SafeIcon('ChevronRight') className="w-5 h-5 group-hover:translate-x-1" /></button>
+                            <button onClick={nextTurn} className="bg-[#D9A94E] hover:bg-[#F2C94C] text-stone-900 px-6 py-2 rounded-sm font-black shadow-lg active:scale-95 flex items-center gap-2 group">季節を進める <ChevronRightIcon className="w-5 h-5 group-hover:translate-x-1" /></button>
                         </div>
                     </div>
                 </header>
@@ -311,5 +343,6 @@
             </div>
         );
     };
-    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
 })();
