@@ -142,7 +142,7 @@ function App() {
           {/* Under-layer: The Guild Hall revealed when doors open */}
           <div 
             className="absolute inset-0 bg-cover bg-center z-0 opacity-40 scale-100"
-            style={{ backgroundImage: 'url("/images/bg_title.webp")' }}
+            style={{ backgroundImage: `url("${import.meta.env.BASE_URL}images/bg_title.webp")` }}
           />
 
           {/* Left Door Half */}
@@ -152,7 +152,7 @@ function App() {
             exit={{ x: '-100%' }}
             transition={{ duration: 2.2, ease: [0.65, 0, 0.35, 1], delay: 0.1 }}
           >
-            <div className="absolute inset-0 bg-cover bg-center opacity-80" style={{ backgroundImage: 'url("/images/bg_guild_door.webp")', backgroundPosition: 'left center' }} />
+            <div className="absolute inset-0 bg-cover bg-center opacity-80" style={{ backgroundImage: `url("${import.meta.env.BASE_URL}images/bg_guild_door.webp")`, backgroundPosition: 'left center' }} />
             <div className="absolute inset-0 bg-gradient-to-r from-stone-950/40 to-transparent" />
           </motion.div>
 
@@ -163,7 +163,7 @@ function App() {
             exit={{ x: '100%' }}
             transition={{ duration: 2.2, ease: [0.65, 0, 0.35, 1], delay: 0.1 }}
           >
-            <div className="absolute inset-0 bg-cover bg-center opacity-80" style={{ backgroundImage: 'url("/images/bg_guild_door.webp")', backgroundPosition: 'right center' }} />
+            <div className="absolute inset-0 bg-cover bg-center opacity-80" style={{ backgroundImage: `url("${import.meta.env.BASE_URL}images/bg_guild_door.webp")`, backgroundPosition: 'right center' }} />
             <div className="absolute inset-0 bg-gradient-to-l from-stone-950/40 to-transparent" />
           </motion.div>
 
@@ -263,7 +263,7 @@ function App() {
           {/* Global Background Image */}
           <div 
             className="fixed inset-0 z-0 bg-cover bg-center opacity-30 scale-105 pointer-events-none"
-            style={{ backgroundImage: 'url("/images/bg_main_guild.webp")' }}
+            style={{ backgroundImage: `url("${import.meta.env.BASE_URL}images/bg_main_guild.webp")` }}
           />
           <div className="fixed inset-0 z-0 bg-gradient-to-b from-stone-950 via-transparent to-stone-950 pointer-events-none" />
 

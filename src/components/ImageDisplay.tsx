@@ -38,7 +38,7 @@ export const ImageDisplay = ({ activeTab, subId }: ImageDisplayProps) => {
       ? subMap[subId] 
       : (map[activeTab] || 'bg_dashboard');
 
-    return `/images/${imgName}.webp`;
+    return `${import.meta.env.BASE_URL}images/${imgName}.webp`;
   }, [activeTab, subId]);
 
   return (

@@ -26,7 +26,7 @@ export const generateAdventurer = (forcedRank?: Rank): Adventurer => {
   const variant = Math.floor(Math.random() * 3) + 1; // 1, 2, or 3
 
 
-  const imageUrl = `/images/adv_${classKey}_${genderKey}_${variant}.webp`;
+  const imageUrl = `${import.meta.env.BASE_URL}images/adv_${classKey}_${genderKey}_${variant}.webp`;
 
   return {
     id: generateId(),
