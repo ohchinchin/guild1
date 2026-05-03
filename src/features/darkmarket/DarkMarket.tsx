@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion'
-import { Ghost, Lock, ShoppingCart, Info, TrendingUp, AlertTriangle } from 'lucide-react'
+import { Ghost, Lock, ShoppingCart, AlertTriangle } from 'lucide-react'
 import { useGame } from '../../context/GameContext'
 
 export const DarkMarket = () => {

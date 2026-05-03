@@ -1,6 +1,6 @@
 import { useGame } from '../../context/GameContext'
 import { motion } from 'framer-motion'
-import { ScrollText, Trophy, History, Star, User } from 'lucide-react'
+import { ScrollText, Trophy, History, User } from 'lucide-react'
 
 export const Records = () => {
   const { state } = useGame()

@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion'
 import { useGame } from '../context/GameContext'
-import { Coins, Trophy, Ghost, CheckCircle2, XCircle, Users, Map, ArrowRight } from 'lucide-react'
+import { Coins, Trophy, Ghost, CheckCircle2, Users, Map, ArrowRight } from 'lucide-react'
 
 export const TurnSummary = () => {
   const { state, closeSummary } = useGame()

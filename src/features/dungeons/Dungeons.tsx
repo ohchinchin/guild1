@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useGame } from '../../context/GameContext';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { Map, Users, Shield, ArrowRight, XCircle, PlusCircle, RefreshCcw } from 'lucide-react';
 
 export const Dungeons = () => {
