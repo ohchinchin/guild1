@@ -8,6 +8,55 @@ const RANKS: Rank[] = ['E', 'D', 'C', 'B', 'A', 'S'];
 
 const generateId = () => Math.random().toString(36).substring(2, 9);
 
+const BACKGROUNDS = [
+  '没落した貴族の末裔。家名の再興を誓い、剣を取った。',
+  '辺境の村の出身。飢饉で村を失い、生き残るために冒険者になった。',
+  '元は王宮の衛兵。ある事件の責任を問われ、野に下った。',
+  '物心ついた時から裏路地で育った孤児。生き抜く知恵だけが武器。',
+  '由緒正しい修道院の出身。神の啓示を受け、人助けの旅に出た。',
+  '魔法塔の落ちこぼれ。独自の理論を証明するため、実戦経験を積んでいる。',
+  '異国の地から流れ着いた異邦人。故郷に帰るための路銀を稼いでいる。',
+  '森に住む狩人の家系。外界の広さを知るために森を出た。'
+];
+
+const PERSONALITIES = [
+  '冷静沈着で、常に最善の選択を模索する。',
+  '豪放磊落。細かいことは気にせず、力押しで解決するのを好む。',
+  '慎重派。石橋を叩いて渡る性格で、生存率を最優先する。',
+  '情熱的。困っている人を見捨てられない正義感の持ち主。',
+  '打算的。報酬に見合わない仕事は受けたがらない。',
+  '皮肉屋だが、根は仲間思い。',
+  '寡黙で、必要なこと以外は口にしない。',
+  '自信家。自らの力を誇示することに喜びを感じる。'
+];
+
+const CLASS_SKILLS: Record<ClassName, { name: string, desc: string }[]> = {
+  '戦士': [
+    { name: '剛腕', desc: '圧倒的な筋力で敵の装甲を粉砕する。' },
+    { name: '不屈の闘志', desc: '深手を負っても戦い続ける精神力。' },
+    { name: '盾の壁', desc: '仲間を守るために身を挺して盾となる。' },
+    { name: '重戦車', desc: '突進によって敵の陣形を崩す。' }
+  ],
+  '魔術師': [
+    { name: '魔力増幅', desc: '一時的に魔力を高め、魔法の威力を倍増させる。' },
+    { name: '賢者の知恵', desc: '敵の弱点を瞬時に見抜き、適切な魔法を選択する。' },
+    { name: '障壁展開', desc: '魔法の障壁を作り、物理攻撃を防ぐ。' },
+    { name: '魔力循環', desc: '周囲の魔素を吸収し、自身の魔力を回復させる。' }
+  ],
+  '盗賊': [
+    { name: '疾風怒濤', desc: '目にも止まらぬ速さで急所を突く。' },
+    { name: '隠密行動', desc: '音もなく敵の背後に忍び寄る。' },
+    { name: '罠解除', desc: '複雑な仕掛けの罠を安全に無効化する。' },
+    { name: '鋭い嗅覚', desc: '隠された宝物や危険を察知する。' }
+  ],
+  '僧侶': [
+    { name: '聖なる癒やし', desc: '神の慈愛によって深い傷を癒やす。' },
+    { name: '浄化の光', desc: '邪悪な呪いや毒を清める。' },
+    { name: '守護の祈り', desc: '祈りによって仲間の防御力を高める。' },
+    { name: '奇跡の盾', desc: '致命的な一撃を無効化する神の加護。' }
+  ]
+};
+
 export const generateAdventurer = (forcedRank?: Rank): Adventurer => {
   const isMale = Math.random() > 0.5;
   const firstNames = isMale ? MALE_FIRST_NAMES : FEMALE_FIRST_NAMES;
@@ -28,6 +77,19 @@ export const generateAdventurer = (forcedRank?: Rank): Adventurer => {
 
   const imageUrl = `${import.meta.env.BASE_URL}images/adv_${classKey}_${genderKey}_${variant}.webp`;
 
+  // Generate flavor text and skills
+  const background = BACKGROUNDS[Math.floor(Math.random() * BACKGROUNDS.length)];
+  const personality = PERSONALITIES[Math.floor(Math.random() * PERSONALITIES.length)];
+  
+  // Select 1-3 random skills from the class pool
+  const classPool = CLASS_SKILLS[cls];
+  const skillCount = Math.floor(Math.random() * 2) + 1; // 1 or 2 skills for most
+  const shuffledSkills = [...classPool].sort(() => 0.5 - Math.random());
+  const selectedSkills = shuffledSkills.slice(0, skillCount).map(s => ({
+    ...s,
+    revealed: false // Initially hidden, to be revealed by master skills or experience
+  }));
+
   return {
     id: generateId(),
     name,
@@ -35,7 +97,10 @@ export const generateAdventurer = (forcedRank?: Rank): Adventurer => {
     cls,
     power,
     status: '待機中',
-    imageUrl
+    imageUrl,
+    background,
+    personality,
+    skills: selectedSkills
   };
 };
 

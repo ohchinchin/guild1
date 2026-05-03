@@ -62,6 +62,8 @@ const initialSkills: MasterSkill[] = [
   { id: 's2', name: '経済的直感', desc: '依頼の報酬金が10%増加する', cost: 1500, unlocked: false, effect: 'money_up' },
   { id: 's3', name: '安全第一の陣', desc: '探索での負傷率を低減する', cost: 2000, unlocked: false, effect: 'safety_up' },
   { id: 's4', name: '裏社会のコネ', desc: '工作のコストが20%軽減される', cost: 1200, unlocked: false, effect: 'intrigue_down' },
+  { id: 's5', name: '洞察の眼', desc: '冒険者の秘められたスキルを見抜く', cost: 500, unlocked: false, effect: 'reveal_skills' },
+  { id: 's6', name: '情報網の構築', desc: '冒険者の詳細な素性や性格を把握する', cost: 800, unlocked: false, effect: 'reveal_details' },
 ];
 
 const initialDarkMarketItems: DarkMarketItem[] = [

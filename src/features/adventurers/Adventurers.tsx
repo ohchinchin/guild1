@@ -1,12 +1,14 @@
 import { useState } from 'react';
 import { useGame } from '../../context/GameContext';
-import type { Rank } from '../../types';
+import type { Rank, Adventurer } from '../../types';
+import { motion, AnimatePresence } from 'framer-motion';
+import { X, Sword, Shield, Scroll, Brain, History, User } from 'lucide-react';
 
-const AdventurerImage = ({ src, alt }: { src: string, alt: string }) => {
+const AdventurerImage = ({ src, alt, className = "h-40" }: { src: string, alt: string, className?: string }) => {
   const [hasError, setHasError] = useState(false);
 
   return (
-    <div className="h-40 w-full relative bg-stone-950 flex items-center justify-center overflow-hidden border-b border-stone-800">
+    <div className={`${className} w-full relative bg-stone-950 flex items-center justify-center overflow-hidden border-b border-stone-800`}>
       <div className="absolute inset-0 bg-gradient-to-t from-stone-900 to-transparent z-10" />
       <img 
         src={src} 
@@ -27,6 +29,7 @@ const AdventurerImage = ({ src, alt }: { src: string, alt: string }) => {
 
 export const Adventurers = () => {
   const { state, retireAdventurer } = useGame();
+  const [selectedAdv, setSelectedAdv] = useState<Adventurer | null>(null);
 
   const getRankColor = (rank: Rank) => {
     switch(rank) {
@@ -45,6 +48,107 @@ export const Adventurers = () => {
     return <span className="px-2 py-1 text-xs bg-red-900 text-red-300 rounded border border-red-700">負傷</span>;
   };
 
+  const isSkillsRevealed = state.masterSkills.find(s => s.effect === 'reveal_skills')?.unlocked;
+  const isDetailsRevealed = state.masterSkills.find(s => s.effect === 'reveal_details')?.unlocked;
+
+  const AdventurerDetailModal = ({ adv, onClose }: { adv: Adventurer, onClose: () => void }) => (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-stone-950/90 backdrop-blur-md">
+      <motion.div 
+        initial={{ opacity: 0, scale: 0.9, y: 20 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        className="max-w-3xl w-full bg-stone-900 border-2 border-amber-600/30 rounded-3xl shadow-2xl overflow-hidden flex flex-col md:flex-row max-h-[90vh]"
+      >
+        <div className="w-full md:w-1/3 bg-stone-950 flex flex-col border-b md:border-b-0 md:border-r border-stone-800">
+          <AdventurerImage src={adv.imageUrl || ''} alt={adv.name} className="h-64 md:h-full" />
+        </div>
+        
+        <div className="flex-1 p-6 md:p-8 overflow-y-auto space-y-6">
+          <div className="flex justify-between items-start">
+            <div>
+              <div className="flex items-center gap-3 mb-1">
+                <h3 className="text-3xl font-black text-white">{adv.name}</h3>
+                <span className={`px-3 py-1 text-sm font-bold border rounded-full ${getRankColor(adv.rank)}`}>
+                  Rank {adv.rank}
+                </span>
+              </div>
+              <p className="text-amber-500 font-bold tracking-widest uppercase text-sm">{adv.cls}</p>
+            </div>
+            <button onClick={onClose} className="p-2 text-stone-500 hover:text-white transition-colors cursor-pointer bg-stone-800 rounded-full">
+              <X className="w-6 h-6" />
+            </button>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="bg-stone-950 p-4 rounded-2xl border border-stone-800 text-center">
+              <p className="text-[10px] text-stone-500 uppercase tracking-widest mb-1">Total Power</p>
+              <p className="text-3xl font-black text-amber-500">{adv.power}</p>
+            </div>
+            <div className="bg-stone-950 p-4 rounded-2xl border border-stone-800 text-center">
+              <p className="text-[10px] text-stone-500 uppercase tracking-widest mb-1">Status</p>
+              <div className="flex justify-center mt-1">{getStatusBadge(adv.status)}</div>
+            </div>
+          </div>
+
+          <section className="space-y-3">
+            <h4 className="text-stone-300 font-bold flex items-center gap-2 border-b border-stone-800 pb-2">
+              <History className="w-4 h-4 text-amber-500" /> 生い立ち
+            </h4>
+            <p className="text-sm text-stone-400 leading-relaxed italic">
+              {adv.background || '謎に包まれている...'}
+            </p>
+          </section>
+
+          <section className="space-y-3">
+            <h4 className="text-stone-300 font-bold flex items-center gap-2 border-b border-stone-800 pb-2">
+              <Brain className="w-4 h-4 text-amber-500" /> 性格・特徴
+            </h4>
+            <p className="text-sm text-stone-400 leading-relaxed">
+              {isDetailsRevealed ? (adv.personality || '不明') : '「情報網の構築」スキルを習得すると詳細が判明します。'}
+            </p>
+          </section>
+
+          <section className="space-y-3">
+            <h4 className="text-stone-300 font-bold flex items-center gap-2 border-b border-stone-800 pb-2">
+              <Sword className="w-4 h-4 text-amber-500" /> 特殊能力 (Skills)
+            </h4>
+            <div className="space-y-2">
+              {isSkillsRevealed ? (
+                adv.skills && adv.skills.length > 0 ? (
+                  adv.skills.map((s, idx) => (
+                    <div key={idx} className="bg-stone-950/50 p-3 rounded-xl border border-stone-800/50">
+                      <p className="text-amber-400 font-bold text-sm">{s.name}</p>
+                      <p className="text-xs text-stone-500 mt-1">{s.desc}</p>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-xs text-stone-600 italic text-center py-2">特筆すべきスキルなし</p>
+                )
+              ) : (
+                <div className="bg-stone-950/50 p-4 rounded-xl border border-dashed border-stone-800 text-center">
+                  <p className="text-xs text-stone-600">「洞察の眼」スキルを習得するとスキルが判明します。</p>
+                </div>
+              )}
+            </div>
+          </section>
+
+          {['S', 'A', 'B'].includes(adv.rank) && adv.status === '待機中' && (
+            <button
+              onClick={() => {
+                if (confirm(`${adv.name} を名誉引退させますか？この英雄は殿堂入りし、後進に道を譲ります。`)) {
+                  retireAdventurer(adv.id);
+                  onClose();
+                }
+              }}
+              className="w-full py-4 bg-amber-900/20 hover:bg-amber-800 text-amber-500 hover:text-white font-bold rounded-2xl border border-amber-900/50 transition-all active:scale-95 flex items-center justify-center gap-2"
+            >
+              <Scroll className="w-4 h-4" /> 名誉引退させる (Honorary Retirement)
+            </button>
+          )}
+        </div>
+      </motion.div>
+    </div>
+  );
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-end border-b border-stone-700 pb-4">
@@ -54,7 +158,11 @@ export const Adventurers = () => {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
         {state.adventurers.map(adv => (
-          <div key={adv.id} className="bg-stone-900 border-2 border-stone-700 rounded-lg overflow-hidden shadow-xl flex flex-col relative group transition-transform hover:scale-105 hover:border-amber-700 hover:z-10">
+          <div 
+            key={adv.id} 
+            onClick={() => setSelectedAdv(adv)}
+            className="bg-stone-900 border-2 border-stone-700 rounded-lg overflow-hidden shadow-xl flex flex-col relative group transition-transform hover:scale-105 hover:border-amber-700 hover:z-10 cursor-pointer"
+          >
             
             {/* Image Area */}
             <AdventurerImage src={adv.imageUrl || ''} alt={adv.name} />
@@ -74,24 +182,14 @@ export const Adventurers = () => {
               
               <div className="text-sm text-stone-400 mb-4">{adv.cls}</div>
 
-              <div className="bg-stone-950 p-2 rounded border border-stone-800 flex justify-between items-center mb-4">
+              <div className="bg-stone-950 p-2 rounded border border-stone-800 flex justify-between items-center">
                 <span className="text-xs text-stone-500">総合戦力</span>
                 <span className="text-lg font-bold text-amber-500">{adv.power}</span>
               </div>
-
-              {/* Retire Button (Only for high ranks and standby status) */}
-              {['S', 'A', 'B'].includes(adv.rank) && adv.status === '待機中' && (
-                <button
-                  onClick={() => {
-                    if (confirm(`${adv.name} を名誉引退させますか？この英雄は殿堂入りし、後進に道を譲ります。`)) {
-                      retireAdventurer(adv.id);
-                    }
-                  }}
-                  className="mt-auto w-full py-2 bg-stone-800 hover:bg-amber-900/40 text-stone-400 hover:text-amber-500 text-[10px] font-black uppercase tracking-widest rounded border border-stone-700 hover:border-amber-700/50 transition-all cursor-pointer"
-                >
-                  Honorary Retirement
-                </button>
-              )}
+              
+              <div className="mt-3 text-[10px] text-stone-600 text-center uppercase tracking-widest group-hover:text-amber-500/50 transition-colors">
+                Click for details
+              </div>
             </div>
           </div>
         ))}
@@ -102,6 +200,12 @@ export const Adventurers = () => {
           現在、所属している冒険者はいません。
         </div>
       )}
+
+      <AnimatePresence>
+        {selectedAdv && (
+          <AdventurerDetailModal adv={selectedAdv} onClose={() => setSelectedAdv(null)} />
+        )}
+      </AnimatePresence>
     </div>
   );
 };

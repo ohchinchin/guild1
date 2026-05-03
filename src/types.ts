@@ -1,6 +1,12 @@
 export type Rank = 'S' | 'A' | 'B' | 'C' | 'D' | 'E';
 export type ClassName = '戦士' | '魔術師' | '盗賊' | '僧侶';
 
+export interface AdventurerSkill {
+  name: string;
+  desc: string;
+  revealed: boolean;
+}
+
 export interface Adventurer {
   id: string;
   name: string;
@@ -9,6 +15,9 @@ export interface Adventurer {
   power: number;
   status: '待機中' | '任務中' | '負傷';
   imageUrl?: string;
+  background?: string;
+  personality?: string;
+  skills: AdventurerSkill[];
 }
 
 export interface Quest {
