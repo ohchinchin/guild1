@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useGame } from '../../context/GameContext';
 import type { Rank, Adventurer } from '../../types';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Sword, Shield, Scroll, Brain, History, User } from 'lucide-react';
+import { X, Sword, Scroll, Brain, History } from 'lucide-react';
 
 const AdventurerImage = ({ src, alt, className = "h-40" }: { src: string, alt: string, className?: string }) => {
   const [hasError, setHasError] = useState(false);
