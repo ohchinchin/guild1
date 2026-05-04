@@ -25,9 +25,9 @@ export const Dashboard = () => {
   const turnsToBoss = nextBossTurn - state.turn;
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
       {/* Left Column: Guild Status */}
-      <div className="lg:col-span-1 flex flex-col gap-6">
+      <div className="xl:col-span-1 flex flex-col gap-6">
         <div className="bg-stone-900 p-6 rounded-xl border-2 border-stone-700 shadow-2xl">
           <h2 className="text-xl font-bold mb-4 text-amber-500 border-b border-stone-700 pb-2">ギルド概況</h2>
           <ul className="space-y-3 text-stone-300 text-sm">
@@ -71,7 +71,7 @@ export const Dashboard = () => {
       </div>
 
       {/* Right Column: Activity Log */}
-      <div className="lg:col-span-2 bg-stone-900 p-6 rounded-xl border-2 border-stone-700 shadow-2xl flex flex-col h-[600px]">
+      <div className="xl:col-span-2 bg-stone-900 p-6 rounded-xl border-2 border-stone-700 shadow-2xl flex flex-col h-[400px] md:h-[500px] xl:h-[600px]">
         <h2 className="text-xl font-bold mb-4 text-amber-500 border-b border-stone-700 pb-2">活動記録 (News)</h2>
         <div className="flex-1 overflow-y-auto pr-2 space-y-3">
           {state.logs.map((log) => (

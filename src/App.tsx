@@ -288,37 +288,39 @@ function App() {
               </div>
             </div>
 
-            <div className="hidden lg:flex gap-8">
+            <div className="hidden md:flex gap-4 lg:gap-8">
               <div className="flex flex-col items-center group">
                 <span className="text-[10px] text-stone-500 font-sans uppercase">Treasury</span>
-                <span className="text-xl font-black text-yellow-500 flex items-center gap-1">
-                  <Coins className="w-4 h-4" /> {state.budget.toLocaleString()}
+                <span className="text-lg lg:text-xl font-black text-yellow-500 flex items-center gap-1">
+                  <Coins className="w-3 h-3 lg:w-4 lg:h-4" /> {state.budget.toLocaleString()}
                 </span>
               </div>
               <div className="flex flex-col items-center">
                 <span className="text-[10px] text-stone-500 font-sans uppercase">Prestige</span>
-                <span className="text-xl font-black text-blue-400">{state.fame}</span>
+                <span className="text-lg lg:text-xl font-black text-blue-400">{state.fame}</span>
               </div>
               <div className="flex flex-col items-center">
                 <span className="text-[10px] text-stone-500 font-sans uppercase">Town Favor</span>
-                <span className="text-xl font-black text-emerald-400">{state.townFavor}</span>
+                <span className="text-lg lg:text-xl font-black text-emerald-400">{state.townFavor}</span>
               </div>
               <div className="flex flex-col items-center">
                 <span className="text-[10px] text-stone-500 font-sans uppercase">Infamy</span>
-                <span className="text-xl font-black text-red-500">{state.notoriety}</span>
+                <span className="text-lg lg:text-xl font-black text-red-500">{state.notoriety}</span>
               </div>
             </div>
 
             <button 
               onClick={nextTurn}
-              className="px-6 py-2 bg-gradient-to-r from-amber-700 to-amber-900 hover:from-amber-600 hover:to-amber-800 text-white font-black rounded-lg shadow-[0_0_15px_rgba(251,191,36,0.2)] transition-all hover:scale-105 active:scale-95 border border-amber-500/30 cursor-pointer flex items-center gap-2 group"
+              className="px-4 py-2 lg:px-6 lg:py-2 bg-gradient-to-r from-amber-700 to-amber-900 hover:from-amber-600 hover:to-amber-800 text-white font-black rounded-lg shadow-[0_0_15px_rgba(251,191,36,0.2)] transition-all hover:scale-105 active:scale-95 border border-amber-500/30 cursor-pointer flex items-center gap-2 group text-xs lg:text-base"
             >
-              {state.season === 'Summer' ? '冬季' : '夏季'}へ進める <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+              <span className="hidden sm:inline">{state.season === 'Summer' ? '冬季' : '夏季'}へ進める</span>
+              <span className="sm:hidden">{state.season === 'Summer' ? '冬季' : '夏季'}へ</span>
+              <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
             </button>
           </header>
 
           {/* Main Content Area */}
-          <main className="flex-1 max-w-7xl w-full mx-auto p-4 flex flex-col gap-6 relative z-10">
+          <main className="flex-1 max-w-7xl w-full mx-auto p-2 sm:p-4 lg:p-6 flex flex-col gap-6 relative z-10">
             
             {/* Dynamic Image Display Area with Framer Motion */}
             <motion.section 
@@ -330,21 +332,21 @@ function App() {
               <ImageDisplay activeTab={activeTab} subId={subId || undefined} />
             </motion.section>
 
-            <div className="flex flex-col lg:row-span-2 lg:flex-row gap-6">
+            <div className="flex flex-col md:flex-row gap-4 lg:gap-6">
               {/* Sidebar Navigation */}
-              <nav className="w-full lg:w-56 shrink-0 flex lg:flex-col gap-2 overflow-x-auto lg:overflow-visible pb-2 scrollbar-hide">
+              <nav className="w-full md:w-48 lg:w-56 shrink-0 flex md:flex-col gap-2 overflow-x-auto md:overflow-visible pb-2 md:pb-0 scrollbar-hide">
                 {tabs.map(tab => (
                   <button
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id)}
-                    className={`flex items-center gap-3 px-5 py-4 rounded-xl transition-all whitespace-nowrap cursor-pointer relative overflow-hidden group ${
+                    className={`flex items-center gap-2 lg:gap-3 px-3 py-3 lg:px-5 lg:py-4 rounded-xl transition-all whitespace-nowrap shrink-0 cursor-pointer relative overflow-hidden group ${
                       activeTab === tab.id 
                         ? 'bg-amber-600 text-white shadow-xl shadow-amber-900/20' 
                         : 'bg-stone-900/60 backdrop-blur-sm text-stone-500 hover:text-stone-300 hover:bg-stone-800/80'
                     }`}
                   >
-                    {tab.icon}
-                    <span className="font-bold text-sm">{tab.label}</span>
+                    <div className="shrink-0">{tab.icon}</div>
+                    <span className="font-bold text-xs lg:text-sm">{tab.label}</span>
                     {activeTab === tab.id && (
                       <motion.div layoutId="nav-bg" className="absolute inset-0 bg-white/10" />
                     )}
