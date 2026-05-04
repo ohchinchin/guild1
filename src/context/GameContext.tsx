@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import type { ReactNode } from 'react';
-import type { Adventurer, Quest, GameLog, Assistant, Dungeon, Rival, TurnReport, HallOfFame, MasterSkill, DarkMarketItem } from '../types';
+import type { Adventurer, Quest, GameLog, Assistant, Dungeon, Rival, TurnReport, HallOfFame, MasterSkill, DarkMarketItem, Rank, Artifact } from '../types';
 import { generateAdventurer, generateQuest } from '../logic/generators';
 import { getRandomFlavor } from '../data/flavorText';
 
@@ -68,48 +68,60 @@ const initialSkills: MasterSkill[] = [
 ];
 
 const initialDarkMarketItems: DarkMarketItem[] = [
-  { id: 'dm1', name: '禁断の強化薬', desc: '全冒険者の戦力が即座に+50される', cost: 3000, requiredNotoriety: 20, effect: 'all_power_up', purchased: false },
-  { id: 'dm2', name: '偽造勲章', desc: '名声が+50されるが、悪名も+10される', cost: 2000, requiredNotoriety: 30, effect: 'fame_boost', purchased: false },
-  { id: 'dm3', name: '暗殺教本', desc: '工作の効果が劇的に向上する', cost: 5000, requiredNotoriety: 50, effect: 'intrigue_boost', purchased: false },
+  { id: 'dm1', name: '禁断の強化薬', desc: '全冒険者の戦力が即座に+50される', cost: 3000, requiredNotoriety: 20, effect: 'all_power_up', purchased: false, imageUrl: `${import.meta.env.BASE_URL}images/dm1.webp` },
+  { id: 'dm2', name: '偽造勲章', desc: '名声が+50されるが、悪名も+10される', cost: 2000, requiredNotoriety: 30, effect: 'fame_boost', purchased: false, imageUrl: `${import.meta.env.BASE_URL}images/dm2.webp` },
+  { id: 'dm3', name: '暗殺教本', desc: '工作の効果が劇的に向上する', cost: 5000, requiredNotoriety: 50, effect: 'intrigue_boost', purchased: false, imageUrl: `${import.meta.env.BASE_URL}images/dm3.webp` },
 ];
 
 const initialDungeons: Dungeon[] = [
-  { id: 'd1', name: 'ゴブリンの洞窟', rank: 'E', difficulty: 100, progress: 0, maxProgress: 100, isDiscovered: true, assignedAdventurers: [], clearedCount: 0, baseReward: 2000 },
-  { id: 'd2', name: '霧の森', rank: 'E', difficulty: 150, progress: 0, maxProgress: 150, isDiscovered: false, assignedAdventurers: [], clearedCount: 0, baseReward: 3000 },
-  { id: 'd3', name: '忘れられた地下遺跡', rank: 'D', difficulty: 300, progress: 0, maxProgress: 200, isDiscovered: false, assignedAdventurers: [], clearedCount: 0, baseReward: 5000 },
-  { id: 'd4', name: '嘆きの墓所', rank: 'D', difficulty: 450, progress: 0, maxProgress: 300, isDiscovered: false, assignedAdventurers: [], clearedCount: 0, baseReward: 8000 },
-  { id: 'd5', name: '灼熱の火山洞', rank: 'C', difficulty: 800, progress: 0, maxProgress: 500, isDiscovered: false, assignedAdventurers: [], clearedCount: 0, baseReward: 15000 },
-  { id: 'd6', name: '水晶の回廊', rank: 'C', difficulty: 1200, progress: 0, maxProgress: 800, isDiscovered: false, assignedAdventurers: [], clearedCount: 0, baseReward: 25000 },
-  { id: 'd7', name: '天空の回廊', rank: 'B', difficulty: 2500, progress: 0, maxProgress: 1500, isDiscovered: false, assignedAdventurers: [], clearedCount: 0, baseReward: 50000 },
-  { id: 'd8', name: '深淵の裂け目', rank: 'B', difficulty: 4500, progress: 0, maxProgress: 2500, isDiscovered: false, assignedAdventurers: [], clearedCount: 0, baseReward: 80000 },
-  { id: 'd9', name: '魔竜の巣', rank: 'A', difficulty: 10000, progress: 0, maxProgress: 5000, isDiscovered: false, assignedAdventurers: [], clearedCount: 0, baseReward: 150000 },
-  { id: 'd10', name: '神々の黄昏', rank: 'S', difficulty: 25000, progress: 0, maxProgress: 10000, isDiscovered: false, assignedAdventurers: [], clearedCount: 0, baseReward: 500000 },
+  { id: 'd1', name: 'ゴブリンの洞窟', rank: 'E', difficulty: 100, progress: 0, maxProgress: 100, isDiscovered: true, assignedAdventurers: [], clearedCount: 0, baseReward: 2000, imageUrl: `${import.meta.env.BASE_URL}images/dungeon_d1.webp` },
+  { id: 'd2', name: '霧の森', rank: 'E', difficulty: 150, progress: 0, maxProgress: 150, isDiscovered: false, assignedAdventurers: [], clearedCount: 0, baseReward: 3000, imageUrl: `${import.meta.env.BASE_URL}images/dungeon_d2.webp` },
+  { id: 'd3', name: '忘れられた地下遺跡', rank: 'D', difficulty: 300, progress: 0, maxProgress: 200, isDiscovered: false, assignedAdventurers: [], clearedCount: 0, baseReward: 5000, imageUrl: `${import.meta.env.BASE_URL}images/dungeon_d3.webp` },
+  { id: 'd4', name: '嘆きの墓所', rank: 'D', difficulty: 450, progress: 0, maxProgress: 300, isDiscovered: false, assignedAdventurers: [], clearedCount: 0, baseReward: 8000, imageUrl: `${import.meta.env.BASE_URL}images/dungeon_d4.webp` },
+  { id: 'd5', name: '灼熱の火山洞', rank: 'C', difficulty: 800, progress: 0, maxProgress: 500, isDiscovered: false, assignedAdventurers: [], clearedCount: 0, baseReward: 15000, imageUrl: `${import.meta.env.BASE_URL}images/dungeon_d5.webp` },
+  { id: 'd6', name: '水晶の回廊', rank: 'C', difficulty: 1200, progress: 0, maxProgress: 800, isDiscovered: false, assignedAdventurers: [], clearedCount: 0, baseReward: 25000, imageUrl: `${import.meta.env.BASE_URL}images/dungeon_d6.webp` },
+  { id: 'd7', name: '天空の回廊', rank: 'B', difficulty: 2500, progress: 0, maxProgress: 1500, isDiscovered: false, assignedAdventurers: [], clearedCount: 0, baseReward: 50000, imageUrl: `${import.meta.env.BASE_URL}images/dungeon_d7.webp` },
+  { id: 'd8', name: '深淵の裂け目', rank: 'B', difficulty: 4500, progress: 0, maxProgress: 2500, isDiscovered: false, assignedAdventurers: [], clearedCount: 0, baseReward: 80000, imageUrl: `${import.meta.env.BASE_URL}images/dungeon_d8.webp` },
+  { id: 'd9', name: '魔竜の巣', rank: 'A', difficulty: 10000, progress: 0, maxProgress: 5000, isDiscovered: false, assignedAdventurers: [], clearedCount: 0, baseReward: 150000, imageUrl: `${import.meta.env.BASE_URL}images/dungeon_d9.webp` },
+  { id: 'd10', name: '神々の黄昏', rank: 'S', difficulty: 25000, progress: 0, maxProgress: 10000, isDiscovered: false, assignedAdventurers: [], clearedCount: 0, baseReward: 500000, imageUrl: `${import.meta.env.BASE_URL}images/dungeon_d10.webp` },
 ];
 
-const artifactPool: Record<Rank, { name: string, desc: string }[]> = {
+const artifactPool: Record<Rank, { id: string, name: string, desc: string }[]> = {
   'E': [
-    { name: '古びた銀貨', desc: 'かつて使われていた通貨。歴史的価値がある。' },
-    { name: '薬草の束', desc: '質の良い薬草。煎じて飲むと疲れが取れる。' }
+    { id: 'e1', name: '古びた銀貨', desc: 'かつて使われていた通貨。歴史的価値がある。' },
+    { id: 'e2', name: '薬草の束', desc: '質の良い薬草。煎じて飲むと疲れが取れる。' },
+    { id: 'e3', name: '錆びた鍵', desc: 'どこのものか分からない古い鍵。' },
+    { id: 'e4', name: '冒険者の日記', desc: 'かつての冒険者が遺した手記。' }
   ],
   'D': [
-    { name: '鈍色の小瓶', desc: '中身は空だが、微かな魔力が残っている。' },
-    { name: '錆びた宝剣', desc: '手入れすればまだ使えそうな装飾剣。' }
+    { id: 'd1', name: '鈍色の小瓶', desc: '中身は空だが、微かな魔力が残っている。' },
+    { id: 'd2', name: '錆びた宝剣', desc: '手入れすればまだ使えそうな装飾剣。' },
+    { id: 'd3', name: '幸運の守り石', desc: '身につけていると良いことがありそうな小石。' },
+    { id: 'd4', name: '壊れたコンパス', desc: '針が狂っているが、稀に真実を指すという。' }
   ],
   'C': [
-    { name: '輝く魔石', desc: '純度の高い魔力を含んだ石。' },
-    { name: '守護の指輪', desc: '身を守る加護が宿った指輪。' }
+    { id: 'c1', name: '輝く魔石', desc: '純度の高い魔力を含んだ石。' },
+    { id: 'c2', name: '守護の指輪', desc: '身を守る加護が宿った指輪。' },
+    { id: 'c3', name: '属性の指輪', desc: '特定の属性耐性を高める指輪。' },
+    { id: 'c4', name: '魔力の中瓶', desc: '魔力を一時的に活性化させる液体が入った瓶。' }
   ],
   'B': [
-    { name: '古代の魔導書', desc: '失われた魔法の断片が記されている。' },
-    { name: '龍の鱗', desc: '鉄よりも硬く、魔力を通さない鱗。' }
+    { id: 'b1', name: '古代の魔導書', desc: '失われた魔法の断片が記されている。' },
+    { id: 'b2', name: '龍の鱗', desc: '鉄よりも硬く、魔力を通さない鱗。' },
+    { id: 'b3', name: '暗黒の外套', desc: '影に溶け込むことができる不思議なマント。' },
+    { id: 'b4', name: '古代の金貨', desc: '失われた帝国の通貨。純金製。' }
   ],
   'A': [
-    { name: '伝説の聖杯', desc: 'あらゆる病を癒やすという伝説の器。' },
-    { name: '神殺しの矢', desc: '神性を持つ存在に深手を負わせる矢。' }
+    { id: 'a1', name: '伝説の聖杯', desc: 'あらゆる病を癒やすという伝説の器。' },
+    { id: 'a2', name: '神殺しの矢', desc: '神性を持つ存在に深手を負わせる矢。' },
+    { id: 'a3', name: '賢者の石の欠片', desc: '不老不死の伝承を持つ石の破片。' },
+    { id: 'a4', name: '流星の剣', desc: '星の欠片から鍛えられたと言われる剣。' }
   ],
   'S': [
-    { name: '世界樹の種', desc: '万物の根源となる巨樹の種。' },
-    { name: '時の歯車', desc: '世界の刻を刻み続けてきた謎の歯車。' }
+    { id: 's1', name: '世界樹の種', desc: '万物の根源となる巨樹の種。' },
+    { id: 's2', name: '時の歯車', desc: '世界の刻を刻み続けてきた謎の歯車。' },
+    { id: 's3', name: '英雄の魂', desc: 'かつての英雄が遺した意志の結晶。' },
+    { id: 's4', name: '運命の糸', desc: '因果の流れを操ることができるという糸。' }
   ]
 };
 
@@ -261,7 +273,8 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
         rank: adv.rank,
         cls: adv.cls,
         finalPower: adv.power,
-        retiredTurn: prev.turn
+        retiredTurn: prev.turn,
+        imageUrl: adv.imageUrl
       };
       return {
         ...prev,
@@ -532,7 +545,8 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
               name: drop.name,
               desc: drop.desc,
               rank: d.rank,
-              effect: 'none'
+              effect: 'none',
+              imageUrl: `${import.meta.env.BASE_URL}images/art_${drop.id}.webp`
             };
             newArtifacts.push(newArt);
 

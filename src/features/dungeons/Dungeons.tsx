@@ -68,7 +68,12 @@ export const Dungeons = () => {
           return (
             <div key={dungeon.id} className="bg-stone-900 border-2 border-stone-800 rounded-2xl overflow-hidden shadow-2xl flex flex-col xl:flex-row">
               {/* Dungeon Basic Info */}
-              <div className="p-6 bg-stone-950 border-b xl:border-b-0 xl:border-r border-stone-800 xl:w-1/3">
+              <div className="p-6 bg-stone-950 border-b xl:border-b-0 xl:border-r border-stone-800 xl:w-1/3 flex flex-col">
+                {dungeon.imageUrl && (
+                  <div className="w-full h-32 mb-4 rounded-xl overflow-hidden border border-stone-800 shrink-0">
+                    <img src={dungeon.imageUrl} alt={dungeon.name} className="w-full h-full object-cover opacity-60" />
+                  </div>
+                )}
                 <div className="flex justify-between items-start mb-2">
                   <h3 className="text-xl font-black text-stone-100">{dungeon.name}</h3>
                   <span className={`text-[10px] px-2 py-0.5 rounded font-black border ${

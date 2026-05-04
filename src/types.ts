@@ -62,6 +62,7 @@ export interface Dungeon {
   clearedCount: number;
   lastClearedTurn?: number;
   baseReward: number;
+  imageUrl?: string;
 }
 
 export interface Artifact {
@@ -70,6 +71,7 @@ export interface Artifact {
   desc: string;
   rank: Rank;
   effect: string;
+  imageUrl?: string;
 }
 
 export interface Rival {
@@ -97,6 +99,7 @@ export interface HallOfFame {
   cls: ClassName;
   finalPower: number;
   retiredTurn: number;
+  imageUrl?: string;
 }
 
 export interface MasterSkill {
@@ -116,4 +119,5 @@ export interface DarkMarketItem {
   requiredNotoriety: number;
   effect: string;
   purchased: boolean;
+  imageUrl?: string;
 }

@@ -60,26 +60,33 @@ export const DarkMarket = () => {
                     : 'bg-stone-900/80 border-purple-900/30 hover:border-purple-500/50 shadow-lg'
                 }`}
               >
-                <div>
-                  <div className="flex justify-between items-start mb-2">
-                    <h3 className={`font-black text-lg ${item.purchased ? 'text-stone-600' : 'text-purple-200'}`}>
-                      {item.name}
-                    </h3>
-                    {item.purchased ? (
-                      <span className="text-[10px] bg-stone-800 text-stone-500 px-2 py-0.5 rounded font-sans uppercase font-bold">Sold Out</span>
-                    ) : (
-                      <span className={`text-[10px] px-2 py-0.5 rounded font-sans uppercase font-bold ${hasRequirement ? 'bg-purple-900/50 text-purple-300' : 'bg-red-900/30 text-red-400'}`}>
-                        Req. Notoriety {item.requiredNotoriety}
-                      </span>
+                <div className="flex gap-4">
+                  <div className="flex-1">
+                    <div className="flex justify-between items-start mb-2">
+                      <h3 className={`font-black text-lg ${item.purchased ? 'text-stone-600' : 'text-purple-200'}`}>
+                        {item.name}
+                      </h3>
+                      {item.purchased ? (
+                        <span className="text-[10px] bg-stone-800 text-stone-500 px-2 py-0.5 rounded font-sans uppercase font-bold">Sold Out</span>
+                      ) : (
+                        <span className={`text-[10px] px-2 py-0.5 rounded font-sans uppercase font-bold ${hasRequirement ? 'bg-purple-900/50 text-purple-300' : 'bg-red-900/30 text-red-400'}`}>
+                          Req. Notoriety {item.requiredNotoriety}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-stone-400 text-xs mb-4 leading-relaxed">{item.desc}</p>
+                    
+                    {!item.purchased && (
+                      <div className="flex items-center gap-3 mb-4">
+                        <div className="flex items-center gap-1 text-yellow-500 font-bold">
+                          <ShoppingCart className="w-3 h-3" /> {item.cost.toLocaleString()} G
+                        </div>
+                      </div>
                     )}
                   </div>
-                  <p className="text-stone-400 text-xs mb-4 leading-relaxed">{item.desc}</p>
-                  
-                  {!item.purchased && (
-                    <div className="flex items-center gap-3 mb-4">
-                      <div className="flex items-center gap-1 text-yellow-500 font-bold">
-                        <ShoppingCart className="w-3 h-3" /> {item.cost.toLocaleString()} G
-                      </div>
+                  {item.imageUrl && (
+                    <div className="w-20 h-20 bg-stone-950 rounded-xl border border-stone-800 overflow-hidden shrink-0 hidden sm:block">
+                      <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover opacity-80" />
                     </div>
                   )}
                 </div>

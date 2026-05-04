@@ -31,13 +31,22 @@ export const Records = () => {
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
             {state.artifacts.map(art => (
               <div key={art.id} className="bg-stone-900 border border-stone-800 p-3 rounded-xl flex flex-col items-center text-center gap-2 group hover:border-amber-500/50 transition-colors">
-                <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                  art.rank === 'S' ? 'bg-amber-500/20 text-amber-500' :
-                  art.rank === 'A' ? 'bg-purple-500/20 text-purple-500' :
-                  art.rank === 'B' ? 'bg-blue-500/20 text-blue-500' :
-                  'bg-stone-700/20 text-stone-500'
+                <div className={`w-12 h-12 rounded-lg flex items-center justify-center overflow-hidden ${
+                  art.rank === 'S' ? 'bg-amber-500/10' :
+                  art.rank === 'A' ? 'bg-purple-500/10' :
+                  art.rank === 'B' ? 'bg-blue-500/10' :
+                  'bg-stone-800/20'
                 }`}>
-                  <Gem className="w-5 h-5" />
+                  {art.imageUrl ? (
+                    <img src={art.imageUrl} alt={art.name} className="w-full h-full object-cover" />
+                  ) : (
+                    <Gem className={`w-6 h-6 ${
+                      art.rank === 'S' ? 'text-amber-500' :
+                      art.rank === 'A' ? 'text-purple-500' :
+                      art.rank === 'B' ? 'text-blue-500' :
+                      'text-stone-500'
+                    }`} />
+                  )}
                 </div>
                 <div className="space-y-0.5">
                   <h4 className="text-[11px] font-bold text-stone-100 leading-tight">{art.name}</h4>
@@ -67,8 +76,12 @@ export const Records = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {state.hallOfFame.map(hero => (
               <div key={hero.id} className="bg-gradient-to-br from-amber-900/20 to-stone-900 border border-amber-600/30 p-4 rounded-xl flex items-center gap-4 shadow-lg">
-                <div className="w-12 h-12 bg-amber-600/20 rounded-full flex items-center justify-center text-amber-500">
-                  <User className="w-6 h-6" />
+                <div className="w-12 h-12 bg-amber-600/20 rounded-full flex items-center justify-center text-amber-500 overflow-hidden">
+                  {hero.imageUrl ? (
+                    <img src={hero.imageUrl} alt={hero.name} className="w-full h-full object-cover" />
+                  ) : (
+                    <User className="w-6 h-6" />
+                  )}
                 </div>
                 <div className="flex-1">
                   <div className="flex justify-between items-center">
