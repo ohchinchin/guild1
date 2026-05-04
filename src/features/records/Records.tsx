@@ -1,6 +1,6 @@
 import { useGame } from '../../context/GameContext'
 import { motion } from 'framer-motion'
-import { ScrollText, Trophy, History, User } from 'lucide-react'
+import { ScrollText, Trophy, History, User, Gem } from 'lucide-react'
 
 export const Records = () => {
   const { state } = useGame()
@@ -16,6 +16,42 @@ export const Records = () => {
           <ScrollText className="w-6 h-6" /> ギルドの歩み
         </h2>
       </div>
+
+      {/* Artifacts / Treasury */}
+      <section className="space-y-4">
+        <h3 className="text-lg font-black text-stone-100 flex items-center gap-2 uppercase tracking-widest">
+          <Gem className="w-5 h-5 text-cyan-400" /> 宝物庫 (Treasury)
+        </h3>
+        
+        {state.artifacts.length === 0 ? (
+          <div className="bg-stone-900/40 border border-stone-800 p-8 rounded-2xl text-center text-stone-600 italic font-sans">
+            まだ獲得した秘宝はありません。迷宮の深淵に眠る財宝を探し出しましょう。
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+            {state.artifacts.map(art => (
+              <div key={art.id} className="bg-stone-900 border border-stone-800 p-3 rounded-xl flex flex-col items-center text-center gap-2 group hover:border-amber-500/50 transition-colors">
+                <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                  art.rank === 'S' ? 'bg-amber-500/20 text-amber-500' :
+                  art.rank === 'A' ? 'bg-purple-500/20 text-purple-500' :
+                  art.rank === 'B' ? 'bg-blue-500/20 text-blue-500' :
+                  'bg-stone-700/20 text-stone-500'
+                }`}>
+                  <Gem className="w-5 h-5" />
+                </div>
+                <div className="space-y-0.5">
+                  <h4 className="text-[11px] font-bold text-stone-100 leading-tight">{art.name}</h4>
+                  <p className="text-[9px] text-stone-500 font-black uppercase">Rank {art.rank}</p>
+                </div>
+                {/* Tooltip-like effect on hover */}
+                <div className="hidden group-hover:block absolute bg-black border border-stone-700 p-2 rounded text-[10px] text-stone-300 w-40 z-10 -mt-20">
+                  {art.desc}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
 
       {/* Hall of Fame */}
       <section className="space-y-4">

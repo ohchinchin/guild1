@@ -53,11 +53,23 @@ export interface Assistant {
 export interface Dungeon {
   id: string;
   name: string;
+  rank: Rank;
   difficulty: number;
   progress: number;
   maxProgress: number;
   isDiscovered: boolean;
   assignedAdventurers: string[];
+  clearedCount: number;
+  lastClearedTurn?: number;
+  baseReward: number;
+}
+
+export interface Artifact {
+  id: string;
+  name: string;
+  desc: string;
+  rank: Rank;
+  effect: string;
 }
 
 export interface Rival {

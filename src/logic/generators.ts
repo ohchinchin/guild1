@@ -1,8 +1,19 @@
 import type { Adventurer, Quest, Rank, ClassName } from '../types';
 
-const MALE_FIRST_NAMES = ['アルス', 'レオン', 'クロウ', 'ガレス', 'ゼクス', 'ヴォルク', 'カイン', 'シオン'];
-const FEMALE_FIRST_NAMES = ['シリカ', 'マリア', 'リナ', 'エレナ', 'セーラ', 'ミーア', 'ルナ', 'アイリス'];
-const LAST_NAMES = ['・レッド', '・スターク', '・ウィンター', '・ブラック', '・ライト', '・アッシュ', '・ヴェイル'];
+const MALE_FIRST_NAMES = [
+  'アルス', 'レオン', 'クロウ', 'ガレス', 'ゼクス', 'ヴォルク', 'カイン', 'シオン',
+  'ジル', 'バルト', 'エリック', 'カイル', 'ディック', 'ハンス', 'ユーリ', 'ルーク',
+  'ガイ', 'ロルフ', 'ロイ', 'セシル', 'ラウル', 'ヴァン', 'ジーク', 'フォルク'
+];
+const FEMALE_FIRST_NAMES = [
+  'シリカ', 'マリア', 'リナ', 'エレナ', 'セーラ', 'ミーア', 'ルナ', 'アイリス',
+  'ノア', 'ティア', 'フィオ', 'リーザ', 'ミル', 'サラ', 'アンナ', 'クロエ',
+  'ユナ', 'メイ', 'リル', 'ラナ', 'シエル', 'ミラ', 'ベル', 'ステラ'
+];
+const LAST_NAMES = [
+  '・レッド', '・スターク', '・ウィンター', '・ブラック', '・ライト', '・アッシュ', '・ヴェイル',
+  '・グラント', '・フォース', '・ブライト', '・シャドウ', '・ストーム', '・フレイム', '・フロスト'
+];
 const CLASSES: ClassName[] = ['戦士', '魔術師', '盗賊', '僧侶'];
 const RANKS: Rank[] = ['E', 'D', 'C', 'B', 'A', 'S'];
 
@@ -57,10 +68,17 @@ const CLASS_SKILLS: Record<ClassName, { name: string, desc: string }[]> = {
   ]
 };
 
-export const generateAdventurer = (forcedRank?: Rank): Adventurer => {
+export const generateAdventurer = (forcedRank?: Rank, existingNames: string[] = []): Adventurer => {
   const isMale = Math.random() > 0.5;
   const firstNames = isMale ? MALE_FIRST_NAMES : FEMALE_FIRST_NAMES;
-  const name = firstNames[Math.floor(Math.random() * firstNames.length)] + LAST_NAMES[Math.floor(Math.random() * LAST_NAMES.length)];
+  
+  let name = '';
+  let attempts = 0;
+  do {
+    name = firstNames[Math.floor(Math.random() * firstNames.length)] + LAST_NAMES[Math.floor(Math.random() * LAST_NAMES.length)];
+    attempts++;
+  } while (existingNames.includes(name) && attempts < 50);
+
   const cls = CLASSES[Math.floor(Math.random() * CLASSES.length)];
   
   // Weights for rank generation (E is most common, S is rare)

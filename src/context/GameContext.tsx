@@ -20,6 +20,7 @@ type GameState = {
   hallOfFame: HallOfFame[];
   quests: Quest[];
   dungeons: Dungeon[];
+  artifacts: Artifact[];
   rivals: Rival[];
   assistants: Assistant[];
   masterSkills: MasterSkill[];
@@ -72,6 +73,46 @@ const initialDarkMarketItems: DarkMarketItem[] = [
   { id: 'dm3', name: '暗殺教本', desc: '工作の効果が劇的に向上する', cost: 5000, requiredNotoriety: 50, effect: 'intrigue_boost', purchased: false },
 ];
 
+const initialDungeons: Dungeon[] = [
+  { id: 'd1', name: 'ゴブリンの洞窟', rank: 'E', difficulty: 100, progress: 0, maxProgress: 100, isDiscovered: true, assignedAdventurers: [], clearedCount: 0, baseReward: 2000 },
+  { id: 'd2', name: '霧の森', rank: 'E', difficulty: 150, progress: 0, maxProgress: 150, isDiscovered: false, assignedAdventurers: [], clearedCount: 0, baseReward: 3000 },
+  { id: 'd3', name: '忘れられた地下遺跡', rank: 'D', difficulty: 300, progress: 0, maxProgress: 200, isDiscovered: false, assignedAdventurers: [], clearedCount: 0, baseReward: 5000 },
+  { id: 'd4', name: '嘆きの墓所', rank: 'D', difficulty: 450, progress: 0, maxProgress: 300, isDiscovered: false, assignedAdventurers: [], clearedCount: 0, baseReward: 8000 },
+  { id: 'd5', name: '灼熱の火山洞', rank: 'C', difficulty: 800, progress: 0, maxProgress: 500, isDiscovered: false, assignedAdventurers: [], clearedCount: 0, baseReward: 15000 },
+  { id: 'd6', name: '水晶の回廊', rank: 'C', difficulty: 1200, progress: 0, maxProgress: 800, isDiscovered: false, assignedAdventurers: [], clearedCount: 0, baseReward: 25000 },
+  { id: 'd7', name: '天空の回廊', rank: 'B', difficulty: 2500, progress: 0, maxProgress: 1500, isDiscovered: false, assignedAdventurers: [], clearedCount: 0, baseReward: 50000 },
+  { id: 'd8', name: '深淵の裂け目', rank: 'B', difficulty: 4500, progress: 0, maxProgress: 2500, isDiscovered: false, assignedAdventurers: [], clearedCount: 0, baseReward: 80000 },
+  { id: 'd9', name: '魔竜の巣', rank: 'A', difficulty: 10000, progress: 0, maxProgress: 5000, isDiscovered: false, assignedAdventurers: [], clearedCount: 0, baseReward: 150000 },
+  { id: 'd10', name: '神々の黄昏', rank: 'S', difficulty: 25000, progress: 0, maxProgress: 10000, isDiscovered: false, assignedAdventurers: [], clearedCount: 0, baseReward: 500000 },
+];
+
+const artifactPool: Record<Rank, { name: string, desc: string }[]> = {
+  'E': [
+    { name: '古びた銀貨', desc: 'かつて使われていた通貨。歴史的価値がある。' },
+    { name: '薬草の束', desc: '質の良い薬草。煎じて飲むと疲れが取れる。' }
+  ],
+  'D': [
+    { name: '鈍色の小瓶', desc: '中身は空だが、微かな魔力が残っている。' },
+    { name: '錆びた宝剣', desc: '手入れすればまだ使えそうな装飾剣。' }
+  ],
+  'C': [
+    { name: '輝く魔石', desc: '純度の高い魔力を含んだ石。' },
+    { name: '守護の指輪', desc: '身を守る加護が宿った指輪。' }
+  ],
+  'B': [
+    { name: '古代の魔導書', desc: '失われた魔法の断片が記されている。' },
+    { name: '龍の鱗', desc: '鉄よりも硬く、魔力を通さない鱗。' }
+  ],
+  'A': [
+    { name: '伝説の聖杯', desc: 'あらゆる病を癒やすという伝説の器。' },
+    { name: '神殺しの矢', desc: '神性を持つ存在に深手を負わせる矢。' }
+  ],
+  'S': [
+    { name: '世界樹の種', desc: '万物の根源となる巨樹の種。' },
+    { name: '時の歯車', desc: '世界の刻を刻み続けてきた謎の歯車。' }
+  ]
+};
+
 const initialState: GameState = {
   turn: 1,
   season: 'Summer',
@@ -84,11 +125,8 @@ const initialState: GameState = {
   adventurers: [],
   hallOfFame: [],
   quests: [],
-  dungeons: [
-    { id: 'd1', name: 'ゴブリンの洞窟', difficulty: 100, progress: 0, maxProgress: 100, isDiscovered: true, assignedAdventurers: [] },
-    { id: 'd2', name: '忘れられた地下遺跡', difficulty: 300, progress: 0, maxProgress: 200, isDiscovered: false, assignedAdventurers: [] },
-    { id: 'd3', name: '魔竜の巣', difficulty: 800, progress: 0, maxProgress: 500, isDiscovered: false, assignedAdventurers: [] },
-  ],
+  dungeons: initialDungeons,
+  artifacts: [],
   rivals: [
     { id: 'r1', name: '赤獅子団', power: 300, relation: 50 },
     { id: 'r2', name: '銀の天秤', power: 500, relation: 40 },
@@ -136,10 +174,14 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
         return;
       }
     }
+    const adv1 = generateAdventurer('C');
+    const adv2 = generateAdventurer('D', [adv1.name]);
+    const adv3 = generateAdventurer('D', [adv1.name, adv2.name]);
+
     setState(() => ({
       ...initialState,
       gameStatus: 'playing',
-      adventurers: [generateAdventurer('C'), generateAdventurer('D'), generateAdventurer('D')],
+      adventurers: [adv1, adv2, adv3],
       quests: [
         generateQuest(1, 15, 0, 50, 50), 
         generateQuest(1, 15, 0, 50, 50)
@@ -455,10 +497,12 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
       }).filter(q => q.status === '未受注' || q.status === '進行中');
 
       // Process Dungeons
+      let newArtifacts = [...prev.artifacts];
       newDungeons.forEach(d => {
         if (d.assignedAdventurers.length > 0) {
           const assigned = newAdventurers.filter(a => d.assignedAdventurers.includes(a.id));
           let totalPower = assigned.reduce((sum, a) => sum + a.power, 0);
+          
           if (totalPower >= d.difficulty) {
             const prog = Math.floor(totalPower / 10);
             d.progress += prog;
@@ -467,22 +511,45 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
           } else {
             newLogs.unshift({ id: Math.random().toString(), turn: prev.turn, message: `迷宮「${d.name}」の探索は難航している。`, type: 'warning' });
           }
+
           if (d.progress >= d.maxProgress) {
-            d.progress = d.maxProgress;
-            newBudget += 5000;
-            newFame += 30;
-            report.income += 5000;
-            report.fameGained += 30;
-            report.events.push(`【迷宮踏破】${d.name} を完全攻略し、財宝を獲得した！`);
-            newLogs.unshift({ id: Math.random().toString(), turn: prev.turn, message: `【迷宮踏破】${d.name} を完全攻略した！ 財宝5000G獲得。`, type: 'success' });
+            d.progress = 0;
+            d.clearedCount += 1;
+            d.lastClearedTurn = prev.turn;
+
+            const reward = Math.floor(d.baseReward * Math.pow(0.5, d.clearedCount - 1));
+            const fameReward = Math.max(5, Math.floor(30 * Math.pow(0.7, d.clearedCount - 1)));
+            
+            newBudget += reward;
+            newFame += fameReward;
+            report.income += reward;
+            report.fameGained += fameReward;
+
+            const possibleItems = artifactPool[d.rank];
+            const drop = possibleItems[Math.floor(Math.random() * possibleItems.length)];
+            const newArt: Artifact = {
+              id: Math.random().toString(36).substring(2, 9),
+              name: drop.name,
+              desc: drop.desc,
+              rank: d.rank,
+              effect: 'none'
+            };
+            newArtifacts.push(newArt);
+
+            report.events.push(`【迷宮踏破】${d.name} を攻略！ 財宝${reward}Gと「${newArt.name}」を獲得した。`);
+            newLogs.unshift({ id: Math.random().toString(), turn: prev.turn, message: `【迷宮踏破】${d.name} 攻略！ ${reward}Gと${newArt.name}獲得。`, type: 'success' });
+            
             assigned.forEach(a => {
               const advIndex = newAdventurers.findIndex(na => na.id === a.id);
               newAdventurers[advIndex].status = '待機中';
               newAdventurers[advIndex].power += 20;
             });
             d.assignedAdventurers = [];
-            const nextHidden = newDungeons.find(nd => !nd.isDiscovered);
-            if (nextHidden) nextHidden.isDiscovered = true;
+            
+            if (d.clearedCount === 1) {
+              const nextHidden = newDungeons.find(nd => !nd.isDiscovered);
+              if (nextHidden) nextHidden.isDiscovered = true;
+            }
           }
         }
       });
@@ -500,7 +567,7 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
       // Random Recruitment
       const maxPop = prev.facilities.dorm * 5;
       if (newAdventurers.length < maxPop && Math.random() > (prev.policy === 'aggressive' ? 0.4 : 0.6)) {
-        const newAdv = generateAdventurer();
+        const newAdv = generateAdventurer(undefined, newAdventurers.map(a => a.name));
         newAdventurers.push(newAdv);
         report.events.push(`新たな冒険者 ${newAdv.name} が加入した。`);
         newLogs.unshift({ id: Math.random().toString(), turn: prev.turn, message: `新たな冒険者 ${newAdv.name} が加入した。`, type: 'info' });
@@ -540,7 +607,7 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
       // Boss Event Check
       if (newTurn === 10 || newTurn === 30 || newTurn === 50) {
         return {
-          ...prev, turn: newTurn, season: newSeason, budget: newBudget, fame: newFame, notoriety: newNotoriety, townFavor: newTownFavor, quests: newQuests, adventurers: newAdventurers, dungeons: newDungeons, logs: newLogs.slice(0, 50),
+          ...prev, turn: newTurn, season: newSeason, budget: newBudget, fame: newFame, notoriety: newNotoriety, townFavor: newTownFavor, quests: newQuests, adventurers: newAdventurers, dungeons: newDungeons, artifacts: newArtifacts, logs: newLogs.slice(0, 50),
           gameStatus: 'boss_battle', lastReport: report, currentFlavor: flavor
         };
       }
@@ -552,11 +619,11 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
         else if (newBudget >= 100000) ending = "巨大複合商会（経済的勝利）";
         else if (newFame >= 200) ending = "伝説のギルド（大成功）";
         else if (newNotoriety >= 100) ending = "暗黒街の支配者（裏社会勝利）";
-        return { ...prev, turn: 50, gameStatus: 'ended', ending, logs: newLogs.slice(0, 50), lastReport: report };
+        return { ...prev, turn: 50, gameStatus: 'ended', ending, logs: newLogs.slice(0, 50), lastReport: report, artifacts: newArtifacts };
       }
 
       return {
-        ...prev, turn: newTurn, season: newSeason, budget: newBudget, fame: newFame, notoriety: newNotoriety, townFavor: newTownFavor, quests: newQuests, adventurers: newAdventurers, dungeons: newDungeons, logs: newLogs.slice(0, 50),
+        ...prev, turn: newTurn, season: newSeason, budget: newBudget, fame: newFame, notoriety: newNotoriety, townFavor: newTownFavor, quests: newQuests, adventurers: newAdventurers, dungeons: newDungeons, artifacts: newArtifacts, logs: newLogs.slice(0, 50),
         gameStatus: 'summary', lastReport: report, currentFlavor: flavor
       };
     });

@@ -69,11 +69,23 @@ export const Dungeons = () => {
             <div key={dungeon.id} className="bg-stone-900 border-2 border-stone-800 rounded-2xl overflow-hidden shadow-2xl flex flex-col xl:flex-row">
               {/* Dungeon Basic Info */}
               <div className="p-6 bg-stone-950 border-b xl:border-b-0 xl:border-r border-stone-800 xl:w-1/3">
-                <h3 className="text-xl font-black text-stone-100 mb-2">{dungeon.name}</h3>
+                <div className="flex justify-between items-start mb-2">
+                  <h3 className="text-xl font-black text-stone-100">{dungeon.name}</h3>
+                  <span className={`text-[10px] px-2 py-0.5 rounded font-black border ${
+                    dungeon.rank === 'S' ? 'bg-amber-600/20 border-amber-500 text-amber-500' :
+                    dungeon.rank === 'A' ? 'bg-purple-600/20 border-purple-500 text-purple-500' :
+                    dungeon.rank === 'B' ? 'bg-blue-600/20 border-blue-500 text-blue-500' :
+                    'bg-stone-700/20 border-stone-600 text-stone-400'
+                  }`}>RANK {dungeon.rank}</span>
+                </div>
                 <div className="space-y-3">
                   <div className="flex items-center justify-between text-xs">
                     <span className="text-stone-500 flex items-center gap-1"><Shield className="w-3 h-3" /> 推奨戦力:</span>
                     <span className="text-amber-500 font-bold">{dungeon.difficulty}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-stone-500 flex items-center gap-1"><RefreshCcw className="w-3 h-3" /> 踏破回数:</span>
+                    <span className="text-stone-300">{dungeon.clearedCount} 回</span>
                   </div>
                   <div className="space-y-1">
                     <div className="flex justify-between text-[10px] uppercase tracking-widest font-bold">
