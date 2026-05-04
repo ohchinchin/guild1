@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import type { ReactNode } from 'react';
 import type { Adventurer, Quest, GameLog, Assistant, Dungeon, Rival, TurnReport, HallOfFame, MasterSkill, DarkMarketItem, Rank, Artifact } from '../types';
-import { generateAdventurer, generateQuest } from '../logic/generators';
+import { generateAdventurer, generateQuest, generateAssistant } from '../logic/generators';
 import { getRandomFlavor } from '../data/flavorText';
 
 type Policy = 'balanced' | 'aggressive' | 'economic' | 'diplomatic';
@@ -23,6 +23,7 @@ type GameState = {
   artifacts: Artifact[];
   rivals: Rival[];
   assistants: Assistant[];
+  hiredAssistants: Assistant[];
   masterSkills: MasterSkill[];
   darkMarketItems: DarkMarketItem[];
   logs: GameLog[];
@@ -49,9 +50,10 @@ type GameContextType = {
   executeIntrigue: (cost: number, notoriety: number, message: string, effect?: () => void) => void;
   unlockSkill: (id: string) => void;
   buyDarkMarketItem: (id: string) => void;
-  retireAdventurer: (id: string) => void;
+  retireAdventurer: (id: string, successorId?: string) => void;
   setPolicy: (policy: Policy) => void;
   hireAssistant: (id: string) => void;
+  dismissAssistant: (id: string) => void;
   addLog: (message: string, type: GameLog['type']) => void;
   startGame: (loadSave: boolean) => void;
   resetGame: () => void;
@@ -143,11 +145,8 @@ const initialState: GameState = {
     { id: 'r1', name: '赤獅子団', power: 300, relation: 50 },
     { id: 'r2', name: '銀の天秤', power: 500, relation: 40 },
   ],
-  assistants: [
-    { id: 'a1', name: 'エルザ', role: '受付嬢', cost: 100, buff: 'town_favor_up', isHired: false },
-    { id: 'a2', name: 'バルド', role: '教官', cost: 200, buff: 'training_up', isHired: false },
-    { id: 'a3', name: 'シオン', role: '裏の顔役', cost: 300, buff: 'notoriety_down', isHired: false }
-  ],
+  assistants: [],
+  hiredAssistants: [],
   masterSkills: initialSkills,
   darkMarketItems: initialDarkMarketItems,
   logs: [],
@@ -190,12 +189,16 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
     const adv2 = generateAdventurer('D', [adv1.name]);
     const adv3 = generateAdventurer('D', [adv1.name, adv2.name]);
 
+    const initialCandidates = [generateAssistant(), generateAssistant(), generateAssistant()];
+
     setState(() => ({
       ...initialState,
       gameStatus: 'playing',
       adventurers: [adv1, adv2, adv3],
+      assistants: initialCandidates,
       quests: [
         generateQuest(1, 15, 0, 50, 50), 
+        generateQuest(1, 15, 0, 50, 50),
         generateQuest(1, 15, 0, 50, 50)
       ],
       logs: [{ id: 'init', turn: 1, message: 'ギルドマスターとして着任した。50ターンの試練が始まる。', type: 'info' }]
@@ -217,11 +220,27 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
   const setPolicy = (policy: Policy) => setState(prev => ({ ...prev, policy }));
 
   const hireAssistant = (id: string) => {
+    setState(prev => {
+      const assistant = prev.assistants.find(a => a.id === id);
+      const maxAssistants = 1 + Math.floor(prev.fame / 200);
+      if (!assistant || prev.hiredAssistants.length >= maxAssistants || prev.budget < assistant.cost) return prev;
+      
+      return {
+        ...prev,
+        budget: prev.budget - assistant.cost,
+        assistants: prev.assistants.filter(a => a.id !== id),
+        hiredAssistants: [...prev.hiredAssistants, { ...assistant, isHired: true }]
+      };
+    });
+    addLog(`新たな補佐役を雇用した。`, 'success');
+  };
+
+  const dismissAssistant = (id: string) => {
     setState(prev => ({
       ...prev,
-      assistants: prev.assistants.map(a => a.id === id ? { ...a, isHired: true } : a)
+      hiredAssistants: prev.hiredAssistants.filter(a => a.id !== id)
     }));
-    addLog(`新たな補佐役を雇用した。`, 'success');
+    addLog(`補佐役との契約を終了した。`, 'warning');
   };
 
   const unlockSkill = (id: string) => {
@@ -263,26 +282,51 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
     addLog(`闇市場で禁じられた品を手に入れた。`, 'warning');
   };
 
-  const retireAdventurer = (id: string) => {
+  const retireAdventurer = (id: string, successorId?: string) => {
     setState(prev => {
-      const adv = prev.adventurers.find(a => a.id === id);
-      if (!adv) return prev;
+      const retired = prev.adventurers.find(a => a.id === id);
+      if (!retired) return prev;
+      
+      let nextAdventurers = prev.adventurers.filter(a => a.id !== id);
+      let legacyMessage = `伝説の冒険者 ${retired.name} が引退し、殿堂入りした。`;
+
+      if (successorId) {
+        const successorIndex = nextAdventurers.findIndex(a => a.id === successorId);
+        if (successorIndex !== -1) {
+          const successor = { ...nextAdventurers[successorIndex] };
+          const powerBoost = Math.floor(retired.power * 0.2);
+          successor.power += powerBoost;
+          
+          // Inherit a skill if retiree had any and successor has room (simplified)
+          if (retired.skills.length > 0) {
+            const inheritedSkill = { ...retired.skills[Math.floor(Math.random() * retired.skills.length)], revealed: true };
+            successor.skills = [...successor.skills, inheritedSkill];
+            legacyMessage = `${retired.name} の意志は ${successor.name} に引き継がれた！（戦力+${powerBoost}、スキル継承）`;
+          } else {
+            legacyMessage = `${retired.name} の経験は ${successor.name} に引き継がれた！（戦力+${powerBoost}）`;
+          }
+          nextAdventurers[successorIndex] = successor;
+        }
+      }
+
       const entry: HallOfFame = {
-        id: adv.id,
-        name: adv.name,
-        rank: adv.rank,
-        cls: adv.cls,
-        finalPower: adv.power,
+        id: retired.id,
+        name: retired.name,
+        rank: retired.rank,
+        cls: retired.cls,
+        finalPower: retired.power,
         retiredTurn: prev.turn,
-        imageUrl: adv.imageUrl
+        imageUrl: retired.imageUrl
       };
+
+      addLog(legacyMessage, 'success');
+
       return {
         ...prev,
-        adventurers: prev.adventurers.filter(a => a.id !== id),
+        adventurers: nextAdventurers,
         hallOfFame: [entry, ...prev.hallOfFame]
       };
     });
-    addLog(`伝説の冒険者が引退し、殿堂入りした。`, 'info');
   };
 
   const upgradeFacility = (id: keyof GameState['facilities'], cost: number) => {
@@ -454,11 +498,22 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
       }
       
       // --- Assistant Buffs ---
-      const hasElza = prev.assistants.find(a => a.id === 'a1')?.isHired;
-      if (hasElza) newTownFavor = Math.min(100, newTownFavor + 3);
-      const hasShion = prev.assistants.find(a => a.id === 'a3')?.isHired;
-      if (hasShion) newNotoriety = Math.max(0, newNotoriety - 2);
-      const hasBaldo = prev.assistants.find(a => a.id === 'a2')?.isHired;
+      const hiredBuffs = prev.hiredAssistants.map(a => a.buff);
+      if (hiredBuffs.includes('town_favor_up')) newTownFavor = Math.min(100, newTownFavor + 3);
+      if (hiredBuffs.includes('notoriety_down')) newNotoriety = Math.max(0, newNotoriety - 2);
+      const hasBaldo = hiredBuffs.includes('training_up');
+      const hasFameUp = hiredBuffs.includes('fame_up');
+      const hasRewardUp = hiredBuffs.includes('reward_up');
+      const hasUpkeepDown = hiredBuffs.includes('upkeep_down');
+      const hasDiscoveryUp = hiredBuffs.includes('discovery_up');
+      const hasRecruitUp = hiredBuffs.includes('recruit_up');
+
+      // Assistant Rotation (Every 5 turns)
+      let currentAssistants = [...prev.assistants];
+      if (newTurn % 5 === 0) {
+        currentAssistants = [generateAssistant(), generateAssistant(), generateAssistant()];
+        report.events.push("【補佐NPC】新たな補佐候補がギルドを訪れた。");
+      }
       
       // Process Quests
       const newQuests = prev.quests.map(q => {
@@ -466,7 +521,43 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
           const remaining = q.duration - 1;
           if (remaining <= 0) {
             const assigned = newAdventurers.filter(a => q.assignedAdventurers.includes(a.id));
+            
+            // --- Bond Growth ---
+            if (assigned.length > 1) {
+              assigned.forEach(a1 => {
+                const advIndex = newAdventurers.findIndex(na => na.id === a1.id);
+                const currentBonds = { ...(newAdventurers[advIndex].bonds || {}) };
+                
+                assigned.forEach(a2 => {
+                  if (a1.id === a2.id) return;
+                  const currentLevel = currentBonds[a2.id] || 0;
+                  
+                  // Compatibility Bonus
+                  let bonus = 5;
+                  const p1 = a1.personalityType;
+                  const p2 = a2.personalityType;
+                  if ((p1 === '熱血' && p2 === '冷静') || (p1 === '冷静' && p2 === '熱血')) bonus += 2;
+                  if ((p1 === '豪放' && p2 === '慎重') || (p1 === '慎重' && p2 === '豪放')) bonus += 2;
+                  if ((p1 === '打算' && p2 === '献身') || (p1 === '献身' && p2 === '打算')) bonus += 2;
+
+                  currentBonds[a2.id] = Math.min(100, currentLevel + bonus);
+                });
+                newAdventurers[advIndex].bonds = currentBonds;
+              });
+            }
+
+            // Power calculation with bonds
             let totalPower = assigned.reduce((sum, a) => sum + a.power, 0);
+            
+            // Add Bond Bonus: (Bond Level / 100) * 10% of individual power
+            assigned.forEach(a1 => {
+              assigned.forEach(a2 => {
+                if (a1.id === a2.id) return;
+                const bondLevel = (a1.bonds || {})[a2.id] || 0;
+                totalPower += Math.floor(a1.power * 0.1 * (bondLevel / 100));
+              });
+            });
+
             assigned.forEach(a => {
               if (a.cls === '戦士') totalPower += prev.shops.smith * 5;
               if (a.cls === '魔術師') totalPower += prev.shops.magic * 8;
@@ -482,15 +573,17 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
               }
             });
             if (isSuccess) {
-              let reward = q.rewardBudget * (prev.policy === 'economic' ? 1.2 : 1);
+              let reward = q.rewardBudget * (prev.policy === 'economic' ? 1.2 : 1) * (hasRewardUp ? 1.15 : 1);
               if (isMoneySkill) reward = Math.floor(reward * 1.1);
+              const fameGained = Math.floor(q.rewardFame * (hasFameUp ? 1.2 : 1));
+              
               newBudget += reward;
-              newFame = Math.max(0, newFame + q.rewardFame);
+              newFame = Math.max(0, newFame + fameGained);
               newNotoriety = Math.max(0, newNotoriety + q.rewardNotoriety);
               newTownFavor = Math.min(100, Math.max(0, newTownFavor + q.rewardTownFavor));
               
               report.income += reward;
-              report.fameGained += q.rewardFame;
+              report.fameGained += fameGained;
               report.notorietyGained += q.rewardNotoriety;
               report.completedQuests.push({ title: q.title, reward });
               
@@ -514,7 +607,35 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
       newDungeons.forEach(d => {
         if (d.assignedAdventurers.length > 0) {
           const assigned = newAdventurers.filter(a => d.assignedAdventurers.includes(a.id));
+          
+          // --- Bond Growth (Dungeons) ---
+          if (assigned.length > 1) {
+            assigned.forEach(a1 => {
+              const advIndex = newAdventurers.findIndex(na => na.id === a1.id);
+              const currentBonds = { ...(newAdventurers[advIndex].bonds || {}) };
+              assigned.forEach(a2 => {
+                if (a1.id === a2.id) return;
+                const currentLevel = currentBonds[a2.id] || 0;
+                let bonus = 2; // Dungeons give less per turn but are continuous
+                const p1 = a1.personalityType;
+                const p2 = a2.personalityType;
+                if ((p1 === '熱血' && p2 === '冷静') || (p1 === '冷静' && p2 === '熱血')) bonus += 1;
+                currentBonds[a2.id] = Math.min(100, currentLevel + bonus);
+              });
+              newAdventurers[advIndex].bonds = currentBonds;
+            });
+          }
+
           let totalPower = assigned.reduce((sum, a) => sum + a.power, 0);
+          
+          // Add Bond Bonus
+          assigned.forEach(a1 => {
+            assigned.forEach(a2 => {
+              if (a1.id === a2.id) return;
+              const bondLevel = (a1.bonds || {})[a2.id] || 0;
+              totalPower += Math.floor(a1.power * 0.1 * (bondLevel / 100));
+            });
+          });
           
           if (totalPower >= d.difficulty) {
             const prog = Math.floor(totalPower / 10);
@@ -560,7 +681,7 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
             });
             d.assignedAdventurers = [];
             
-            if (d.clearedCount === 1) {
+            if (d.clearedCount === 1 || (hasDiscoveryUp && Math.random() > 0.8)) {
               const nextHidden = newDungeons.find(nd => !nd.isDiscovered);
               if (nextHidden) nextHidden.isDiscovered = true;
             }
@@ -574,13 +695,14 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
       report.income += baseIncome;
       const upkeepPerHead = Math.max(2, 12 - prev.shops.item);
       let upkeep = newAdventurers.length * upkeepPerHead;
-      prev.assistants.forEach(a => { if (a.isHired) upkeep += a.cost; });
+      if (hasUpkeepDown) upkeep = Math.floor(upkeep * 0.8);
+      prev.hiredAssistants.forEach(a => { upkeep += a.cost; });
       newBudget -= upkeep;
       report.income -= upkeep;
 
       // Random Recruitment
       const maxPop = prev.facilities.dorm * 5;
-      if (newAdventurers.length < maxPop && Math.random() > (prev.policy === 'aggressive' ? 0.4 : 0.6)) {
+      if (newAdventurers.length < maxPop && Math.random() > (prev.policy === 'aggressive' ? 0.4 : (hasRecruitUp ? 0.3 : 0.6))) {
         const newAdv = generateAdventurer(undefined, newAdventurers.map(a => a.name));
         newAdventurers.push(newAdv);
         report.events.push(`新たな冒険者 ${newAdv.name} が加入した。`);
@@ -638,13 +760,13 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
 
       return {
         ...prev, turn: newTurn, season: newSeason, budget: newBudget, fame: newFame, notoriety: newNotoriety, townFavor: newTownFavor, quests: newQuests, adventurers: newAdventurers, dungeons: newDungeons, artifacts: newArtifacts, logs: newLogs.slice(0, 50),
-        gameStatus: 'summary', lastReport: report, currentFlavor: flavor
+        gameStatus: 'summary', lastReport: report, currentFlavor: flavor, assistants: currentAssistants
       };
     });
   };
 
   return (
-    <GameContext.Provider value={{ state, nextTurn, closeSummary, updateFlavor, dispatchQuest, autoAssignQuest, dispatchDungeon, recallDungeon, upgradeFacility, upgradeShop, executeIntrigue, unlockSkill, buyDarkMarketItem, retireAdventurer, setPolicy, hireAssistant, addLog, startGame, resetGame, fightBoss }}>
+    <GameContext.Provider value={{ state, nextTurn, closeSummary, updateFlavor, dispatchQuest, autoAssignQuest, dispatchDungeon, recallDungeon, upgradeFacility, upgradeShop, executeIntrigue, unlockSkill, buyDarkMarketItem, retireAdventurer, setPolicy, hireAssistant, dismissAssistant, addLog, startGame, resetGame, fightBoss }}>
       {children}
     </GameContext.Provider>
   );

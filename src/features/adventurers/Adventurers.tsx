@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useGame } from '../../context/GameContext';
 import type { Rank, Adventurer } from '../../types';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Sword, Scroll, Brain, History } from 'lucide-react';
+import { X, Sword, Scroll, Brain, History, Heart, Users } from 'lucide-react';
 
 const AdventurerImage = ({ src, alt, className = "h-40" }: { src: string, alt: string, className?: string }) => {
   const [hasError, setHasError] = useState(false);
@@ -71,7 +71,14 @@ export const Adventurers = () => {
                   Rank {adv.rank}
                 </span>
               </div>
-              <p className="text-amber-500 font-bold tracking-widest uppercase text-sm">{adv.cls}</p>
+              <div className="flex items-center gap-2">
+                <p className="text-amber-500 font-bold tracking-widest uppercase text-sm">{adv.cls}</p>
+                {adv.personalityType && (
+                  <span className="px-2 py-0.5 bg-stone-800 text-stone-400 text-[10px] rounded-full border border-stone-700">
+                    {adv.personalityType}
+                  </span>
+                )}
+              </div>
             </div>
             <button onClick={onClose} className="p-2 text-stone-500 hover:text-white transition-colors cursor-pointer bg-stone-800 rounded-full">
               <X className="w-6 h-6" />
@@ -88,6 +95,39 @@ export const Adventurers = () => {
               <div className="flex justify-center mt-1">{getStatusBadge(adv.status)}</div>
             </div>
           </div>
+
+          <section className="space-y-3">
+            <h4 className="text-stone-300 font-bold flex items-center gap-2 border-b border-stone-800 pb-2">
+              <Users className="w-4 h-4 text-amber-500" /> 連携・絆 (Bonds)
+            </h4>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {Object.entries(adv.bonds || {}).length > 0 ? (
+                Object.entries(adv.bonds || {}).sort((a, b) => b[1] - a[1]).map(([id, level]) => {
+                  const partner = state.adventurers.find(a => a.id === id);
+                  if (!partner) return null;
+                  return (
+                    <div key={id} className="flex items-center gap-3 bg-stone-950/50 p-2 rounded-xl border border-stone-800/50">
+                      <div className="w-8 h-8 rounded-full overflow-hidden bg-stone-900 border border-stone-700">
+                        <img src={partner.imageUrl} alt={partner.name} className="w-full h-full object-cover" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[10px] text-stone-300 font-bold truncate">{partner.name}</p>
+                        <div className="flex items-center gap-1">
+                          <Heart className={`w-3 h-3 ${level > 50 ? 'text-red-500' : 'text-stone-600'}`} fill={level > 50 ? 'currentColor' : 'none'} />
+                          <div className="flex-1 h-1 bg-stone-800 rounded-full overflow-hidden">
+                            <div className="h-full bg-red-600" style={{ width: `${level}%` }} />
+                          </div>
+                          <span className="text-[8px] text-stone-500 w-6 text-right">{level}%</span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
+              ) : (
+                <p className="text-xs text-stone-600 italic py-2 col-span-full text-center">まだ誰とも絆が芽生えていない...</p>
+              )}
+            </div>
+          </section>
 
           <section className="space-y-3">
             <h4 className="text-stone-300 font-bold flex items-center gap-2 border-b border-stone-800 pb-2">
@@ -132,17 +172,48 @@ export const Adventurers = () => {
           </section>
 
           {['S', 'A', 'B'].includes(adv.rank) && adv.status === '待機中' && (
-            <button
-              onClick={() => {
-                if (confirm(`${adv.name} を名誉引退させますか？この英雄は殿堂入りし、後進に道を譲ります。`)) {
-                  retireAdventurer(adv.id);
-                  onClose();
-                }
-              }}
-              className="w-full py-4 bg-amber-900/20 hover:bg-amber-800 text-amber-500 hover:text-white font-bold rounded-2xl border border-amber-900/50 transition-all active:scale-95 flex items-center justify-center gap-2"
-            >
-              <Scroll className="w-4 h-4" /> 名誉引退させる (Honorary Retirement)
-            </button>
+            <div className="space-y-4 pt-4 border-t border-stone-800">
+              <h4 className="text-stone-300 font-bold flex items-center gap-2">
+                <Scroll className="w-4 h-4 text-amber-500" /> 引退・継承 (Retirement & Succession)
+              </h4>
+              <p className="text-xs text-stone-500">
+                この英雄を引退させ、その経験の一部を次世代に引き継ぐことができます。
+              </p>
+              
+              <div className="space-y-2">
+                <p className="text-[10px] text-stone-400 uppercase tracking-widest">後継者を選択 (Successor)</p>
+                <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+                  <button
+                    onClick={() => {
+                      if (confirm(`${adv.name} を後継者なしで引退させますか？`)) {
+                        retireAdventurer(adv.id);
+                        onClose();
+                      }
+                    }}
+                    className="shrink-0 px-4 py-2 bg-stone-800 hover:bg-stone-700 text-stone-400 text-xs rounded-lg border border-stone-700 transition-colors"
+                  >
+                    なし
+                  </button>
+                  {state.adventurers.filter(a => a.id !== adv.id && a.status === '待機中').map(candidate => (
+                    <button
+                      key={candidate.id}
+                      onClick={() => {
+                        if (confirm(`${adv.name} の意志を ${candidate.name} に引き継ぎますか？`)) {
+                          retireAdventurer(adv.id, candidate.id);
+                          onClose();
+                        }
+                      }}
+                      className="shrink-0 flex items-center gap-2 px-3 py-1.5 bg-stone-950 hover:bg-amber-900/20 text-stone-300 text-xs rounded-lg border border-stone-800 hover:border-amber-700/50 transition-all"
+                    >
+                      <div className="w-6 h-6 rounded-full overflow-hidden border border-stone-700">
+                        <img src={candidate.imageUrl} alt={candidate.name} className="w-full h-full object-cover" />
+                      </div>
+                      <span>{candidate.name}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
           )}
         </div>
       </motion.div>

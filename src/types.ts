@@ -17,7 +17,9 @@ export interface Adventurer {
   imageUrl?: string;
   background?: string;
   personality?: string;
+  personalityType?: string;
   skills: AdventurerSkill[];
+  bonds?: Record<string, number>; // adventurerId -> level (0-100)
 }
 
 export interface Quest {
@@ -32,6 +34,8 @@ export interface Quest {
   duration: number; // turns
   status: '未受注' | '進行中' | '完了' | '失敗';
   assignedAdventurers: string[];
+  chainId?: string;
+  chainStep?: number;
 }
 
 export interface GameLog {
@@ -45,6 +49,7 @@ export interface Assistant {
   id: string;
   name: string;
   role: string;
+  desc: string;
   cost: number;
   buff: string;
   isHired: boolean;
