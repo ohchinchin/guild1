@@ -649,6 +649,17 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
               newTownFavor = Math.max(0, newTownFavor - 2);
               report.failedQuests.push({ title: q.title });
               newLogs.unshift({ id: Math.random().toString(), turn: prev.turn, message: `失敗: ${q.title}`, type: 'danger' });
+              
+              // --- Injury Risk on Failure ---
+              assigned.forEach(a => {
+                const injuryChance = hasInjuryDown ? 0.1 : 0.3;
+                if (Math.random() < injuryChance) {
+                  const advIndex = newAdventurers.findIndex(na => na.id === a.id);
+                  newAdventurers[advIndex].status = '負傷';
+                  newLogs.unshift({ id: Math.random().toString(), turn: prev.turn, message: `${a.name} が任務中に負傷した！`, type: 'danger' });
+                }
+              });
+
               return { ...q, status: '失敗' as const };
             }
           }

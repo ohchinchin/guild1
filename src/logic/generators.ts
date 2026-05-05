@@ -207,7 +207,8 @@ const ASSISTANT_ROLES = [
   { role: 'スカウト', buff: 'recruit_up', desc: '新たな冒険者の加入率が大幅に上昇する。' },
   { role: '商談人', buff: 'reward_up', desc: '全ての依頼の報酬金が15%上昇する。' },
   { role: '衛生兵', buff: 'injury_down', desc: '任務での負傷率を低減し、回復を早める。' },
-  { role: '情報屋', buff: 'discovery_up', desc: '新たな迷宮の発見率が上昇する。' }
+  { role: '情報屋', buff: 'discovery_up', desc: '新たな迷宮の発見率が上昇する。' },
+  { role: '宣伝担当', buff: 'fame_up', desc: '依頼達成時に獲得できる名声が20%上昇する。' }
 ];
 
 export const generateAssistant = (): any => {
