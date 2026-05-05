@@ -594,7 +594,8 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
               newAdventurers[advIndex].status = '待機中';
               if (isSuccess) {
                 const growthBonus = (isGrowthSkill ? 1.2 : 1) * (hasBaldo ? 1.5 : 1);
-                const growth = (Math.floor(Math.random() * 5) + 2) * prev.facilities.training * growthBonus;
+                // Increased base growth (from 2-6 to 5-10)
+                const growth = (Math.floor(Math.random() * 6) + 5) * prev.facilities.training * growthBonus;
                 newAdventurers[advIndex].power += Math.floor(growth);
               }
             });
@@ -672,7 +673,11 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
             report.dungeonProgress.push({ name: d.name, progress: prog });
             newLogs.unshift({ id: Math.random().toString(), turn: prev.turn, message: `迷宮「${d.name}」を探索中...`, type: 'info' });
           } else {
-            newLogs.unshift({ id: Math.random().toString(), turn: prev.turn, message: `迷宮「${d.name}」の探索は難航している。`, type: 'warning' });
+            // Struggling Progress: even if power is low, you can make 20% progress (minimum 1)
+            const prog = Math.max(1, Math.floor(totalPower / 50));
+            d.progress += prog;
+            report.dungeonProgress.push({ name: d.name, progress: prog });
+            newLogs.unshift({ id: Math.random().toString(), turn: prev.turn, message: `迷宮「${d.name}」の探索は難航しているが、着実に前進している。`, type: 'warning' });
           }
 
           if (d.progress >= d.maxProgress) {
@@ -738,14 +743,18 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
       // Random Recruitment
       const maxPop = prev.facilities.dorm * 5;
       if (newAdventurers.length < maxPop && Math.random() > (prev.policy === 'aggressive' ? 0.4 : (hasRecruitUp ? 0.3 : 0.6))) {
-        const newAdv = generateAdventurer(undefined, newAdventurers.map(a => a.name));
+        const newAdv = generateAdventurer(undefined, newAdventurers.map(a => a.name), newTurn);
         newAdventurers.push(newAdv);
         report.events.push(`新たな冒険者 ${newAdv.name} が加入した。`);
         newLogs.unshift({ id: Math.random().toString(), turn: prev.turn, message: `新たな冒険者 ${newAdv.name} が加入した。`, type: 'info' });
       }
 
       while (newQuests.filter(q => q.status === '未受注').length < (prev.townFavor > 70 ? 4 : 3)) {
-        newQuests.push(generateQuest(newTurn, newFame));
+        // Average power for quest scaling
+        const avgPower = newAdventurers.length > 0 
+          ? newAdventurers.reduce((sum, a) => sum + a.power, 0) / newAdventurers.length 
+          : 50;
+        newQuests.push(generateQuest(newTurn, newFame, newNotoriety, newTownFavor, avgPower));
       }
 
       // Update Season Flavor

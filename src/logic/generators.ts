@@ -71,7 +71,7 @@ const CLASS_SKILLS: Record<ClassName, { name: string, desc: string }[]> = {
   ]
 };
 
-export const generateAdventurer = (forcedRank?: Rank, existingNames: string[] = []): Adventurer => {
+export const generateAdventurer = (forcedRank?: Rank, existingNames: string[] = [], turn: number = 1): Adventurer => {
   const isMale = Math.random() > 0.5;
   const firstNames = isMale ? MALE_FIRST_NAMES : FEMALE_FIRST_NAMES;
   
@@ -85,10 +85,14 @@ export const generateAdventurer = (forcedRank?: Rank, existingNames: string[] = 
   const cls = CLASSES[Math.floor(Math.random() * CLASSES.length)];
   
   // Weights for rank generation (E is most common, S is rare)
-  const rank = forcedRank || RANKS[Math.min(5, Math.floor(Math.random() * 3) + Math.floor(Math.random() * 4))];
+  // As the game progresses (turn increases), higher ranks become slightly more common
+  const rankBonus = Math.floor(turn / 15);
+  const rank = forcedRank || RANKS[Math.min(5, Math.floor(Math.random() * 3) + Math.floor(Math.random() * 4) + rankBonus)];
   
+  // Base power scales with turn to keep new recruits relevant
+  const scalingFactor = 1 + (turn * 0.04); 
   const basePower = { 'E': 10, 'D': 30, 'C': 80, 'B': 200, 'A': 500, 'S': 1200 }[rank];
-  const power = basePower + Math.floor(Math.random() * (basePower * 0.2));
+  const power = Math.floor((basePower + Math.floor(Math.random() * (basePower * 0.2))) * scalingFactor);
 
   // Placeholder image path based on class, gender and rank
   const classKey = cls === '戦士' ? 'warrior' : cls === '魔術師' ? 'mage' : cls === '盗賊' ? 'thief' : 'cleric';
@@ -167,11 +171,14 @@ export const generateQuest = (turn: number, fame: number, notoriety: number = 0,
   const title = `${type.noun}の${type.verb}`;
   
   // Difficulty scales with turn and guild's power level
-  const difficultyMultiplier = 1 + (turn * 0.04) + (avgPower * 0.005);
+  const difficultyMultiplier = 1 + (turn * 0.05) + (avgPower * 0.006);
   
   // Budget is boosted by Town Favor and Guild Fame
-  const favorBonus = 1 + (townFavor / 200); // Up to +50%
-  const fameBonus = 1 + (fame / 500); // Up to +20% (long term)
+  const favorBonus = 1 + (townFavor / 150); // Up to +50% more easily
+  const fameBonus = 1 + (fame / 400); // Up to +30% (long term)
+  
+  // Rewards scale more aggressively in the late game
+  const rewardMultiplier = 1 + (turn * 0.08); 
   
   const requiredPower = Math.floor((40 + Math.random() * 60) * difficultyMultiplier);
   
@@ -180,10 +187,10 @@ export const generateQuest = (turn: number, fame: number, notoriety: number = 0,
     title,
     description: type.desc,
     requiredPower,
-    rewardBudget: Math.floor((120 + Math.random() * 180) * difficultyMultiplier * type.budget * favorBonus * fameBonus),
-    rewardFame: Math.floor((2 + Math.random() * 4) * type.fame),
+    rewardBudget: Math.floor((150 + Math.random() * 250) * rewardMultiplier * type.budget * favorBonus * fameBonus),
+    rewardFame: Math.floor((3 + Math.random() * 5) * type.fame),
     rewardNotoriety: Math.max(0, Math.floor(Math.random() * 5 * type.notoriety)),
-    rewardTownFavor: Math.floor((1 + Math.random() * 3) * type.favor),
+    rewardTownFavor: Math.floor((2 + Math.random() * 4) * type.favor),
     duration: 1 + Math.floor(Math.random() * 2), // 1-2 turns
     status: '未受注',
     assignedAdventurers: []
