@@ -97,6 +97,16 @@ export interface TurnReport {
   events: string[];
 }
 
+export interface HistoryStats {
+  totalQuests: number;
+  totalDungeons: number;
+  totalGoldEarned: number;
+  maxAdventurerPower: number;
+  maxAdventurerName: string;
+  artifactsFound: number;
+  bossDefeatedCount: number;
+}
+
 export interface HallOfFame {
   id: string;
   name: string;

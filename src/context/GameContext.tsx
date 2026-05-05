@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import type { ReactNode } from 'react';
-import type { Adventurer, Quest, GameLog, Assistant, Dungeon, Rival, TurnReport, HallOfFame, MasterSkill, DarkMarketItem, Rank, Artifact } from '../types';
+import type { Adventurer, Quest, GameLog, Assistant, Dungeon, Rival, TurnReport, HallOfFame, MasterSkill, DarkMarketItem, Rank, Artifact, HistoryStats } from '../types';
 import { generateAdventurer, generateQuest, generateAssistant } from '../logic/generators';
 import { getRandomFlavor } from '../data/flavorText';
 
@@ -33,6 +33,9 @@ type GameState = {
   lastReport: TurnReport | null;
   currentFlavor: string;
   ending: string | null;
+  endingAfterstory: string | null;
+  endingImages: string[];
+  stats: HistoryStats;
   bossHealth?: number;
 };
 
@@ -155,7 +158,18 @@ const initialState: GameState = {
   gameStatus: 'start',
   lastReport: null,
   currentFlavor: "ギルドマスターとしての新しい生活が始まる。",
-  ending: null
+  ending: null,
+  endingAfterstory: null,
+  endingImages: [],
+  stats: {
+    totalQuests: 0,
+    totalDungeons: 0,
+    totalGoldEarned: 0,
+    maxAdventurerPower: 0,
+    maxAdventurerName: '',
+    artifactsFound: 0,
+    bossDefeatedCount: 0
+  }
 };
 
 const GameContext = createContext<GameContextType | undefined>(undefined);
@@ -443,13 +457,16 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
           gameStatus: 'playing',
           fame: prev.fame + 50,
           townFavor: Math.min(100, prev.townFavor + 20),
+          stats: { ...prev.stats, bossDefeatedCount: prev.stats.bossDefeatedCount + 1 },
           logs: [{ id: Math.random().toString(), turn: prev.turn, message: `【ボス討伐成功】総力戦の末、厄災を退けた！`, type: 'success' }, ...prev.logs]
         };
       } else {
         return {
           ...prev,
           gameStatus: 'ended',
-          ending: '街の崩壊（ボス戦敗北）'
+          ending: '街の崩壊（ボス戦敗北）',
+          endingAfterstory: "強大な厄災の前に、ギルドの守りは脆くも崩れ去った。街は炎に包まれ、人々は散り散りになった。あなたの築いた夢は、灰の中に消えたのだ。",
+          endingImages: [`https://image.pollinations.ai/prompt/${encodeURIComponent('A medieval city in ruins and flames, dark smoke rising, defeated warriors in the foreground, dark fantasy, cinematic, 8k')}?model=flux&width=1024&height=512&nologo=true`]
         };
       }
     });
@@ -472,6 +489,7 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
       const newSeason: Season = prev.season === 'Summer' ? 'Winter' : 'Summer';
       const newAdventurers = [...prev.adventurers];
       const newDungeons = [...prev.dungeons];
+      let newStats = { ...prev.stats };
       
       const isMoneySkill = prev.masterSkills.find(s => s.id === 's2')?.unlocked;
       const isGrowthSkill = prev.masterSkills.find(s => s.id === 's1')?.unlocked;
@@ -486,6 +504,14 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
         dungeonProgress: [],
         events: []
       };
+
+      // Update max power stat
+      newAdventurers.forEach(a => {
+        if (a.power > newStats.maxAdventurerPower) {
+          newStats.maxAdventurerPower = a.power;
+          newStats.maxAdventurerName = a.name;
+        }
+      });
 
       // --- Policy Effects ---
       if (prev.policy === 'diplomatic') {
@@ -587,6 +613,9 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
               report.notorietyGained += q.rewardNotoriety;
               report.completedQuests.push({ title: q.title, reward });
               
+              newStats.totalQuests += 1;
+              newStats.totalGoldEarned += reward;
+
               newLogs.unshift({ id: Math.random().toString(), turn: prev.turn, message: `成功: ${q.title} (+${Math.floor(reward)}G)`, type: 'success' });
               return { ...q, status: '完了' as const };
             } else {
@@ -658,6 +687,9 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
             newFame += fameReward;
             report.income += reward;
             report.fameGained += fameReward;
+            
+            newStats.totalDungeons += 1;
+            newStats.totalGoldEarned += reward;
 
             const possibleItems = artifactPool[d.rank];
             const drop = possibleItems[Math.floor(Math.random() * possibleItems.length)];
@@ -670,6 +702,7 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
               imageUrl: `${import.meta.env.BASE_URL}images/art_${drop.id}.webp`
             };
             newArtifacts.push(newArt);
+            newStats.artifactsFound = newArtifacts.length;
 
             report.events.push(`【迷宮踏破】${d.name} を攻略！ 財宝${reward}Gと「${newArt.name}」を獲得した。`);
             newLogs.unshift({ id: Math.random().toString(), turn: prev.turn, message: `【迷宮踏破】${d.name} 攻略！ ${reward}Gと${newArt.name}獲得。`, type: 'success' });
@@ -693,6 +726,8 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
       const baseIncome = (50 * prev.facilities.tavern) + (prev.policy === 'economic' ? 100 : 0);
       newBudget += baseIncome;
       report.income += baseIncome;
+      newStats.totalGoldEarned += baseIncome;
+
       const upkeepPerHead = Math.max(2, 12 - prev.shops.item);
       let upkeep = newAdventurers.length * upkeepPerHead;
       if (hasUpkeepDown) upkeep = Math.floor(upkeep * 0.8);
@@ -723,6 +758,7 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
         if (roll > 0.8) {
           report.events.push("【豊作祭】街がお祭りムードに包まれている！ 依頼の報酬金が1.5倍になった。");
           newBudget += 1000;
+          newStats.totalGoldEarned += 1000;
         } else if (roll > 0.6) {
           report.events.push("【大干魃】厳しい暑さが続く。 冒険者の維持費が増加した。");
           newBudget -= 500;
@@ -741,26 +777,61 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
       const flavor = getRandomFlavor('seasons', seasonKey);
 
       // Boss Event Check
-      if (newTurn === 10 || newTurn === 30 || newTurn === 50) {
+      if (newTurn === 10 || newTurn === 30 || newTurn === 48) {
         return {
           ...prev, turn: newTurn, season: newSeason, budget: newBudget, fame: newFame, notoriety: newNotoriety, townFavor: newTownFavor, quests: newQuests, adventurers: newAdventurers, dungeons: newDungeons, artifacts: newArtifacts, logs: newLogs.slice(0, 50),
-          gameStatus: 'boss_battle', lastReport: report, currentFlavor: flavor
+          gameStatus: 'boss_battle', lastReport: report, currentFlavor: flavor, stats: newStats
         };
       }
 
       // Final Ending Check
       if (newTurn > 50) {
         let ending = "辺境の古参ギルド";
-        if (newBudget < 0) ending = "ギルド破産（ゲームオーバー）";
-        else if (newBudget >= 100000) ending = "巨大複合商会（経済的勝利）";
-        else if (newFame >= 200) ending = "伝説のギルド（大成功）";
-        else if (newNotoriety >= 100) ending = "暗黒街の支配者（裏社会勝利）";
-        return { ...prev, turn: 50, gameStatus: 'ended', ending, logs: newLogs.slice(0, 50), lastReport: report, artifacts: newArtifacts };
+        let afterstory = "あなたのギルドは、歴史の荒波を乗り越え、一つの時代を築き上げた。大きな飛躍はなかったかもしれないが、着実に歩んだその足跡は、街の人々の記憶に刻まれている。";
+        let images: string[] = [];
+
+        if (newBudget < 0) {
+          ending = "ギルド破産（ゲームオーバー）";
+          afterstory = "拡大しすぎた組織と放漫な経営が仇となり、ついに金庫は底をついた。借金取りに追われ、あなたは夜逃げ同然で街を去った。冒険者たちは散り散りになり、ギルドの看板は雨風にさらされている。";
+          images = [`https://image.pollinations.ai/prompt/${encodeURIComponent('A lonely abandoned guild hall, broken windows, spider webs, dust, rainy day, cinematic, dark fantasy, 8k')}?model=flux&width=1024&height=512&nologo=true`];
+        } else if (newBudget >= 100000) {
+          ending = "巨大複合商会（経済的勝利）";
+          afterstory = "あなたのギルドはもはや単なる冒険者の集まりではない。大陸中の物流を支配する巨大な商会へと変貌を遂げた。黄金で装飾されたギルド本部は街の誇りとなり、あなたの名前は富の象徴として語り継がれるだろう。";
+          images = [
+            `https://image.pollinations.ai/prompt/${encodeURIComponent('A grand guild palace made of gold and white marble, bustling merchant market in front, wealth, sunshine, cinematic, 8k')}?model=flux&width=1024&height=512&nologo=true`,
+            `https://image.pollinations.ai/prompt/${encodeURIComponent('A wealthy guild master sitting on a throne of coins and artifacts, luxury, high fantasy, 8k')}?model=flux&width=512&height=512&nologo=true`
+          ];
+        } else if (newFame >= 200) {
+          ending = "伝説のギルド（大成功）";
+          afterstory = "数々の偉業を成し遂げたあなたのギルドは、吟遊詩人によって語り継がれる伝説となった。最強の冒険者たちが集い、正義と勇気の象徴として大陸全土にその名を轟かせている。あなたの物語は、永遠に終わることはない。";
+          images = [
+            `https://image.pollinations.ai/prompt/${encodeURIComponent('A group of heroic adventurers standing on a mountain peak, sunset, epic scenery, high fantasy, cinematic, 8k')}?model=flux&width=1024&height=512&nologo=true`,
+            `https://image.pollinations.ai/prompt/${encodeURIComponent('A grand hall filled with statues of legendary heroes, magical lights, epic atmosphere, 8k')}?model=flux&width=512&height=512&nologo=true`
+          ];
+        } else if (newNotoriety >= 100) {
+          ending = "暗黒街の支配者（裏社会勝利）";
+          afterstory = "表向きはギルドだが、その実態は大陸の影を支配する巨大な闇組織だ。政治家も王侯貴族も、あなたの意向を無視することはできない。闇市場、暗殺、裏工作……世界はあなたの手のひらの上で転がされている。";
+          images = [
+            `https://image.pollinations.ai/prompt/${encodeURIComponent('A dark secret chamber, hooded figures, shadows, mysterious glowing symbols, dark fantasy, cinematic, 8k')}?model=flux&width=1024&height=512&nologo=true`,
+            `https://image.pollinations.ai/prompt/${encodeURIComponent('An intimidating figure in black armor looking over a dark city at night, red moon, 8k')}?model=flux&width=512&height=512&nologo=true`
+          ];
+        } else if (newStats.bossDefeatedCount >= 3) {
+          ending = "英雄の守護者（英雄的勝利）";
+          afterstory = "三度の大きな厄災から街を救ったあなたは、この国の守護聖人として崇められている。ギルドの冒険者たちは皆、人々を救う英雄として子供たちの憧れの的だ。平和な日々が続く中、あなたの功績は歴史書に黄金の文字で刻まれた。";
+          images = [
+            `https://image.pollinations.ai/prompt/${encodeURIComponent('A peaceful city festival, people cheering for heroes, blue sky, flower petals falling, cinematic, 8k')}?model=flux&width=1024&height=512&nologo=true`,
+            `https://image.pollinations.ai/prompt/${encodeURIComponent('A heroic knight and a mage being awarded medals by the king, grand ceremony, 8k')}?model=flux&width=512&height=512&nologo=true`
+          ];
+        } else {
+          images = [`https://image.pollinations.ai/prompt/${encodeURIComponent('A cozy guild tavern, adventurers drinking and laughing around a fireplace, evening, warm lighting, high fantasy, 8k')}?model=flux&width=1024&height=512&nologo=true`];
+        }
+
+        return { ...prev, turn: 50, gameStatus: 'ended', ending, endingAfterstory: afterstory, endingImages: images, logs: newLogs.slice(0, 50), lastReport: report, artifacts: newArtifacts, stats: newStats };
       }
 
       return {
         ...prev, turn: newTurn, season: newSeason, budget: newBudget, fame: newFame, notoriety: newNotoriety, townFavor: newTownFavor, quests: newQuests, adventurers: newAdventurers, dungeons: newDungeons, artifacts: newArtifacts, logs: newLogs.slice(0, 50),
-        gameStatus: 'summary', lastReport: report, currentFlavor: flavor, assistants: currentAssistants
+        gameStatus: 'summary', lastReport: report, currentFlavor: flavor, assistants: currentAssistants, stats: newStats
       };
     });
   };

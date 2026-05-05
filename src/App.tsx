@@ -223,33 +223,110 @@ function App() {
           </motion.div>
         </motion.div>
       ) : state.gameStatus === 'ended' ? (
-        <motion.div key="ending" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="min-h-screen bg-stone-950 flex items-center justify-center p-4">
+        <motion.div key="ending" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="min-h-screen bg-stone-950 flex items-center justify-center p-4 py-12">
           <motion.div 
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="max-w-md w-full bg-stone-900 border-2 border-amber-600 p-8 rounded-2xl shadow-2xl text-center space-y-6"
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="max-w-4xl w-full bg-stone-900/80 backdrop-blur-xl border-2 border-amber-600/30 rounded-3xl shadow-[0_0_50px_rgba(0,0,0,0.5)] overflow-hidden flex flex-col md:flex-row"
           >
-            <h1 className="text-3xl font-bold text-amber-500">物語の終焉</h1>
-            <div className="py-8">
-              <p className="text-stone-400 text-sm mb-2">あなたの築いたギルドは...</p>
-              <p className="text-3xl font-extrabold text-white tracking-widest">{state.ending}</p>
+            {/* Left: Image / Visual Side */}
+            <div className="md:w-1/2 relative bg-stone-950 min-h-[300px] md:min-h-full">
+              {state.endingImages && state.endingImages.length > 0 ? (
+                <div className="absolute inset-0 flex flex-col">
+                  <motion.div 
+                    initial={{ scale: 1.1, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    transition={{ duration: 1.5 }}
+                    className="flex-1 bg-cover bg-center"
+                    style={{ backgroundImage: `url("${state.endingImages[0]}")` }}
+                  />
+                  {state.endingImages.length > 1 && (
+                    <motion.div 
+                      initial={{ y: 20, opacity: 0 }}
+                      animate={{ y: 0, opacity: 1 }}
+                      transition={{ delay: 1, duration: 1 }}
+                      className="h-1/3 border-t border-amber-900/30 bg-cover bg-center"
+                      style={{ backgroundImage: `url("${state.endingImages[1]}")` }}
+                    />
+                  )}
+                </div>
+              ) : (
+                <div className="absolute inset-0 bg-stone-800 flex items-center justify-center">
+                  <Trophy className="w-20 h-20 text-stone-700" />
+                </div>
+              )}
+              <div className="absolute inset-0 bg-gradient-to-t from-stone-950 via-transparent to-transparent md:bg-gradient-to-r" />
             </div>
-            <div className="grid grid-cols-2 gap-4 text-sm">
-              <div className="bg-stone-800 p-3 rounded">
-                <p className="text-stone-500">最終資金</p>
-                <p className="text-yellow-500 font-bold">{state.budget} G</p>
+
+            {/* Right: Text / Info Side */}
+            <div className="md:w-1/2 p-8 md:p-12 space-y-8 flex flex-col justify-center">
+              <div className="space-y-2">
+                <motion.p 
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="text-amber-500/60 font-sans tracking-[0.3em] uppercase text-xs font-bold"
+                >
+                  The Tale is Told
+                </motion.p>
+                <motion.h1 
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.2 }}
+                  className="text-4xl font-black text-amber-500 tracking-tight"
+                >
+                  {state.ending}
+                </motion.h1>
               </div>
-              <div className="bg-stone-800 p-3 rounded">
-                <p className="text-stone-500">最終名声</p>
-                <p className="text-blue-400 font-bold">{state.fame}</p>
+
+              <motion.div 
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.5 }}
+                className="prose prose-invert prose-amber"
+              >
+                <p className="text-stone-300 leading-relaxed italic text-lg font-serif">
+                  「{state.endingAfterstory}」
+                </p>
+              </motion.div>
+
+              <div className="space-y-4 pt-4 border-t border-stone-800">
+                <h3 className="text-stone-500 text-xs font-bold uppercase tracking-widest">Journey Recap</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="bg-stone-950/50 p-4 rounded-xl border border-stone-800/50">
+                    <p className="text-stone-500 text-[10px] uppercase">総獲得資金</p>
+                    <p className="text-xl font-black text-yellow-500">{state.stats.totalGoldEarned.toLocaleString()} <span className="text-xs">G</span></p>
+                  </div>
+                  <div className="bg-stone-950/50 p-4 rounded-xl border border-stone-800/50">
+                    <p className="text-stone-500 text-[10px] uppercase">完遂した依頼</p>
+                    <p className="text-xl font-black text-blue-400">{state.stats.totalQuests} <span className="text-xs">件</span></p>
+                  </div>
+                  <div className="bg-stone-950/50 p-4 rounded-xl border border-stone-800/50">
+                    <p className="text-stone-500 text-[10px] uppercase">踏破した迷宮</p>
+                    <p className="text-xl font-black text-emerald-400">{state.stats.totalDungeons} <span className="text-xs">箇所</span></p>
+                  </div>
+                  <div className="bg-stone-950/50 p-4 rounded-xl border border-stone-800/50">
+                    <p className="text-stone-500 text-[10px] uppercase">獲得した秘宝</p>
+                    <p className="text-xl font-black text-purple-400">{state.stats.artifactsFound} <span className="text-xs">種</span></p>
+                  </div>
+                </div>
+                
+                {state.stats.maxAdventurerName && (
+                  <div className="bg-amber-900/10 p-4 rounded-xl border border-amber-900/20">
+                    <p className="text-amber-600 text-[10px] uppercase font-bold">最高戦力の冒険者</p>
+                    <p className="text-lg font-bold text-amber-200">{state.stats.maxAdventurerName} <span className="text-stone-500 font-normal text-sm">(Power: {state.stats.maxAdventurerPower})</span></p>
+                  </div>
+                )}
               </div>
+
+              <motion.button 
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={resetGame}
+                className="w-full py-4 bg-amber-700 hover:bg-amber-600 text-white font-bold rounded-2xl transition-all shadow-xl flex items-center justify-center gap-2 mt-8 border border-amber-500/50"
+              >
+                タイトルへ戻る
+              </motion.button>
             </div>
-            <button 
-              onClick={resetGame}
-              className="w-full py-4 bg-stone-800 hover:bg-stone-700 text-white font-bold rounded-xl transition-all shadow-xl active:scale-95 flex items-center justify-center gap-2 mt-4"
-            >
-              タイトルへ戻る
-            </button>
           </motion.div>
         </motion.div>
       ) : (
