@@ -701,9 +701,10 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
             // --- Material Drop Chance per turn ---
             if (Math.random() > 0.7) {
               const mats = getDungeonMaterials(d.rank);
-              const drop = mats[Math.floor(Math.random() * mats.length)];
-              newMaterials[drop] = (newMaterials[drop] || 0) + 1;
-              newLogs.unshift({ id: Math.random().toString(), turn: prev.turn, message: `素材獲得: ${drop} を発見した。`, type: 'success' });
+              const dropId = mats[Math.floor(Math.random() * mats.length)];
+              const materialName = MATERIALS.find(m => m.id === dropId)?.name || dropId;
+              newMaterials[dropId] = (newMaterials[dropId] || 0) + 1;
+              newLogs.unshift({ id: Math.random().toString(), turn: prev.turn, message: `素材獲得: ${materialName} を発見した。`, type: 'success' });
             }
           } else {
             // Struggling Progress: even if power is low, you can make 20% progress (minimum 1)
