@@ -192,8 +192,9 @@ export interface GameState {
   logs: GameLog[];
   facilities: { dorm: number; tavern: number; training: number; };
   shops: { smith: number; magic: number; item: number; };
-  gameStatus: 'start' | 'playing' | 'ended' | 'boss_battle' | 'summary' | 'event';
-  activeEvent: DynamicEvent | null;
+  gameStatus: 'start' | 'playing' | 'ended' | 'boss_battle' | 'boss_victory' | 'summary' | 'event';
+  activeEvent: null | DynamicEvent;
+  lastBossImageUrl?: string;
   lastReport: TurnReport | null;
   currentFlavor: string;
   ending: string | null;

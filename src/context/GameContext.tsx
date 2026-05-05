@@ -433,24 +433,38 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
       const townHelp = prev.townFavor * 5;
       const rivalHelp = prev.rivals.reduce((sum, r) => sum + (r.relation > 50 ? r.power * 0.5 : 0), 0);
       const totalPower = guildPower + townHelp + rivalHelp;
-      const bossPower = prev.turn === 10 ? 1000 : prev.turn === 30 ? 3000 : 8000;
+      
+      const bossData = {
+        10: { name: '巨岩のガーディアン', power: 1000, prompt: 'A giant stone golem awakening in a mountain pass, moss covered rocks, glowing blue eyes, epic boss encounter' },
+        30: { name: '深淵の魔導王', power: 3000, prompt: 'A dark sorcerer king floating above a corrupted throne, purple magical aura, skeleton army, dark fantasy' },
+        48: { name: '終焉の災厄：黒龍', power: 8000, prompt: 'A massive black dragon breathing dark fire over a medieval city, sky filled with ash, terrifying catastrophe' }
+      }[prev.turn as 10 | 30 | 48] || { name: '未知の厄災', power: 5000, prompt: 'A mysterious dark creature emerging from a portal' };
 
-      if (totalPower >= bossPower) {
+      const generateBossUrl = (p: string) => `https://image.pollinations.ai/prompt/${encodeURIComponent(p + ', dramatic, cinematic, 8k')}?model=flux&width=1024&height=512&nologo=true`;
+
+      if (totalPower >= bossData.power) {
+        const victoryPrompt = {
+          10: 'Adventurers cheering in front of a fallen stone giant, sunrise, hope, victory',
+          30: 'Light magic dispelling dark clouds over a kingdom, heroic celebration, high fantasy',
+          48: 'Citizens and adventurers rebuilding a city under a clear blue sky, golden age begins, epic ending'
+        }[prev.turn as 10 | 30 | 48] || 'Heroic victory celebration';
+
         return {
           ...prev,
-          gameStatus: 'playing',
+          gameStatus: 'boss_victory',
+          lastBossImageUrl: generateBossUrl(victoryPrompt),
           fame: prev.fame + 50,
           townFavor: Math.min(100, prev.townFavor + 20),
           stats: { ...prev.stats, bossDefeatedCount: prev.stats.bossDefeatedCount + 1 },
-          logs: [{ id: Math.random().toString(), turn: prev.turn, message: `【ボス討伐成功】総力戦の末、厄災を退けた！`, type: 'success' }, ...prev.logs]
+          logs: [{ id: Math.random().toString(), turn: prev.turn, message: `【ボス討伐成功】${bossData.name} を退けた！`, type: 'success' }, ...prev.logs]
         };
       } else {
         return {
           ...prev,
           gameStatus: 'ended',
-          ending: '街の崩壊（ボス戦敗北）',
-          endingAfterstory: "強大な厄災の前に、ギルドの守りは脆くも崩れ去った。街は炎に包まれ、人々は散り散りになった。あなたの築いた夢は、灰の中に消えたのだ。",
-          endingImages: [`https://image.pollinations.ai/prompt/${encodeURIComponent('A medieval city in ruins and flames, dark smoke rising, defeated warriors in the foreground, dark fantasy, cinematic, 8k')}?model=flux&width=1024&height=512&nologo=true`]
+          ending: `街の崩壊（${bossData.name}に敗北）`,
+          endingAfterstory: `強大な${bossData.name}の前に、ギルドの守りは脆くも崩れ去った。街は炎に包まれ、人々は散り散りになった。あなたの築いた夢は、灰の中に消えたのだ。`,
+          endingImages: [generateBossUrl(bossData.prompt)]
         };
       }
     });

@@ -214,14 +214,53 @@ function App() {
           {showHowToPlay && <HowToPlayModal />}
         </motion.div>
       ) : state.gameStatus === 'boss_battle' ? (
-        <motion.div key="boss-battle" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="min-h-screen bg-red-950 flex items-center justify-center p-4 text-center">
-          <motion.div initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} className="max-w-2xl w-full bg-stone-900 border-4 border-red-800 p-8 rounded-3xl shadow-2xl space-y-6">
-            <Swords className="w-16 h-16 mx-auto text-red-500" />
-            <h1 className="text-4xl font-bold text-red-500">厄災の襲来 (Turn {state.turn})</h1>
-            <p className="text-stone-300">ボスが街に到達しました。ギルドの全戦力、街の支援、同盟ギルドの力を結集して迎え撃ちます。</p>
-            <div className="py-6">
-              <button onClick={fightBoss} className="px-12 py-4 bg-red-700 hover:bg-red-600 text-white font-black text-2xl rounded-full shadow-[0_0_30px_rgba(220,38,38,0.6)] active:scale-95 transition-all">
-                総力戦を開始する
+        <motion.div key="boss-battle" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="min-h-screen bg-black flex items-center justify-center p-4">
+          <div 
+            className="absolute inset-0 bg-cover bg-center opacity-40 blur-sm"
+            style={{ backgroundImage: `url("https://image.pollinations.ai/prompt/${encodeURIComponent(
+              state.turn === 10 ? 'A giant stone golem awakening' : state.turn === 30 ? 'A dark sorcerer king' : 'A massive black dragon'
+            )}, dramatic fantasy boss?model=flux&width=1024&height=512&nologo=true")` }}
+          />
+          <motion.div initial={{ opacity: 0, y: 50 }} animate={{ opacity: 1, y: 0 }} className="max-w-3xl w-full bg-stone-900/90 backdrop-blur-md border-4 border-red-800 p-8 rounded-3xl shadow-[0_0_100px_rgba(220,38,38,0.3)] space-y-8 relative z-10">
+            <div className="flex justify-center">
+              <div className="w-24 h-24 bg-red-950 rounded-full flex items-center justify-center border-4 border-red-500 animate-pulse">
+                <Swords className="w-12 h-12 text-red-500" />
+              </div>
+            </div>
+            <div className="text-center space-y-2">
+              <h1 className="text-5xl font-black text-red-600 uppercase italic tracking-tighter">Warning: Boss Encounter</h1>
+              <p className="text-stone-400 font-bold tracking-widest uppercase text-sm">Turn {state.turn} - 決戦の刻</p>
+            </div>
+            
+            <div className="bg-stone-950/80 p-6 rounded-2xl border border-red-900/30">
+              <p className="text-xl text-stone-200 leading-relaxed font-serif italic text-center">
+                {state.turn === 10 ? '古の守護者が目覚め、街へと歩みを進めている……' : 
+                 state.turn === 30 ? '深淵の魔導王が軍勢を率い、街を影で覆おうとしている……' : 
+                 '終焉の災厄、黒龍がすべてを灰にするために飛来した……'}
+              </p>
+            </div>
+
+            <div className="flex justify-center">
+              <button onClick={fightBoss} className="px-16 py-5 bg-gradient-to-r from-red-800 to-red-600 hover:from-red-700 hover:to-red-500 text-white font-black text-3xl rounded-2xl shadow-[0_0_50px_rgba(220,38,38,0.5)] active:scale-95 transition-all border border-red-400/30 cursor-pointer">
+                総力を結集して戦う
+              </button>
+            </div>
+          </motion.div>
+        </motion.div>
+      ) : state.gameStatus === 'boss_victory' ? (
+        <motion.div key="boss-victory" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="min-h-screen bg-stone-950 flex items-center justify-center p-4">
+          <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="max-w-4xl w-full bg-stone-900 border-2 border-amber-500/50 rounded-3xl overflow-hidden shadow-2xl">
+            <div className="h-80 lg:h-[450px] relative">
+              <img src={state.lastBossImageUrl} alt="Victory" className="w-full h-full object-cover" />
+              <div className="absolute inset-0 bg-gradient-to-t from-stone-900 via-transparent to-transparent" />
+              <div className="absolute bottom-0 left-0 p-8">
+                <h2 className="text-6xl font-black text-amber-500 italic tracking-tighter uppercase italic">Victory!</h2>
+                <p className="text-stone-300 text-xl font-bold mt-2">厄災は去り、街に再び希望の光が差した。</p>
+              </div>
+            </div>
+            <div className="p-8 text-center bg-stone-900">
+              <button onClick={() => nextTurn()} className="px-12 py-4 bg-amber-600 hover:bg-amber-500 text-white font-black text-2xl rounded-xl transition-all active:scale-95 shadow-lg">
+                次のシーズンへ
               </button>
             </div>
           </motion.div>
