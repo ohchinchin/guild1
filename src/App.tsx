@@ -12,12 +12,14 @@ import { PolicyStaff } from './features/policy/PolicyStaff'
 import { DarkMarket } from './features/darkmarket/DarkMarket'
 import { Records } from './features/records/Records'
 import { Skills } from './features/skills/Skills'
+import { Workshop } from './features/workshop/Workshop'
+import { EventModal } from './components/EventModal'
 import { TurnSummary } from './components/TurnSummary'
 import { motion, AnimatePresence } from 'framer-motion'
 import confetti from 'canvas-confetti'
 import { 
   Coins, Users, Trophy, Ghost, ArrowRight, RefreshCcw, 
-  Map, Briefcase, Swords, Skull, ScrollText, Sparkles, HelpCircle, X
+  Map, Briefcase, Swords, Skull, ScrollText, Sparkles, HelpCircle, X, FlaskConical
 } from 'lucide-react'
 
 function App() {
@@ -45,6 +47,7 @@ function App() {
     { id: 'dashboard', label: 'ダッシュボード', icon: <Trophy className="w-4 h-4" /> },
     { id: 'board', label: '依頼掲示板', icon: <ArrowRight className="w-4 h-4" /> },
     { id: 'dungeons', label: '迷宮探索', icon: <Map className="w-4 h-4" /> },
+    { id: 'workshop', label: '錬成工廠', icon: <FlaskConical className="w-4 h-4" /> },
     { id: 'adventurers', label: '冒険者名簿', icon: <Users className="w-4 h-4" /> },
     { id: 'policy', label: '運営方針', icon: <Briefcase className="w-4 h-4" /> },
     { id: 'facilities', label: '施設拡張', icon: <RefreshCcw className="w-4 h-4" /> },
@@ -60,6 +63,7 @@ function App() {
       case 'dashboard': return <Dashboard />
       case 'board': return <Board />
       case 'dungeons': return <Dungeons />
+      case 'workshop': return <Workshop />
       case 'adventurers': return <Adventurers />
       case 'policy': return <PolicyStaff />
       case 'facilities': return <Facilities onHover={(id) => setSubId(id)} />
@@ -96,18 +100,18 @@ function App() {
           </section>
           <section className="space-y-2">
             <h4 className="text-amber-400 font-bold flex items-center gap-2">
-              <RefreshCcw className="w-4 h-4" /> 季節のサイクル
+              <FlaskConical className="w-4 h-4" /> 錬成と素材
             </h4>
             <p className="text-sm leading-relaxed">
-              ゲームは「夏季」と「冬季」の2つの季節で進行します。ターンを進めるごとに半年が経過し、収支の報告や新たな出来事が発生します。
+              迷宮探索で得られる素材を組み合わせ、「錬成工廠」で強力な秘宝を作ることができます。低ランクの迷宮にも重要な素材が眠っています。
             </p>
           </section>
           <section className="space-y-2">
             <h4 className="text-amber-400 font-bold flex items-center gap-2">
-              <ArrowRight className="w-4 h-4" /> 依頼と探索
+              <RefreshCcw className="w-4 h-4" /> 動的な世界
             </h4>
             <p className="text-sm leading-relaxed">
-              掲示板の「依頼」は短期間で報酬が得られます。「迷宮探索」は長期的なプロジェクトで、援軍を送ったり撤退させたりしながら深部を目指します。
+              ターンの終わりには、ライバルギルドの妨害や王国の勅命といった「劇的なイベント」が発生することがあります。あなたの選択が運命を左右します。
             </p>
           </section>
           <section className="space-y-2">
@@ -348,6 +352,9 @@ function App() {
 
           {/* Turn Summary Overlay */}
           {state.gameStatus === 'summary' && <TurnSummary />}
+          
+          {/* Event Modal Overlay */}
+          {state.gameStatus === 'event' && <EventModal />}
           
           {/* Header / Stats Bar */}
           <header className="bg-stone-950/90 backdrop-blur-md border-b border-stone-800 p-4 flex justify-between items-center shadow-2xl sticky top-0 z-[70]">

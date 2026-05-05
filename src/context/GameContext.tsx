@@ -1,43 +1,10 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import type { ReactNode } from 'react';
-import type { Adventurer, Quest, GameLog, Assistant, Dungeon, Rival, TurnReport, HallOfFame, MasterSkill, DarkMarketItem, Rank, Artifact, HistoryStats } from '../types';
+import type { GameLog, Dungeon, TurnReport, HallOfFame, MasterSkill, DarkMarketItem, Rank, Artifact, GameState, Policy, Season } from '../types';
 import { generateAdventurer, generateQuest, generateAssistant } from '../logic/generators';
 import { getRandomFlavor } from '../data/flavorText';
-
-type Policy = 'balanced' | 'aggressive' | 'economic' | 'diplomatic';
-type Season = 'Summer' | 'Winter';
-
-type GameState = {
-  turn: number;
-  season: Season;
-  budget: number;
-  fame: number;
-  notoriety: number;
-  guildName: string;
-  townFavor: number; // 0-100
-  policy: Policy;
-  adventurers: Adventurer[];
-  hallOfFame: HallOfFame[];
-  quests: Quest[];
-  dungeons: Dungeon[];
-  artifacts: Artifact[];
-  rivals: Rival[];
-  assistants: Assistant[];
-  hiredAssistants: Assistant[];
-  masterSkills: MasterSkill[];
-  darkMarketItems: DarkMarketItem[];
-  logs: GameLog[];
-  facilities: { dorm: number; tavern: number; training: number; };
-  shops: { smith: number; magic: number; item: number; };
-  gameStatus: 'start' | 'playing' | 'ended' | 'boss_battle' | 'summary';
-  lastReport: TurnReport | null;
-  currentFlavor: string;
-  ending: string | null;
-  endingAfterstory: string | null;
-  endingImages: string[];
-  stats: HistoryStats;
-  bossHealth?: number;
-};
+import { getRandomEvent } from '../logic/eventEngine';
+import { getDungeonMaterials, SYNTHESIS_RECIPES } from '../logic/workshop';
 
 type GameContextType = {
   state: GameState;
@@ -62,6 +29,8 @@ type GameContextType = {
   startGame: (loadSave: boolean) => void;
   resetGame: () => void;
   fightBoss: () => void;
+  handleEventChoice: (choiceIndex: number) => void;
+  synthesizeItem: (recipeId: string) => void;
 };
 
 const initialSkills: MasterSkill[] = [
@@ -145,6 +114,7 @@ const initialState: GameState = {
   quests: [],
   dungeons: initialDungeons,
   artifacts: [],
+  materials: {},
   rivals: [
     { id: 'r1', name: '赤獅子団', power: 300, relation: 50 },
     { id: 'r2', name: '銀の天秤', power: 500, relation: 40 },
@@ -157,6 +127,7 @@ const initialState: GameState = {
   facilities: { dorm: 1, tavern: 1, training: 1 },
   shops: { smith: 1, magic: 1, item: 1 },
   gameStatus: 'start',
+  activeEvent: null,
   lastReport: null,
   currentFlavor: "ギルドマスターとしての新しい生活が始まる。",
   ending: null,
@@ -180,7 +151,7 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
 
   // Auto Save effect
   useEffect(() => {
-    if (state.gameStatus === 'playing') {
+    if (state.gameStatus === 'playing' || state.gameStatus === 'event' || state.gameStatus === 'summary') {
       localStorage.setItem('guildMasterSave', JSON.stringify(state));
     }
   }, [state]);
@@ -485,6 +456,46 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
     });
   };
 
+  const handleEventChoice = (choiceIndex: number) => {
+    setState(prev => {
+      if (!prev.activeEvent) return prev;
+      const choice = prev.activeEvent.choices[choiceIndex];
+      const nextState = choice.effect(prev);
+      addLog(choice.resultMessage, prev.activeEvent.type === 'crisis' ? 'danger' : 'info');
+      return { ...nextState, gameStatus: 'summary', activeEvent: null };
+    });
+  };
+
+  const synthesizeItem = (recipeId: string) => {
+    setState(prev => {
+      const recipe = SYNTHESIS_RECIPES.find(r => r.id === recipeId);
+      if (!recipe || prev.fame < recipe.requiredFame) return prev;
+      
+      const newMaterials = { ...prev.materials };
+      for (const req of recipe.requiredMaterials) {
+        if ((newMaterials[req.materialId] || 0) < req.count) return prev;
+        newMaterials[req.materialId] -= req.count;
+      }
+      
+      const newArtifact: Artifact = {
+        id: recipe.rewardArtifactId,
+        name: recipe.name,
+        desc: recipe.desc,
+        rank: 'S',
+        effect: 'synthesis_reward',
+        imageUrl: `https://image.pollinations.ai/prompt/${encodeURIComponent(recipe.name + ', legendary artifact, glowing, high fantasy, 8k')}?model=flux&width=512&height=512&nologo=true`
+      };
+
+      addLog(`錬成成功: ${recipe.name} を手に入れた！`, 'success');
+      return {
+        ...prev,
+        materials: newMaterials,
+        artifacts: [...prev.artifacts, newArtifact],
+        stats: { ...prev.stats, artifactsFound: prev.stats.artifactsFound + 1 }
+      };
+    });
+  };
+
   const closeSummary = () => {
     setState(prev => ({ ...prev, gameStatus: 'playing' }));
   };
@@ -502,6 +513,7 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
       const newSeason: Season = prev.season === 'Summer' ? 'Winter' : 'Summer';
       const newAdventurers = [...prev.adventurers];
       const newDungeons = [...prev.dungeons];
+      const newMaterials = { ...prev.materials };
       let newStats = { ...prev.stats };
       
       const isMoneySkill = prev.masterSkills.find(s => s.id === 's2')?.unlocked;
@@ -685,6 +697,14 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
             d.progress += prog;
             report.dungeonProgress.push({ name: d.name, progress: prog });
             newLogs.unshift({ id: Math.random().toString(), turn: prev.turn, message: `迷宮「${d.name}」を探索中...`, type: 'info' });
+            
+            // --- Material Drop Chance per turn ---
+            if (Math.random() > 0.7) {
+              const mats = getDungeonMaterials(d.rank);
+              const drop = mats[Math.floor(Math.random() * mats.length)];
+              newMaterials[drop] = (newMaterials[drop] || 0) + 1;
+              newLogs.unshift({ id: Math.random().toString(), turn: prev.turn, message: `素材獲得: ${drop} を発見した。`, type: 'success' });
+            }
           } else {
             // Struggling Progress: even if power is low, you can make 20% progress (minimum 1)
             const prog = Math.max(1, Math.floor(totalPower / 50));
@@ -798,6 +818,9 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
       report.events.push(`${newSeason === 'Summer' ? '夏季' : '冬季'}が到来した。${seasonEvent}`);
       const flavor = getRandomFlavor('seasons', seasonKey);
 
+      // --- Dynamic Event Engine Trigger ---
+      const dynamicEvent = getRandomEvent(prev);
+
       // --- Immediate Bankruptcy Check ---
       if (newBudget < 0) {
         return { 
@@ -809,15 +832,8 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
           endingAfterstory: "拡大しすぎた組織と放漫な経営が仇となり、ついに金庫は底をついた。借金取りに追われ、あなたは夜逃げ同員で街を去った。冒険者たちは散り散りになり、ギルドの看板は雨風にさらされている。",
           endingImages: [`https://image.pollinations.ai/prompt/${encodeURIComponent('A lonely abandoned guild hall, broken windows, spider webs, dust, rainy day, cinematic, dark fantasy, 8k')}?model=flux&width=1024&height=512&nologo=true`],
           logs: newLogs.slice(0, 50),
-          stats: newStats
-        };
-      }
-
-      // Boss Event Check
-      if (newTurn === 10 || newTurn === 30 || newTurn === 48) {
-        return {
-          ...prev, turn: newTurn, season: newSeason, budget: newBudget, fame: newFame, notoriety: newNotoriety, townFavor: newTownFavor, quests: newQuests, adventurers: newAdventurers, dungeons: newDungeons, artifacts: newArtifacts, logs: newLogs.slice(0, 50),
-          gameStatus: 'boss_battle', lastReport: report, currentFlavor: flavor, stats: newStats
+          stats: newStats,
+          materials: newMaterials
         };
       }
 
@@ -863,18 +879,33 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
           images = [`https://image.pollinations.ai/prompt/${encodeURIComponent('A cozy guild tavern, adventurers drinking and laughing around a fireplace, evening, warm lighting, high fantasy, 8k')}?model=flux&width=1024&height=512&nologo=true`];
         }
 
-        return { ...prev, turn: 50, gameStatus: 'ended', ending, endingAfterstory: afterstory, endingImages: images, logs: newLogs.slice(0, 50), lastReport: report, artifacts: newArtifacts, stats: newStats };
+        return { ...prev, turn: 50, gameStatus: 'ended', ending, endingAfterstory: afterstory, endingImages: images, logs: newLogs.slice(0, 50), lastReport: report, artifacts: newArtifacts, stats: newStats, materials: newMaterials };
+      }
+
+      // Boss Event Check
+      if (newTurn === 10 || newTurn === 30 || newTurn === 48) {
+        return {
+          ...prev, turn: newTurn, season: newSeason, budget: newBudget, fame: newFame, notoriety: newNotoriety, townFavor: newTownFavor, quests: newQuests, adventurers: newAdventurers, dungeons: newDungeons, artifacts: newArtifacts, logs: newLogs.slice(0, 50),
+          gameStatus: 'boss_battle', lastReport: report, currentFlavor: flavor, stats: newStats, materials: newMaterials
+        };
+      }
+
+      if (dynamicEvent) {
+        return {
+          ...prev, turn: newTurn, season: newSeason, budget: newBudget, fame: newFame, notoriety: newNotoriety, townFavor: newTownFavor, quests: newQuests, adventurers: newAdventurers, dungeons: newDungeons, artifacts: newArtifacts, logs: newLogs.slice(0, 50),
+          gameStatus: 'event', activeEvent: dynamicEvent, lastReport: report, currentFlavor: flavor, stats: newStats, materials: newMaterials
+        };
       }
 
       return {
         ...prev, turn: newTurn, season: newSeason, budget: newBudget, fame: newFame, notoriety: newNotoriety, townFavor: newTownFavor, quests: newQuests, adventurers: newAdventurers, dungeons: newDungeons, artifacts: newArtifacts, logs: newLogs.slice(0, 50),
-        gameStatus: 'summary', lastReport: report, currentFlavor: flavor, assistants: currentAssistants, stats: newStats
+        gameStatus: 'summary', lastReport: report, currentFlavor: flavor, assistants: currentAssistants, stats: newStats, materials: newMaterials
       };
     });
   };
 
   return (
-    <GameContext.Provider value={{ state, nextTurn, closeSummary, updateFlavor, dispatchQuest, autoAssignQuest, dispatchDungeon, dispatchAllToDungeon, recallDungeon, upgradeFacility, upgradeShop, executeIntrigue, unlockSkill, buyDarkMarketItem, retireAdventurer, setPolicy, hireAssistant, dismissAssistant, addLog, startGame, resetGame, fightBoss }}>
+    <GameContext.Provider value={{ state, nextTurn, closeSummary, updateFlavor, dispatchQuest, autoAssignQuest, dispatchDungeon, dispatchAllToDungeon, recallDungeon, upgradeFacility, upgradeShop, executeIntrigue, unlockSkill, buyDarkMarketItem, retireAdventurer, setPolicy, hireAssistant, dismissAssistant, addLog, startGame, resetGame, fightBoss, handleEventChoice, synthesizeItem }}>
       {children}
     </GameContext.Provider>
   );

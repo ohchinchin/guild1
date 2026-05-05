@@ -1,5 +1,7 @@
 export type Rank = 'S' | 'A' | 'B' | 'C' | 'D' | 'E';
 export type ClassName = '戦士' | '魔術師' | '盗賊' | '僧侶';
+export type Policy = 'balanced' | 'aggressive' | 'economic' | 'diplomatic';
+export type Season = 'Summer' | 'Winter';
 
 export interface AdventurerSkill {
   name: string;
@@ -79,6 +81,36 @@ export interface Artifact {
   imageUrl?: string;
 }
 
+export interface Material {
+  id: string;
+  name: string;
+  desc: string;
+  rank: Rank;
+  imageUrl?: string;
+}
+
+export interface SynthesisRecipe {
+  id: string;
+  name: string;
+  desc: string;
+  requiredMaterials: { materialId: string, count: number }[];
+  rewardArtifactId: string;
+  requiredFame: number;
+}
+
+export interface DynamicEvent {
+  id: string;
+  title: string;
+  description: string;
+  imageUrl: string;
+  type: 'rival' | 'national' | 'lucky' | 'crisis';
+  choices: {
+    label: string;
+    effect: (state: any) => any;
+    resultMessage: string;
+  }[];
+}
+
 export interface Rival {
   id: string;
   name: string;
@@ -135,4 +167,38 @@ export interface DarkMarketItem {
   effect: string;
   purchased: boolean;
   imageUrl?: string;
+}
+
+export interface GameState {
+  turn: number;
+  season: Season;
+  budget: number;
+  fame: number;
+  notoriety: number;
+  guildName: string;
+  townFavor: number; // 0-100
+  policy: Policy;
+  adventurers: Adventurer[];
+  hallOfFame: HallOfFame[];
+  quests: Quest[];
+  dungeons: Dungeon[];
+  artifacts: Artifact[];
+  materials: Record<string, number>; // materialId -> count
+  rivals: Rival[];
+  assistants: Assistant[];
+  hiredAssistants: Assistant[];
+  masterSkills: MasterSkill[];
+  darkMarketItems: DarkMarketItem[];
+  logs: GameLog[];
+  facilities: { dorm: number; tavern: number; training: number; };
+  shops: { smith: number; magic: number; item: number; };
+  gameStatus: 'start' | 'playing' | 'ended' | 'boss_battle' | 'summary' | 'event';
+  activeEvent: DynamicEvent | null;
+  lastReport: TurnReport | null;
+  currentFlavor: string;
+  ending: string | null;
+  endingAfterstory: string | null;
+  endingImages: string[];
+  stats: HistoryStats;
+  bossHealth?: number;
 }
