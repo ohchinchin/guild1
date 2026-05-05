@@ -776,6 +776,21 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
       report.events.push(`${newSeason === 'Summer' ? '夏季' : '冬季'}が到来した。${seasonEvent}`);
       const flavor = getRandomFlavor('seasons', seasonKey);
 
+      // --- Immediate Bankruptcy Check ---
+      if (newBudget < 0) {
+        return { 
+          ...prev, 
+          turn: newTurn,
+          budget: newBudget,
+          gameStatus: 'ended', 
+          ending: "ギルド破産（ゲームオーバー）", 
+          endingAfterstory: "拡大しすぎた組織と放漫な経営が仇となり、ついに金庫は底をついた。借金取りに追われ、あなたは夜逃げ同員で街を去った。冒険者たちは散り散りになり、ギルドの看板は雨風にさらされている。",
+          endingImages: [`https://image.pollinations.ai/prompt/${encodeURIComponent('A lonely abandoned guild hall, broken windows, spider webs, dust, rainy day, cinematic, dark fantasy, 8k')}?model=flux&width=1024&height=512&nologo=true`],
+          logs: newLogs.slice(0, 50),
+          stats: newStats
+        };
+      }
+
       // Boss Event Check
       if (newTurn === 10 || newTurn === 30 || newTurn === 48) {
         return {
