@@ -14,6 +14,8 @@ import { Records } from './features/records/Records'
 import { Skills } from './features/skills/Skills'
 import { Workshop } from './features/workshop/Workshop'
 import { EventModal } from './components/EventModal'
+import { OpeningView } from './components/OpeningView'
+import { RankUpModal } from './components/RankUpModal'
 import { TurnSummary } from './components/TurnSummary'
 import { motion, AnimatePresence } from 'framer-motion'
 import confetti from 'canvas-confetti'
@@ -92,18 +94,18 @@ function App() {
         <div className="p-8 overflow-y-auto space-y-6 text-stone-300 font-sans">
           <section className="space-y-2">
             <h4 className="text-amber-400 font-bold flex items-center gap-2">
-              <Trophy className="w-4 h-4" /> ギルドマスターの使命
+              <Trophy className="w-4 h-4" /> ギルドランクと目標
             </h4>
             <p className="text-sm leading-relaxed">
-              あなたは新任のギルドマスターです。50ターンの間、冒険者を雇用し、依頼をこなし、施設を拡張して、大陸一のギルドを作り上げることが目的です。
+              ランクアップ試験をクリアすることで、ギルドランクが上昇し、新たな物語が展開します。ダッシュボードに表示される「現在の目標」を確認してください。
             </p>
           </section>
           <section className="space-y-2">
             <h4 className="text-amber-400 font-bold flex items-center gap-2">
-              <FlaskConical className="w-4 h-4" /> 錬成と素材
+              <FlaskConical className="w-4 h-4" /> 錬成と聖遺物
             </h4>
             <p className="text-sm leading-relaxed">
-              迷宮探索で得られる素材を組み合わせ、「錬成工廠」で強力な秘宝を作ることができます。低ランクの迷宮にも重要な素材が眠っています。
+              迷宮で得られる素材を集め、失われた「聖遺物」を再構築してください。4つの聖遺物を集めることが、真の伝説への鍵となります。
             </p>
           </section>
           <section className="space-y-2">
@@ -213,6 +215,8 @@ function App() {
           </motion.div>
           {showHowToPlay && <HowToPlayModal />}
         </motion.div>
+      ) : state.gameStatus === 'opening' ? (
+        <OpeningView />
       ) : state.gameStatus === 'boss_battle' ? (
         <motion.div key="boss-battle" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="min-h-screen bg-black flex items-center justify-center p-4">
           <div 
@@ -265,6 +269,8 @@ function App() {
             </div>
           </motion.div>
         </motion.div>
+      ) : state.gameStatus === 'rank_up' ? (
+        <RankUpModal />
       ) : state.gameStatus === 'ended' ? (
         <motion.div key="ending" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="min-h-screen bg-stone-950 flex items-center justify-center p-4 py-12">
           {(() => {
@@ -408,7 +414,7 @@ function App() {
               <div>
                 <h1 className="text-xl md:text-2xl font-black text-amber-500 tracking-tighter uppercase italic">Guild Master</h1>
                 <p className="text-xs text-stone-500 uppercase tracking-widest font-sans">
-                  {state.guildName} | 第 {Math.ceil(state.turn / 2)} 年 {state.season === 'Summer' ? '夏季' : '冬季'}
+                  {state.guildName} | RANK {state.guildRank} | 第 {Math.ceil(state.turn / 2)} 年 {state.season === 'Summer' ? '夏季' : '冬季'}
                 </p>
               </div>
             </div>

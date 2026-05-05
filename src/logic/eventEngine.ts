@@ -3,6 +3,7 @@ import type { DynamicEvent, GameState } from '../types';
 const generateImageUrl = (prompt: string) => {
   return `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt + ', dramatic dark fantasy, cinematic lighting, 8k, highly detailed')}?model=flux&width=1024&height=512&nologo=true&seed=${Math.floor(Math.random() * 1000000)}`;
 };
+
 export const getRandomEvent = (state: GameState): DynamicEvent | null => {
   const { turn, notoriety, rivals } = state;
 
@@ -15,9 +16,7 @@ export const getRandomEvent = (state: GameState): DynamicEvent | null => {
     return {
       id: 'rival_introduction',
       title: '宣戦布告：ライバルギルドの台頭',
-      description: `「${mainRival.name}」の長が直々にギルドを訪れた。
-      「この街に実力あるギルドは二つもいらねぇ……精々、看板を汚さねぇよう気をつけるんだな」
-      彼らは本格的にこちらの活動を妨害し始めるつもりのようだ。`,
+      description: `「${mainRival.name}」の長が直々にギルドを訪れた。\n「この街に実力あるギルドは二つもいらねぇ……精々、看板を汚さねぇよう気をつけるんだな」\n彼らは本格的にこちらの活動を妨害し始めるつもりのようだ。`,
       imageUrl: generateImageUrl(`An arrogant rival guild master in black armor laughing, dark guild hall background, menacing atmosphere, epic fantasy`),
       type: 'rival',
       choices: [
@@ -36,13 +35,10 @@ export const getRandomEvent = (state: GameState): DynamicEvent | null => {
   }
 
   const roll = Math.random();
-
-  // Normal events start after turn 6
+  
   if (roll < 0.15) {
     // Rival Guild Event
-...
-
-    const rival = state.rivals[Math.floor(Math.random() * state.rivals.length)];
+    const rival = rivals[Math.floor(Math.random() * rivals.length)];
     return {
       id: 'rival_sabotage',
       title: `ライバルギルド「${rival.name}」の妨害`,
@@ -87,7 +83,7 @@ export const getRandomEvent = (state: GameState): DynamicEvent | null => {
     };
   }
 
-  if (roll < 0.35 && state.notoriety > 50) {
+  if (roll < 0.35 && notoriety > 50) {
     // Crisis Event (High Notoriety)
     return {
       id: 'crisis_revolt',

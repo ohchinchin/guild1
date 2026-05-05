@@ -4,7 +4,8 @@ import type { GameLog, Dungeon, TurnReport, HallOfFame, MasterSkill, DarkMarketI
 import { generateAdventurer, generateQuest, generateAssistant } from '../logic/generators';
 import { getRandomFlavor } from '../data/flavorText';
 import { getRandomEvent } from '../logic/eventEngine';
-import { getDungeonMaterials, SYNTHESIS_RECIPES } from '../logic/workshop';
+import { getDungeonMaterials, SYNTHESIS_RECIPES, MATERIALS } from '../logic/workshop';
+import { GUILD_OBJECTIVES } from '../logic/objectives';
 
 type GameContextType = {
   state: GameState;
@@ -31,6 +32,8 @@ type GameContextType = {
   fightBoss: () => void;
   handleEventChoice: (choiceIndex: number) => void;
   synthesizeItem: (recipeId: string) => void;
+  closeOpening: () => void;
+  closeRankUp: () => void;
 };
 
 const initialSkills: MasterSkill[] = [
@@ -107,6 +110,7 @@ const initialState: GameState = {
   fame: 15,
   notoriety: 0,
   guildName: "深淵なる鴉",
+  guildRank: 'E',
   townFavor: 50,
   policy: 'balanced',
   adventurers: [],
@@ -141,7 +145,8 @@ const initialState: GameState = {
     maxAdventurerName: '',
     artifactsFound: 0,
     bossDefeatedCount: 0
-  }
+  },
+  storyProgress: 0
 };
 
 const GameContext = createContext<GameContextType | undefined>(undefined);
@@ -151,7 +156,7 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
 
   // Auto Save effect
   useEffect(() => {
-    if (state.gameStatus === 'playing' || state.gameStatus === 'event' || state.gameStatus === 'summary') {
+    if (state.gameStatus === 'playing' || state.gameStatus === 'event' || state.gameStatus === 'summary' || state.gameStatus === 'opening' || state.gameStatus === 'rank_up') {
       localStorage.setItem('guildMasterSave', JSON.stringify(state));
     }
   }, [state]);
@@ -179,7 +184,7 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
 
     setState(() => ({
       ...initialState,
-      gameStatus: 'playing',
+      gameStatus: 'opening',
       adventurers: [adv1, adv2, adv3],
       assistants: initialCandidates,
       quests: [
@@ -190,6 +195,9 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
       logs: [{ id: 'init', turn: 1, message: 'ギルドマスターとして着任した。50ターンの試練が始まる。', type: 'info' }]
     }));
   };
+
+  const closeOpening = () => setState(prev => ({ ...prev, gameStatus: 'playing' }));
+  const closeRankUp = () => setState(prev => ({ ...prev, gameStatus: 'playing' }));
 
   const addLog = (message: string, type: GameLog['type'] = 'info') => {
     setState(prev => ({
@@ -259,8 +267,6 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
       } else if (item.effect === 'fame_boost') {
         nextState.fame += 50;
         nextState.notoriety += 10;
-      } else if (item.effect === 'intrigue_boost') {
-        // Handled in executeIntrigue
       }
 
       return nextState;
@@ -283,7 +289,6 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
           const powerBoost = Math.floor(retired.power * 0.2);
           successor.power += powerBoost;
           
-          // Inherit a skill if retiree had any and successor has room (simplified)
           if (retired.skills.length > 0) {
             const inheritedSkill = { ...retired.skills[Math.floor(Math.random() * retired.skills.length)], revealed: true };
             successor.skills = [...successor.skills, inheritedSkill];
@@ -572,6 +577,17 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
       const hasUpkeepDown = hiredBuffs.includes('upkeep_down');
       const hasDiscoveryUp = hiredBuffs.includes('discovery_up');
       const hasRecruitUp = hiredBuffs.includes('recruit_up');
+      const hasInjuryDown = hiredBuffs.includes('injury_down');
+
+      // --- Injury Recovery ---
+      newAdventurers.forEach((a, i) => {
+        if (a.status === '負傷') {
+          if (Math.random() < (hasInjuryDown ? 0.8 : 0.5)) {
+            newAdventurers[i].status = '待機中';
+            newLogs.unshift({ id: Math.random().toString(), turn: prev.turn, message: `${a.name} が怪我から復帰した。`, type: 'success' });
+          }
+        }
+      });
 
       // Assistant Rotation (Every 5 turns)
       let currentAssistants = [...prev.assistants];
@@ -597,7 +613,6 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
                   if (a1.id === a2.id) return;
                   const currentLevel = currentBonds[a2.id] || 0;
                   
-                  // Compatibility Bonus
                   let bonus = 5;
                   const p1 = a1.personalityType;
                   const p2 = a2.personalityType;
@@ -611,10 +626,8 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
               });
             }
 
-            // Power calculation with bonds
             let totalPower = assigned.reduce((sum, a) => sum + a.power, 0);
             
-            // Add Bond Bonus: (Bond Level / 100) * 10% of individual power
             assigned.forEach(a1 => {
               assigned.forEach(a2 => {
                 if (a1.id === a2.id) return;
@@ -633,7 +646,6 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
               newAdventurers[advIndex].status = '待機中';
               if (isSuccess) {
                 const growthBonus = (isGrowthSkill ? 1.2 : 1) * (hasBaldo ? 1.5 : 1);
-                // Increased base growth (from 2-6 to 5-10)
                 const growth = (Math.floor(Math.random() * 6) + 5) * prev.facilities.training * growthBonus;
                 newAdventurers[advIndex].power += Math.floor(growth);
               }
@@ -664,7 +676,6 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
               report.failedQuests.push({ title: q.title });
               newLogs.unshift({ id: Math.random().toString(), turn: prev.turn, message: `失敗: ${q.title}`, type: 'danger' });
               
-              // --- Injury Risk on Failure ---
               assigned.forEach(a => {
                 const injuryChance = hasInjuryDown ? 0.1 : 0.3;
                 if (Math.random() < injuryChance) {
@@ -688,7 +699,6 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
         if (d.assignedAdventurers.length > 0) {
           const assigned = newAdventurers.filter(a => d.assignedAdventurers.includes(a.id));
           
-          // --- Bond Growth (Dungeons) ---
           if (assigned.length > 1) {
             assigned.forEach(a1 => {
               const advIndex = newAdventurers.findIndex(na => na.id === a1.id);
@@ -696,7 +706,7 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
               assigned.forEach(a2 => {
                 if (a1.id === a2.id) return;
                 const currentLevel = currentBonds[a2.id] || 0;
-                let bonus = 2; // Dungeons give less per turn but are continuous
+                let bonus = 2;
                 const p1 = a1.personalityType;
                 const p2 = a2.personalityType;
                 if ((p1 === '熱血' && p2 === '冷静') || (p1 === '冷静' && p2 === '熱血')) bonus += 1;
@@ -708,7 +718,6 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
 
           let totalPower = assigned.reduce((sum, a) => sum + a.power, 0);
           
-          // Add Bond Bonus
           assigned.forEach(a1 => {
             assigned.forEach(a2 => {
               if (a1.id === a2.id) return;
@@ -723,20 +732,18 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
             report.dungeonProgress.push({ name: d.name, progress: prog });
             newLogs.unshift({ id: Math.random().toString(), turn: prev.turn, message: `迷宮「${d.name}」を探索中...`, type: 'info' });
             
-            // --- Material Drop Chance per turn ---
             if (Math.random() > 0.7) {
               const mats = getDungeonMaterials(d.rank);
               const dropId = mats[Math.floor(Math.random() * mats.length)];
-              const materialName = MATERIALS.find(m => m.id === dropId)?.name || dropId;
+              const matObj = MATERIALS.find((m: any) => m.id === dropId);
+              const materialName = matObj ? matObj.name : dropId;
               newMaterials[dropId] = (newMaterials[dropId] || 0) + 1;
               newLogs.unshift({ id: Math.random().toString(), turn: prev.turn, message: `素材獲得: ${materialName} を発見した。`, type: 'success' });
             }
           } else {
-            // Struggling Progress: even if power is low, you can make 20% progress (minimum 1)
             const prog = Math.max(1, Math.floor(totalPower / 50));
             d.progress += prog;
             report.dungeonProgress.push({ name: d.name, progress: prog });
-            newLogs.unshift({ id: Math.random().toString(), turn: prev.turn, message: `迷宮「${d.name}」の探索は難航しているが、着実に前進している。`, type: 'warning' });
           }
 
           if (d.progress >= d.maxProgress) {
@@ -809,106 +816,53 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
       }
 
       while (newQuests.filter(q => q.status === '未受注').length < (prev.townFavor > 70 ? 4 : 3)) {
-        // Average power for quest scaling
-        const avgPower = newAdventurers.length > 0 
-          ? newAdventurers.reduce((sum, a) => sum + a.power, 0) / newAdventurers.length 
-          : 50;
+        const avgPower = newAdventurers.length > 0 ? newAdventurers.reduce((sum, a) => sum + a.power, 0) / newAdventurers.length : 50;
         newQuests.push(generateQuest(newTurn, newFame, newNotoriety, newTownFavor, avgPower));
       }
 
-      // Update Season Flavor
-      const seasonKey = newSeason === 'Summer' ? 'summer' : 'winter';
-      const seasonEvent = getRandomFlavor('seasons', seasonKey);
-      
-      // --- Weather / Global Event System ---
-      const roll = Math.random();
-      if (newSeason === 'Summer') {
-        if (roll > 0.8) {
-          report.events.push("【豊作祭】街がお祭りムードに包まれている！ 依頼の報酬金が1.5倍になった。");
-          newBudget += 1000;
-          newStats.totalGoldEarned += 1000;
-        } else if (roll > 0.6) {
-          report.events.push("【大干魃】厳しい暑さが続く。 冒険者の維持費が増加した。");
-          newBudget -= 500;
-        }
-      } else {
-        if (roll > 0.8) {
-          report.events.push("【大寒波】猛吹雪により探索が困難に。 施設維持費が増加した。");
-          newBudget -= 1000;
-        } else if (roll > 0.6) {
-          report.events.push("【聖夜の奇跡】冬の静かな夜、ギルドに幸運が舞い込む。 名声が上昇した。");
-          newFame += 10;
-        }
+      report.events.push(`${newSeason === 'Summer' ? '夏季' : '冬季'}が到来した。${getRandomFlavor('seasons', newSeason === 'Summer' ? 'summer' : 'winter')}`);
+      const flavor = getRandomFlavor('seasons', newSeason === 'Summer' ? 'summer' : 'winter');
+
+      // --- Rank Up Check ---
+      const objective = GUILD_OBJECTIVES.find(o => o.rank === prev.guildRank);
+      let isRankUp = false;
+      if (objective) {
+        const hasBudget = newBudget >= objective.requiredBudget;
+        const hasFame = newFame >= objective.requiredFame;
+        const hasMaterials = (objective.requiredMaterials || []).every(m => (newMaterials[m.materialId] || 0) >= m.count);
+        const hasArtifacts = (objective.requiredArtifacts || []).every(aid => newArtifacts.some(art => art.id === aid));
+        if (hasBudget && hasFame && hasMaterials && hasArtifacts) isRankUp = true;
       }
 
-      report.events.push(`${newSeason === 'Summer' ? '夏季' : '冬季'}が到来した。${seasonEvent}`);
-      const flavor = getRandomFlavor('seasons', seasonKey);
-
       // --- Dynamic Event Engine Trigger ---
-      const dynamicEvent = getRandomEvent(prev);
+      const dynamicEvent = getRandomEvent({ ...prev, turn: newTurn });
 
-      // --- Immediate Bankruptcy Check ---
       if (newBudget < 0) {
         return { 
-          ...prev, 
-          turn: newTurn,
-          budget: newBudget,
-          gameStatus: 'ended', 
-          ending: "ギルド破産（ゲームオーバー）", 
+          ...prev, turn: newTurn, budget: newBudget, gameStatus: 'ended', ending: "ギルド破産（ゲームオーバー）", 
           endingAfterstory: "拡大しすぎた組織と放漫な経営が仇となり、ついに金庫は底をついた。借金取りに追われ、あなたは夜逃げ同員で街を去った。冒険者たちは散り散りになり、ギルドの看板は雨風にさらされている。",
-          endingImages: [`https://image.pollinations.ai/prompt/${encodeURIComponent('A lonely abandoned guild hall, broken windows, spider webs, dust, rainy day, cinematic, dark fantasy, 8k')}?model=flux&width=1024&height=512&nologo=true`],
-          logs: newLogs.slice(0, 50),
-          stats: newStats,
-          materials: newMaterials
+          endingImages: [`https://image.pollinations.ai/prompt/${encodeURIComponent('A lonely abandoned guild hall, cinematic, 8k')}?model=flux&width=1024&height=512&nologo=true`],
+          logs: newLogs.slice(0, 50), stats: newStats, materials: newMaterials
         };
       }
 
-      // Final Ending Check
+      if (isRankUp) {
+        const nextRankMap: Record<Rank, Rank> = { 'E': 'D', 'D': 'C', 'C': 'B', 'B': 'A', 'A': 'S', 'S': 'S' };
+        const newRank = nextRankMap[prev.guildRank];
+        newLogs.unshift({ id: Math.random().toString(), turn: prev.turn, message: `【ギルドランク昇格】ランク ${newRank} に到達しました！`, type: 'success' });
+        return {
+          ...prev, turn: newTurn, season: newSeason, budget: newBudget, fame: newFame, notoriety: newNotoriety, townFavor: newTownFavor, quests: newQuests, adventurers: newAdventurers, dungeons: newDungeons, artifacts: newArtifacts, logs: newLogs.slice(0, 50),
+          gameStatus: 'rank_up', guildRank: newRank, lastReport: report, currentFlavor: flavor, stats: newStats, materials: newMaterials, storyProgress: prev.storyProgress + 1
+        };
+      }
+
       if (newTurn > 50) {
         let ending = "辺境の古参ギルド";
-        let afterstory = "あなたのギルドは、歴史の荒波を乗り越え、一つの時代を築き上げた。大きな飛躍はなかったかもしれないが、着実に歩んだその足跡は、街の人々の記憶に刻まれている。";
-        let images: string[] = [];
-
-        if (newBudget < 0) {
-          ending = "ギルド破産（ゲームオーバー）";
-          afterstory = "拡大しすぎた組織と放漫な経営が仇となり、ついに金庫は底をついた。借金取りに追われ、あなたは夜逃げ同然で街を去った。冒険者たちは散り散りになり、ギルドの看板は雨風にさらされている。";
-          images = [`https://image.pollinations.ai/prompt/${encodeURIComponent('A lonely abandoned guild hall, broken windows, spider webs, dust, rainy day, cinematic, dark fantasy, 8k')}?model=flux&width=1024&height=512&nologo=true`];
-        } else if (newBudget >= 100000) {
-          ending = "巨大複合商会（経済的勝利）";
-          afterstory = "あなたのギルドはもはや単なる冒険者の集まりではない。大陸中の物流を支配する巨大な商会へと変貌を遂げた。黄金で装飾されたギルド本部は街の誇りとなり、あなたの名前は富の象徴として語り継がれるだろう。";
-          images = [
-            `https://image.pollinations.ai/prompt/${encodeURIComponent('A grand guild palace made of gold and white marble, bustling merchant market in front, wealth, sunshine, cinematic, 8k')}?model=flux&width=1024&height=512&nologo=true`,
-            `https://image.pollinations.ai/prompt/${encodeURIComponent('A wealthy guild master sitting on a throne of coins and artifacts, luxury, high fantasy, 8k')}?model=flux&width=512&height=512&nologo=true`
-          ];
-        } else if (newFame >= 200) {
-          ending = "伝説のギルド（大成功）";
-          afterstory = "数々の偉業を成し遂げたあなたのギルドは、吟遊詩人によって語り継がれる伝説となった。最強の冒険者たちが集い、正義と勇気の象徴として大陸全土にその名を轟かせている。あなたの物語は、永遠に終わることはない。";
-          images = [
-            `https://image.pollinations.ai/prompt/${encodeURIComponent('A group of heroic adventurers standing on a mountain peak, sunset, epic scenery, high fantasy, cinematic, 8k')}?model=flux&width=1024&height=512&nologo=true`,
-            `https://image.pollinations.ai/prompt/${encodeURIComponent('A grand hall filled with statues of legendary heroes, magical lights, epic atmosphere, 8k')}?model=flux&width=512&height=512&nologo=true`
-          ];
-        } else if (newNotoriety >= 100) {
-          ending = "暗黒街の支配者（裏社会勝利）";
-          afterstory = "表向きはギルドだが、その実態は大陸の影を支配する巨大な闇組織だ。政治家も王侯貴族も、あなたの意向を無視することはできない。闇市場、暗殺、裏工作……世界はあなたの手のひらの上で転がされている。";
-          images = [
-            `https://image.pollinations.ai/prompt/${encodeURIComponent('A dark secret chamber, hooded figures, shadows, mysterious glowing symbols, dark fantasy, cinematic, 8k')}?model=flux&width=1024&height=512&nologo=true`,
-            `https://image.pollinations.ai/prompt/${encodeURIComponent('An intimidating figure in black armor looking over a dark city at night, red moon, 8k')}?model=flux&width=512&height=512&nologo=true`
-          ];
-        } else if (newStats.bossDefeatedCount >= 3) {
-          ending = "英雄の守護者（英雄的勝利）";
-          afterstory = "三度の大きな厄災から街を救ったあなたは、この国の守護聖人として崇められている。ギルドの冒険者たちは皆、人々を救う英雄として子供たちの憧れの的だ。平和な日々が続く中、あなたの功績は歴史書に黄金の文字で刻まれた。";
-          images = [
-            `https://image.pollinations.ai/prompt/${encodeURIComponent('A peaceful city festival, people cheering for heroes, blue sky, flower petals falling, cinematic, 8k')}?model=flux&width=1024&height=512&nologo=true`,
-            `https://image.pollinations.ai/prompt/${encodeURIComponent('A heroic knight and a mage being awarded medals by the king, grand ceremony, 8k')}?model=flux&width=512&height=512&nologo=true`
-          ];
-        } else {
-          images = [`https://image.pollinations.ai/prompt/${encodeURIComponent('A cozy guild tavern, adventurers drinking and laughing around a fireplace, evening, warm lighting, high fantasy, 8k')}?model=flux&width=1024&height=512&nologo=true`];
-        }
-
+        let afterstory = "あなたのギルドは、歴史の荒波を乗り越え、一つの時代を築き上げた。";
+        let images: string[] = [`https://image.pollinations.ai/prompt/${encodeURIComponent('A cozy guild tavern, 8k')}?model=flux&width=1024&height=512&nologo=true`];
         return { ...prev, turn: 50, gameStatus: 'ended', ending, endingAfterstory: afterstory, endingImages: images, logs: newLogs.slice(0, 50), lastReport: report, artifacts: newArtifacts, stats: newStats, materials: newMaterials };
       }
 
-      // Boss Event Check
       if (newTurn === 10 || newTurn === 30 || newTurn === 48) {
         return {
           ...prev, turn: newTurn, season: newSeason, budget: newBudget, fame: newFame, notoriety: newNotoriety, townFavor: newTownFavor, quests: newQuests, adventurers: newAdventurers, dungeons: newDungeons, artifacts: newArtifacts, logs: newLogs.slice(0, 50),
@@ -931,7 +885,7 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
   };
 
   return (
-    <GameContext.Provider value={{ state, nextTurn, closeSummary, updateFlavor, dispatchQuest, autoAssignQuest, dispatchDungeon, dispatchAllToDungeon, recallDungeon, upgradeFacility, upgradeShop, executeIntrigue, unlockSkill, buyDarkMarketItem, retireAdventurer, setPolicy, hireAssistant, dismissAssistant, addLog, startGame, resetGame, fightBoss, handleEventChoice, synthesizeItem }}>
+    <GameContext.Provider value={{ state, nextTurn, closeSummary, updateFlavor, dispatchQuest, autoAssignQuest, dispatchDungeon, dispatchAllToDungeon, recallDungeon, upgradeFacility, upgradeShop, executeIntrigue, unlockSkill, buyDarkMarketItem, retireAdventurer, setPolicy, hireAssistant, dismissAssistant, addLog, startGame, resetGame, fightBoss, handleEventChoice, synthesizeItem, closeOpening, closeRankUp }}>
       {children}
     </GameContext.Provider>
   );

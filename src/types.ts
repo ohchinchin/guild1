@@ -169,6 +169,19 @@ export interface DarkMarketItem {
   imageUrl?: string;
 }
 
+export interface Objective {
+  id: string;
+  rank: Rank;
+  title: string;
+  description: string;
+  requiredFame: number;
+  requiredBudget: number;
+  requiredMaterials?: { materialId: string, count: number }[];
+  requiredArtifacts?: string[];
+  rewardText: string;
+  storySnippet: string;
+}
+
 export interface GameState {
   turn: number;
   season: Season;
@@ -176,6 +189,7 @@ export interface GameState {
   fame: number;
   notoriety: number;
   guildName: string;
+  guildRank: Rank;
   townFavor: number; // 0-100
   policy: Policy;
   adventurers: Adventurer[];
@@ -192,7 +206,7 @@ export interface GameState {
   logs: GameLog[];
   facilities: { dorm: number; tavern: number; training: number; };
   shops: { smith: number; magic: number; item: number; };
-  gameStatus: 'start' | 'playing' | 'ended' | 'boss_battle' | 'boss_victory' | 'summary' | 'event';
+  gameStatus: 'start' | 'opening' | 'playing' | 'ended' | 'boss_battle' | 'boss_victory' | 'summary' | 'event' | 'rank_up';
   activeEvent: null | DynamicEvent;
   lastBossImageUrl?: string;
   lastReport: TurnReport | null;
@@ -201,5 +215,6 @@ export interface GameState {
   endingAfterstory: string | null;
   endingImages: string[];
   stats: HistoryStats;
+  storyProgress: number; // 0 to 4 (relics collected)
   bossHealth?: number;
 }
