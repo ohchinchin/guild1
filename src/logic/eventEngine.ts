@@ -3,12 +3,45 @@ import type { DynamicEvent, GameState } from '../types';
 const generateImageUrl = (prompt: string) => {
   return `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt + ', dramatic dark fantasy, cinematic lighting, 8k, highly detailed')}?model=flux&width=1024&height=512&nologo=true&seed=${Math.floor(Math.random() * 1000000)}`;
 };
-
 export const getRandomEvent = (state: GameState): DynamicEvent | null => {
+  const { turn, notoriety, rivals } = state;
+
+  // No events for the first 5 turns (Preparation Period)
+  if (turn <= 5) return null;
+
+  // Turn 6: Dramatic Introduction of Rivals
+  if (turn === 6) {
+    const mainRival = rivals[0];
+    return {
+      id: 'rival_introduction',
+      title: '宣戦布告：ライバルギルドの台頭',
+      description: `「${mainRival.name}」の長が直々にギルドを訪れた。
+      「この街に実力あるギルドは二つもいらねぇ……精々、看板を汚さねぇよう気をつけるんだな」
+      彼らは本格的にこちらの活動を妨害し始めるつもりのようだ。`,
+      imageUrl: generateImageUrl(`An arrogant rival guild master in black armor laughing, dark guild hall background, menacing atmosphere, epic fantasy`),
+      type: 'rival',
+      choices: [
+        {
+          label: '「受けて立とう」と宣言する（名声+10）',
+          effect: (s: any) => ({ ...s, fame: s.fame + 10 }),
+          resultMessage: 'あなたの毅然とした態度に、ギルドの結束が強まった。'
+        },
+        {
+          label: '沈黙を守る（名声-5、悪名-5）',
+          effect: (s: any) => ({ ...s, fame: Math.max(0, s.fame - 5), notoriety: Math.max(0, s.notoriety - 5) }),
+          resultMessage: 'あなたは相手を無視することを選んだ。周囲は嵐の前の静けさを感じている。'
+        }
+      ]
+    };
+  }
+
   const roll = Math.random();
-  
+
+  // Normal events start after turn 6
   if (roll < 0.15) {
     // Rival Guild Event
+...
+
     const rival = state.rivals[Math.floor(Math.random() * state.rivals.length)];
     return {
       id: 'rival_sabotage',
