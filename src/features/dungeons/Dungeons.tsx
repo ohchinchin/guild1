@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import { Map, Users, Shield, ArrowRight, XCircle, PlusCircle, RefreshCcw } from 'lucide-react';
 
 export const Dungeons = () => {
-  const { state, dispatchDungeon, recallDungeon, addLog } = useGame();
+  const { state, dispatchDungeon, dispatchAllToDungeon, recallDungeon, addLog } = useGame();
   const availableDungeons = state.dungeons.filter(d => d.isDiscovered);
   const standbyAdventurers = state.adventurers.filter(a => a.status === '待機中');
 
@@ -158,15 +158,27 @@ export const Dungeons = () => {
                         </div>
                       )}
                     </div>
-                    <div className="mt-auto flex gap-3">
+                    <div className="mt-auto flex flex-col gap-3">
                       <button 
-                        onClick={handleExecute}
-                        disabled={selectedAdvIds.length === 0}
-                        className="flex-1 py-3 bg-amber-700 hover:bg-amber-600 disabled:opacity-30 text-white font-bold rounded-xl transition-all flex items-center justify-center gap-2"
+                        onClick={() => {
+                          dispatchAllToDungeon(dungeon.id);
+                          setSelectedDungeonId(null);
+                        }}
+                        disabled={standbyAdventurers.length === 0}
+                        className="w-full py-3 bg-blue-700 hover:bg-blue-600 disabled:opacity-30 text-white font-black rounded-xl transition-all flex items-center justify-center gap-2 shadow-lg border border-blue-400/30"
                       >
-                        {isReinforcing ? '合流させる' : '派遣を開始'} <ArrowRight className="w-4 h-4" />
+                        <Users className="w-4 h-4" /> 待機中の全員を派遣
                       </button>
-                      <button onClick={() => setSelectedDungeonId(null)} className="px-4 py-3 bg-stone-800 text-stone-400 rounded-xl hover:bg-stone-700">止める</button>
+                      <div className="flex gap-3">
+                        <button 
+                          onClick={handleExecute}
+                          disabled={selectedAdvIds.length === 0}
+                          className="flex-1 py-3 bg-amber-700 hover:bg-amber-600 disabled:opacity-30 text-white font-bold rounded-xl transition-all flex items-center justify-center gap-2"
+                        >
+                          {isReinforcing ? '合流させる' : '選択して派遣'} <ArrowRight className="w-4 h-4" />
+                        </button>
+                        <button onClick={() => setSelectedDungeonId(null)} className="px-4 py-3 bg-stone-800 text-stone-400 rounded-xl hover:bg-stone-700">止める</button>
+                      </div>
                     </div>
                   </div>
                 ) : !isExploring ? (

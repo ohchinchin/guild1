@@ -71,7 +71,7 @@ const CLASS_SKILLS: Record<ClassName, { name: string, desc: string }[]> = {
   ]
 };
 
-export const generateAdventurer = (forcedRank?: Rank, existingNames: string[] = [], turn: number = 1): Adventurer => {
+export const generateAdventurer = (forcedRank?: Rank, existingNames: string[] = [], fame: number = 0, townFavor: number = 50): Adventurer => {
   const isMale = Math.random() > 0.5;
   const firstNames = isMale ? MALE_FIRST_NAMES : FEMALE_FIRST_NAMES;
   
@@ -84,15 +84,17 @@ export const generateAdventurer = (forcedRank?: Rank, existingNames: string[] = 
 
   const cls = CLASSES[Math.floor(Math.random() * CLASSES.length)];
   
-  // Weights for rank generation (E is most common, S is rare)
-  // As the game progresses (turn increases), higher ranks become slightly more common
-  const rankBonus = Math.floor(turn / 15);
-  const rank = forcedRank || RANKS[Math.min(5, Math.floor(Math.random() * 3) + Math.floor(Math.random() * 4) + rankBonus)];
+  // Rank Generation: influenced by Town Favor (Development level)
+  // Higher Town Favor increases the chance of finding higher rank adventurers
+  const developmentBonus = Math.floor(townFavor / 20); // 0 to 5 bonus
+  const rankRoll = Math.floor(Math.random() * 4) + Math.floor(Math.random() * 4) + developmentBonus;
+  const rank = forcedRank || RANKS[Math.min(5, rankRoll)];
   
-  // Base power scales with turn to keep new recruits relevant
-  const scalingFactor = 1 + (turn * 0.04); 
+  // Power Scaling: influenced by Guild Fame (Attraction power)
+  // Higher Fame attracts more experienced individuals of that rank
+  const fameBonus = 1 + (fame / 1000); // Up to +50% at 500 fame, etc.
   const basePower = { 'E': 10, 'D': 30, 'C': 80, 'B': 200, 'A': 500, 'S': 1200 }[rank];
-  const power = Math.floor((basePower + Math.floor(Math.random() * (basePower * 0.2))) * scalingFactor);
+  const power = Math.floor((basePower + Math.floor(Math.random() * (basePower * 0.2))) * fameBonus);
 
   // Placeholder image path based on class, gender and rank
   const classKey = cls === '戦士' ? 'warrior' : cls === '魔術師' ? 'mage' : cls === '盗賊' ? 'thief' : 'cleric';

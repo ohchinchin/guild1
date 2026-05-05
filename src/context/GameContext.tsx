@@ -47,6 +47,7 @@ type GameContextType = {
   dispatchQuest: (questId: string, adventurerIds: string[]) => void;
   autoAssignQuest: (questId: string) => void;
   dispatchDungeon: (dungeonId: string, adventurerIds: string[]) => void;
+  dispatchAllToDungeon: (dungeonId: string) => void;
   recallDungeon: (dungeonId: string) => void;
   upgradeFacility: (id: keyof GameState['facilities'], cost: number) => void;
   upgradeShop: (id: keyof GameState['shops'], cost: number) => void;
@@ -424,6 +425,18 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
       return { ...prev, dungeons: newDungeons, adventurers: newAdv };
     });
     addLog(`迷宮探索に${adventurerIds.length}名を向かわせた。`, 'info');
+  };
+
+  const dispatchAllToDungeon = (dungeonId: string) => {
+    setState(prev => {
+      const standbyIds = prev.adventurers.filter(a => a.status === '待機中').map(a => a.id);
+      if (standbyIds.length === 0) return prev;
+      
+      const newDungeons = prev.dungeons.map(d => d.id === dungeonId ? { ...d, assignedAdventurers: [...d.assignedAdventurers, ...standbyIds] } : d);
+      const newAdv = prev.adventurers.map(a => standbyIds.includes(a.id) ? { ...a, status: '任務中' as const } : a);
+      return { ...prev, dungeons: newDungeons, adventurers: newAdv };
+    });
+    addLog(`迷宮に待機中の全メンバーを派遣した。`, 'info');
   };
 
   const recallDungeon = (dungeonId: string) => {
@@ -861,7 +874,7 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
   };
 
   return (
-    <GameContext.Provider value={{ state, nextTurn, closeSummary, updateFlavor, dispatchQuest, autoAssignQuest, dispatchDungeon, recallDungeon, upgradeFacility, upgradeShop, executeIntrigue, unlockSkill, buyDarkMarketItem, retireAdventurer, setPolicy, hireAssistant, dismissAssistant, addLog, startGame, resetGame, fightBoss }}>
+    <GameContext.Provider value={{ state, nextTurn, closeSummary, updateFlavor, dispatchQuest, autoAssignQuest, dispatchDungeon, dispatchAllToDungeon, recallDungeon, upgradeFacility, upgradeShop, executeIntrigue, unlockSkill, buyDarkMarketItem, retireAdventurer, setPolicy, hireAssistant, dismissAssistant, addLog, startGame, resetGame, fightBoss }}>
       {children}
     </GameContext.Provider>
   );
